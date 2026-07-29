@@ -8,10 +8,12 @@ package com.wavlin.music.ui.screens.library
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -46,18 +49,24 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastForEachReversed
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -86,6 +95,7 @@ import com.wavlin.music.ui.component.LibrarySearchHeader
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.SongListItem
 import com.wavlin.music.ui.component.SortHeader
+import com.wavlin.music.ui.menu.SelectionSongMenu
 import com.wavlin.music.ui.menu.SongMenu
 import com.wavlin.music.ui.utils.isScrollingUp
 import com.wavlin.music.utils.rememberEnumPreference
@@ -115,6 +125,21 @@ fun LibrarySongsScreen(
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+
+    var inSelectMode by rememberSaveable { mutableStateOf(false) }
+    val selection: SnapshotStateList<String> =
+        rememberSaveable(
+            saver =
+                listSaver(
+                    save = { it.toList() },
+                    restore = { it.toMutableStateList() },
+                ),
+        ) { mutableStateListOf() }
+    val onExitSelectionMode = {
+        inSelectMode = false
+        selection.clear()
+    }
 
     val (sortType, onSortTypeChange) =
         rememberEnumPreference(
@@ -301,6 +326,17 @@ fun LibrarySongsScreen(
             matchesNormalizedQuery(normalizedQuery, song.song.title, song.album?.title, *artistNames)
         }
 
+    BackHandler(enabled = inSelectMode, onBack = onExitSelectionMode)
+
+    LaunchedEffect(filteredSongs) {
+        val validIds = filteredSongs.map { it.id }.toSet()
+        selection.fastForEachReversed { id ->
+            if (id !in validIds) {
+                selection.remove(id)
+            }
+        }
+    }
+
     // Upload progress dialog
     if (showUploadDialog) {
         DefaultDialog(
@@ -361,35 +397,81 @@ fun LibrarySongsScreen(
                 key = "filter",
                 contentType = CONTENT_TYPE_HEADER,
             ) {
-                Row {
-                    Spacer(Modifier.width(12.dp))
-                    FilterChip(
-                        label = { Text(stringResource(R.string.songs)) },
-                        selected = true,
-                        colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                        onClick = onDeselect,
-                        shape = RoundedCornerShape(16.dp),
-                        leadingIcon = {
+                if (inSelectMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                    ) {
+                        IconButton(onClick = onExitSelectionMode) {
                             Icon(
                                 painter = painterResource(R.drawable.close),
-                                contentDescription = "",
+                                contentDescription = null,
                             )
-                        },
-                    )
-                    ChipsRow(
-                        chips =
-                            listOf(
-                                SongFilter.LIKED to stringResource(R.string.filter_liked),
-                                SongFilter.LIBRARY to stringResource(R.string.filter_library),
-                                SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
-                                SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                            ),
-                        currentValue = filter,
-                        onValueUpdate = {
-                            filter = it
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
+                        }
+                        Text(
+                            text = pluralStringResource(R.plurals.n_selected, selection.size, selection.size),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(start = 8.dp).weight(1f).align(androidx.compose.ui.Alignment.CenterVertically),
+                        )
+                        Checkbox(
+                            checked = selection.size == filteredSongs.size && selection.isNotEmpty(),
+                            onCheckedChange = {
+                                if (selection.size == filteredSongs.size) {
+                                    selection.clear()
+                                } else {
+                                    selection.clear()
+                                    selection.addAll(filteredSongs.map { it.id })
+                                }
+                            },
+                        )
+                        IconButton(
+                            enabled = selection.isNotEmpty(),
+                            onClick = {
+                                menuState.show {
+                                    SelectionSongMenu(
+                                        songSelection = filteredSongs.filter { it.id in selection },
+                                        onDismiss = menuState::dismiss,
+                                        clearAction = onExitSelectionMode,
+                                    )
+                                }
+                            },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.more_vert),
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                } else {
+                    Row {
+                        Spacer(Modifier.width(12.dp))
+                        FilterChip(
+                            label = { Text(stringResource(R.string.songs)) },
+                            selected = true,
+                            colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
+                            onClick = onDeselect,
+                            shape = RoundedCornerShape(16.dp),
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.close),
+                                    contentDescription = "",
+                                )
+                            },
+                        )
+                        ChipsRow(
+                            chips =
+                                listOf(
+                                    SongFilter.LIKED to stringResource(R.string.filter_liked),
+                                    SongFilter.LIBRARY to stringResource(R.string.filter_library),
+                                    SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
+                                    SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
+                                ),
+                            currentValue = filter,
+                            onValueUpdate = {
+                                filter = it
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 
@@ -462,6 +544,14 @@ fun LibrarySongsScreen(
                 key = { index, item -> "${item.song.id}_$index" },
                 contentType = { _, _ -> CONTENT_TYPE_SONG },
             ) { index, song ->
+                val onCheckedChange: (Boolean) -> Unit = {
+                    if (it) {
+                        selection.add(song.id)
+                    } else {
+                        selection.remove(song.id)
+                    }
+                }
+
                 SongListItem(
                     song = song,
                     showInLibraryIcon = true,
@@ -470,45 +560,63 @@ fun LibrarySongsScreen(
                     showLikedIcon = true,
                     showDownloadIcon = filter != SongFilter.DOWNLOADED,
                     trailingContent = {
-                        IconButton(
-                            onClick = {
-                                menuState.show {
-                                    SongMenu(
-                                        originalSong = song,
-                                        onDismiss = menuState::dismiss,
-                                    )
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
+                        if (inSelectMode) {
+                            Checkbox(
+                                checked = song.id in selection,
+                                onCheckedChange = onCheckedChange,
                             )
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    menuState.show {
+                                        SongMenu(
+                                            originalSong = song,
+                                            onDismiss = menuState::dismiss,
+                                        )
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.more_vert),
+                                    contentDescription = null,
+                                )
+                            }
                         }
                     },
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                if (song.id == mediaMetadata?.id) {
-                                    playerConnection.togglePlayPause()
-                                } else {
-                                    playerConnection.playQueue(
-                                        ListQueue(
-                                            title = queueAllSongsStr,
-                                            items = filteredSongs.map { it.toMediaItem() },
-                                            startIndex = index,
-                                        ),
-                                    )
-                                }
-                            }.animateItem(),
+                            .combinedClickable(
+                                onClick = {
+                                    if (inSelectMode) {
+                                        onCheckedChange(song.id !in selection)
+                                    } else if (song.id == mediaMetadata?.id) {
+                                        playerConnection.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = queueAllSongsStr,
+                                                items = filteredSongs.map { it.toMediaItem() },
+                                                startIndex = index,
+                                            ),
+                                        )
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!inSelectMode) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        inSelectMode = true
+                                        onCheckedChange(true)
+                                    }
+                                },
+                            ).animateItem(),
                 )
             }
         }
 
         // Show upload FAB when on UPLOADED filter, shuffle FAB otherwise
         HideOnScrollFAB(
-            visible = if (filter == SongFilter.UPLOADED) true else filteredSongs.isNotEmpty(),
+            visible = !inSelectMode && (if (filter == SongFilter.UPLOADED) true else filteredSongs.isNotEmpty()),
             lazyListState = lazyListState,
             icon = if (filter == SongFilter.UPLOADED) R.drawable.upload else R.drawable.shuffle,
             onClick = {

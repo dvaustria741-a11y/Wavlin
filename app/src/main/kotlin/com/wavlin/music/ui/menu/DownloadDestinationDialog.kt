@@ -185,7 +185,7 @@ fun DownloadDestinationDialog(
                 TextButton(
                     enabled = downloadToLibrary || selectedPlaylistIds.isNotEmpty(),
                     onClick = {
-                        if (downloadToLibrary) {
+                        if (downloadToLibrary || selectedPlaylistIds.isNotEmpty()) {
                             startDownloads(context)
                         }
                         if (selectedPlaylistIds.isNotEmpty()) {

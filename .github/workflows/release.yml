@@ -80,8 +80,6 @@ jobs:
             variantName: Foss
           - variant: gms
             variantName: Gms
-          - variant: izzy
-            variantName: Izzy
 
     steps:
       - uses: actions/checkout@v6
@@ -138,8 +136,6 @@ jobs:
 
           if [ "${{ matrix.variant }}" = "gms" ]; then
             TARGET_NAME="Wavlin-with-Google-Cast.apk"
-          elif [ "${{ matrix.variant }}" = "izzy" ]; then
-            TARGET_NAME="Wavlin-izzy.apk"
           else
             TARGET_NAME="Wavlin.apk"
           fi
@@ -152,7 +148,7 @@ jobs:
       - name: Upload Signed APKs
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.variant == 'gms' && 'Wavlin-with-Google-Cast' || matrix.variant == 'izzy' && 'Wavlin-izzy' || 'Wavlin' }}
+          name: ${{ matrix.variant == 'gms' && 'Wavlin-with-Google-Cast' || 'Wavlin' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*.apk
 
   create-release:

@@ -109,7 +109,7 @@ fun DownloadDestinationDialog(
         item {
             ListItem(
                 title = stringResource(R.string.download_library),
-                subtitle = null,
+                subtitle = null as String?,
                 thumbnailContent = {
                     Icon(
                         painter = painterResource(R.drawable.download),
@@ -132,7 +132,7 @@ fun DownloadDestinationDialog(
         item {
             ListItem(
                 title = stringResource(R.string.create_playlist),
-                subtitle = null,
+                subtitle = null as String?,
                 thumbnailContent = {
                     Icon(
                         painter = painterResource(R.drawable.add),

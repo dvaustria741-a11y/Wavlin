@@ -9,14 +9,14 @@
 <br/>
 
 <a href="https://trendshift.io/repositories/20652" target="_blank">
-  <img src="https://trendshift.io/api/badge/repositories/20652" alt="Wavlin/Wavlin | Trendshift" width="250" height="55" />
+  <img src="https://trendshift.io/api/badge/repositories/20652" alt="dvaustria741-a11y/Wavlin | Trendshift" width="250" height="55" />
 </a>
 
 <br/>
 
-[![Latest release](https://img.shields.io/github/v/release/Wavlin/Wavlin?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/releases)
-[![License](https://img.shields.io/github/license/Wavlin/wavlin?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/Wavlin/Wavlin/total?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/releases)
+[![Latest release](https://img.shields.io/github/v/release/dvaustria741-a11y/Wavlin?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/releases)
+[![License](https://img.shields.io/github/license/dvaustria741-a11y/Wavlin?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/dvaustria741-a11y/Wavlin/total?style=for-the-badge&labelColor=0d1117)](https://github.com/dvaustria741-a11y/Wavlin/releases)
 
 <br/>
 
@@ -173,7 +173,7 @@
   </tr>
   <tr>
     <td align="center">
-      <a href="https://nightly.link/Wavlin/Wavlin/workflows/build/main/app-with-Google-Cast.zip">
+      <a href="https://nightly.link/dvaustria741-a11y/Wavlin/workflows/build/main/app-with-Google-Cast.zip">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
       </a>
     </td>
@@ -305,7 +305,7 @@
 <h3>This project wouldn't exist without these amazing people!</h3>
 
 <a href="https://github.com/dvaustria741-a11y/Wavlin/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Wavlin/Wavlin" alt="Contributors" />
+  <img src="https://contrib.rocks/image?repo=dvaustria741-a11y/Wavlin" alt="Contributors" />
 </a>
 
 </div>

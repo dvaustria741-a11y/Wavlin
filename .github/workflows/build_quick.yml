@@ -50,8 +50,20 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
+      - name: Check release signing secrets
+        id: check_release_secrets
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::KEYSTORE secret not set - APK will be uploaded unsigned."
+          fi
+
       - name: Sign APK
-        if: ${{ secrets.KEYSTORE != '' }}
+        if: steps.check_release_secrets.outputs.ready == 'true'
         uses: ilharp/sign-android-release@v2.0.0
         with:
           releaseDir: app/build/outputs/apk/foss/release/

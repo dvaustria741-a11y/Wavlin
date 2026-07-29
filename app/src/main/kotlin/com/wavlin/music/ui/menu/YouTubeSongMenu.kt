@@ -51,9 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.wavlin.innertube.YouTube
@@ -137,6 +135,18 @@ fun YouTubeSongMenu(
         onGetSongIds = { listOf(song.id) },
         onDismiss = { showChoosePlaylistDialog = false }
     )  
+
+    var showDownloadDestinationDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if (librarySong != null) {
+        DownloadDestinationDialog(
+            isVisible = showDownloadDestinationDialog,
+            songs = listOf(librarySong!!),
+            onDismiss = { showDownloadDestinationDialog = false },
+        )
+    }
 
     var showSelectArtistDialog by rememberSaveable {  
         mutableStateOf(false)  
@@ -627,17 +637,7 @@ fun YouTubeSongMenu(
                                     database.transaction {
                                         insert(song.toMediaMetadata())
                                     }
-                                    val downloadRequest = DownloadRequest
-                                        .Builder(song.id, song.id.toUri())
-                                        .setCustomCacheKey(song.id)
-                                        .setData(song.title.toByteArray())
-                                        .build()
-                                    DownloadService.sendAddDownload(
-                                        context,
-                                        ExoDownloadService::class.java,
-                                        downloadRequest,
-                                        false,
-                                    )
+                                    showDownloadDestinationDialog = true
                                 }
                             )
                         }

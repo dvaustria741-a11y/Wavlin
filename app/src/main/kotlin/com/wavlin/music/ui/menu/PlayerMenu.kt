@@ -772,7 +772,7 @@ fun PlayerMenu(
                                 title = { Text(text = stringResource(R.string.sleep_timer)) },
                                 icon = {
                                     Icon(
-                                        painter = painterResource(R.drawable.bedtime),
+                                        painter = painterResource(R.drawable.sleep_timer),
                                         contentDescription = null,
                                         modifier = Modifier.size(24.dp),
                                     )

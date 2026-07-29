@@ -52,9 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.wavlin.innertube.YouTube
@@ -70,6 +68,7 @@ import com.wavlin.music.constants.ListThumbnailSize
 import com.wavlin.music.constants.ThumbnailCornerRadius
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.db.entities.PlaylistSongMap
+import com.wavlin.music.db.entities.Song
 import com.wavlin.music.db.entities.SpeedDialItem
 import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.models.MediaMetadata
@@ -276,6 +275,14 @@ fun YouTubePlaylistMenu(
     var showRemoveDownloadDialog by remember {
         mutableStateOf(false)
     }
+    var showDownloadDestinationDialog by remember {
+        mutableStateOf(false)
+    }
+    DownloadDestinationDialog(
+        isVisible = showDownloadDestinationDialog,
+        songs = songs.map { Song(song = it.toMediaMetadata().toSongEntity(), artists = emptyList()) },
+        onDismiss = { showDownloadDestinationDialog = false },
+    )
     var showExportDialog by remember { mutableStateOf(false) }
     if (showRemoveDownloadDialog) {
         DefaultDialog(
@@ -642,20 +649,7 @@ fun YouTubePlaylistMenu(
                                                 )
                                             },
                                             onClick = {
-                                                songs.forEach { song ->
-                                                    val downloadRequest =
-                                                        DownloadRequest
-                                                            .Builder(song.id, song.id.toUri())
-                                                            .setCustomCacheKey(song.id)
-                                                            .setData(song.title.toByteArray())
-                                                            .build()
-                                                    DownloadService.sendAddDownload(
-                                                        context,
-                                                        ExoDownloadService::class.java,
-                                                        downloadRequest,
-                                                        false,
-                                                    )
-                                                }
+                                                showDownloadDestinationDialog = true
                                             },
                                         )
                                     }

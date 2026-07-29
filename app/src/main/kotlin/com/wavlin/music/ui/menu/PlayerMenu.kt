@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -243,6 +244,16 @@ fun PlayerMenu(
     if (showSpeedDialog) {
         SpeedDialog(
             onDismiss = { showSpeedDialog = false },
+        )
+    }
+
+    var showSleepTimerPickerDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if (showSleepTimerPickerDialog) {
+        SleepTimerPickerDialog(
+            onDismiss = { showSleepTimerPickerDialog = false },
         )
     }
 
@@ -755,10 +766,128 @@ fun PlayerMenu(
                                 ),
                             )
                         }
+
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.sleep_timer)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.bedtime),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                },
+                                onClick = {
+                                    showSleepTimerPickerDialog = true
+                                },
+                            ),
+                        )
                     },
             )
         }
     }
+}
+
+@Composable
+fun SleepTimerPickerDialog(onDismiss: () -> Unit) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val sleepTimer = playerConnection.service.sleepTimer
+    val isActive = sleepTimer?.isActive == true
+    val triggerTime = sleepTimer?.triggerTime ?: -1L
+    val pauseWhenSongEnd = sleepTimer?.pauseWhenSongEnd == true
+
+    val durationsMinutes = listOf(5, 10, 15, 30, 45, 60)
+
+    AlertDialog(
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        onDismissRequest = onDismiss,
+        modifier = Modifier.padding(horizontal = 24.dp),
+        title = {
+            Text(text = stringResource(R.string.sleep_timer))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+        text = {
+            Column {
+                if (isActive) {
+                    val remainingMinutes =
+                        if (triggerTime != -1L) {
+                            ((triggerTime - System.currentTimeMillis()) / 60000L).coerceAtLeast(0L).toInt() + 1
+                        } else {
+                            null
+                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    sleepTimer?.clear()
+                                    onDismiss()
+                                }
+                                .padding(vertical = 12.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.bedtime),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = stringResource(android.R.string.cancel),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text =
+                                    when {
+                                        pauseWhenSongEnd -> stringResource(R.string.end_of_song)
+                                        remainingMinutes != null ->
+                                            pluralStringResource(R.plurals.minute, remainingMinutes, remainingMinutes)
+                                        else -> ""
+                                    },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                }
+
+                durationsMinutes.forEach { minutes ->
+                    Text(
+                        text = pluralStringResource(R.plurals.minute, minutes, minutes),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    sleepTimer?.start(minutes)
+                                    onDismiss()
+                                }
+                                .padding(vertical = 12.dp),
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.end_of_song),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                sleepTimer?.start(-1)
+                                onDismiss()
+                            }
+                            .padding(vertical = 12.dp),
+                )
+            }
+        },
+    )
 }
 
 @Composable

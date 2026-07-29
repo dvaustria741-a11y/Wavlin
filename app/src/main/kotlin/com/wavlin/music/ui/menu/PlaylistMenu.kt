@@ -112,6 +112,16 @@ fun PlaylistMenu(
         mutableIntStateOf(Download.STATE_STOPPED)
     }
 
+    var showDownloadDestinationDialog by remember {
+        mutableStateOf(false)
+    }
+
+    DownloadDestinationDialog(
+        isVisible = showDownloadDestinationDialog,
+        songs = songs,
+        onDismiss = { showDownloadDestinationDialog = false },
+    )
+
     val editable: Boolean = playlist.playlist.isEditable == true
 
     val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsStateWithLifecycle(initialValue = false)
@@ -576,20 +586,7 @@ fun PlaylistMenu(
                                                 )
                                             },
                                             onClick = {
-                                                songs.forEach { song ->
-                                                    val downloadRequest =
-                                                        DownloadRequest
-                                                            .Builder(song.id, song.id.toUri())
-                                                            .setCustomCacheKey(song.id)
-                                                            .setData(song.song.title.toByteArray())
-                                                            .build()
-                                                    DownloadService.sendAddDownload(
-                                                        context,
-                                                        ExoDownloadService::class.java,
-                                                        downloadRequest,
-                                                        false,
-                                                    )
-                                                }
+                                                showDownloadDestinationDialog = true
                                             },
                                         )
                                     }

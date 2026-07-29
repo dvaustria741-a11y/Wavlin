@@ -158,6 +158,16 @@ fun SelectionSongMenu(
         mutableStateOf(false)
     }
 
+    var showDownloadDestinationDialog by remember {
+        mutableStateOf(false)
+    }
+
+    DownloadDestinationDialog(
+        isVisible = showDownloadDestinationDialog,
+        songs = songSelection,
+        onDismiss = { showDownloadDestinationDialog = false },
+    )
+
     var showDeleteUploadedDialog by remember {
         mutableStateOf(false)
     }
@@ -560,20 +570,7 @@ fun SelectionSongMenu(
                                             )
                                         },
                                         onClick = {
-                                            songSelection.forEach { song ->
-                                                val downloadRequest =
-                                                    DownloadRequest
-                                                        .Builder(song.id, song.id.toUri())
-                                                        .setCustomCacheKey(song.id)
-                                                        .setData(song.song.title.toByteArray())
-                                                        .build()
-                                                DownloadService.sendAddDownload(
-                                                    context,
-                                                    ExoDownloadService::class.java,
-                                                    downloadRequest,
-                                                    false,
-                                                )
-                                            }
+                                            showDownloadDestinationDialog = true
                                         },
                                     )
                                 }

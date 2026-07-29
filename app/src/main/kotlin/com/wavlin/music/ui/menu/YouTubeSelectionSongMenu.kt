@@ -32,9 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import com.wavlin.innertube.YouTube
 import com.wavlin.innertube.models.SongItem
@@ -43,6 +41,7 @@ import com.wavlin.music.LocalDownloadUtil
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.LocalSyncUtils
 import com.wavlin.music.R
+import com.wavlin.music.db.entities.Song
 import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
@@ -50,7 +49,10 @@ import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.Material3MenuGroup
 import com.wavlin.music.ui.component.Material3MenuItemData
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 @Composable
@@ -69,6 +71,17 @@ fun YouTubeSelectionSongMenu(
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
+
+    var showDownloadDestinationDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var downloadDialogSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+
+    DownloadDestinationDialog(
+        isVisible = showDownloadDestinationDialog,
+        songs = downloadDialogSongs,
+        onDismiss = { showDownloadDestinationDialog = false },
+    )
 
     val listenTogetherManager = com.wavlin.music.LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && listenTogetherManager.isHost == false
@@ -378,22 +391,16 @@ fun YouTubeSelectionSongMenu(
                                     )
                                 },
                                 onClick = {
-                                    songSelection.forEach { song ->
-                                        val downloadRequest =
-                                            DownloadRequest
-                                                .Builder(song.id, song.id.toUri())
-                                                .setCustomCacheKey(song.id)
-                                                .setData(song.title.toByteArray())
-                                                .build()
-                                        DownloadService.sendAddDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            downloadRequest,
-                                            false,
-                                        )
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        database.transaction {
+                                            songSelection.forEach { insert(it.toMediaMetadata()) }
+                                        }
+                                        val resolvedSongs = songSelection.mapNotNull { database.song(it.id).first() }
+                                        withContext(Dispatchers.Main) {
+                                            downloadDialogSongs = resolvedSongs
+                                            showDownloadDestinationDialog = true
+                                        }
                                     }
-                                    clearAction()
-                                    onDismiss()
                                 },
                             )
                         }

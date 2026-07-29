@@ -1194,6 +1194,23 @@ fun BottomSheetPlayer(
                             }
                         }
 
+                        FilledIconButton(
+                            onClick = { showSleepTimerDialog = true },
+                            shape = middleShape,
+                            colors =
+                                IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = if (sleepTimerEnabled) MaterialTheme.colorScheme.primary else textButtonColor,
+                                    contentColor = if (sleepTimerEnabled) MaterialTheme.colorScheme.onPrimary else iconButtonColor,
+                                ),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.bedtime),
+                                contentDescription = stringResource(R.string.sleep_timer),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+
                         AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->
                             if (showLyrics) {
                                 val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
@@ -1311,6 +1328,27 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.size(12.dp))
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(if (sleepTimerEnabled) MaterialTheme.colorScheme.primary else textButtonColor)
+                                .clickable { showSleepTimerDialog = true },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.bedtime),
+                            contentDescription = stringResource(R.string.sleep_timer),
+                            tint = if (sleepTimerEnabled) MaterialTheme.colorScheme.onPrimary else iconButtonColor,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.Center)
+                                    .size(24.dp),
+                        )
                     }
 
                     Spacer(modifier = Modifier.size(12.dp))

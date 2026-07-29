@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.wavlin.music.LocalNavController
@@ -287,6 +286,16 @@ fun SongMenu(
         mutableStateOf(false)
     }
     var isDeleting by remember { mutableStateOf(false) }
+
+    var showDownloadDestinationDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    DownloadDestinationDialog(
+        isVisible = showDownloadDestinationDialog,
+        songs = listOf(song),
+        onDismiss = { showDownloadDestinationDialog = false },
+    )
 
     if (showDeleteUploadedDialog) {
         DefaultDialog(
@@ -953,18 +962,7 @@ fun SongMenu(
                                         )
                                     },
                                     onClick = {
-                                        val downloadRequest =
-                                            DownloadRequest
-                                                .Builder(song.id, song.id.toUri())
-                                                .setCustomCacheKey(song.id)
-                                                .setData(song.song.title.toByteArray())
-                                                .build()
-                                        DownloadService.sendAddDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            downloadRequest,
-                                            false,
-                                        )
+                                        showDownloadDestinationDialog = true
                                     },
                                 )
                             }

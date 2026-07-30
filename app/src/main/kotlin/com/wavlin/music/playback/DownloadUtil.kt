@@ -224,6 +224,18 @@ constructor(
                     ) {
                         val downloadId = download.request.id
 
+                        // The download itself lives in downloadCache, but the upstream
+                        // read used while downloading also caches the same audio into
+                        // playerCache as a side effect. DownloadManager only clears
+                        // downloadCache, so without this the playerCache copy lingers
+                        // and the storage "Remove Download" claims to free never
+                        // actually comes back.
+                        runCatching {
+                            playerCache.removeResource(downloadId)
+                        }.onFailure { error ->
+                            Timber.tag(TAG).e(error, "Failed to clear player cache for removed download $downloadId")
+                        }
+
                         runCatching {
                             database.updateDownloadedInfo(downloadId, false, null)
                         }.onSuccess {

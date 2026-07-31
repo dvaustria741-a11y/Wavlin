@@ -31,6 +31,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.wavlin.music.ui.screens.Screens
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -54,6 +57,7 @@ private fun isRouteSelected(currentRoute: String?, screenRoute: String, navigati
     return false
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppNavigationRail(
     navigationItems: List<Screens>,
@@ -63,13 +67,13 @@ fun AppNavigationRail(
     pureBlack: Boolean = false,
     onSearchLongClick: (() -> Unit)? = null
 ) {
-    val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
     val haptics = LocalHapticFeedback.current
     val viewConfiguration = LocalViewConfiguration.current
+    val hazeState = LocalHazeState.current
 
     NavigationRail(
-        modifier = modifier,
-        containerColor = containerColor
+        modifier = if (pureBlack) modifier else modifier.hazeEffect(state = hazeState, style = HazeMaterials.thin()),
+        containerColor = if (pureBlack) Color.Black else Color.Transparent
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
@@ -133,6 +137,7 @@ fun AppNavigationRail(
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppNavigationBar(
     navigationItems: List<Screens>,
@@ -143,14 +148,22 @@ fun AppNavigationBar(
     slimNav: Boolean = false,
     onSearchLongClick: (() -> Unit)? = null
 ) {
-    val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    // Pure black is an explicit OLED preference - respect it with a flat fill.
+    // Otherwise use a real frosted-glass backdrop blur (iOS-style) instead of a flat tint.
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val haptics = LocalHapticFeedback.current
     val viewConfiguration = LocalViewConfiguration.current
+    val hazeState = LocalHazeState.current
 
     NavigationBar(
-        modifier = modifier,
-        containerColor = containerColor,
+        modifier = if (pureBlack) {
+            modifier
+        } else {
+            modifier
+                .hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                .glassTopEdgeGlow()
+        },
+        containerColor = if (pureBlack) Color.Black else Color.Transparent,
         contentColor = contentColor
     ) {
         navigationItems.forEach { screen ->

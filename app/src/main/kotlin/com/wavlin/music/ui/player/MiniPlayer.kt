@@ -122,8 +122,13 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.wavlin.music.ui.theme.PlayerColorExtractor
+import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LocalMenuState
+import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.menu.AddToPlaylistDialog
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 
 /**
  * Stable wrapper for progress state - reads values only during draw phase
@@ -174,6 +179,7 @@ fun MiniPlayer(
 // NEW MINI PLAYER DESIGN
 // ============================================================================
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun NewMiniPlayer(
     progressState: ProgressState,
@@ -376,6 +382,11 @@ private fun NewMiniPlayer(
                 },
     ) {
         val interactionSource = remember { MutableInteractionSource() }
+        val hazeState = LocalHazeState.current
+        // DEFAULT gets a real backdrop blur (samples the screen content behind it, like iOS).
+        // Other styles (pure black, thumbnail blur, gradient, transparent) are explicit user
+        // choices already, so they keep their own flat/artwork background untouched.
+        val useGlassBackdrop = miniPlayerBackground == MiniPlayerBackgroundStyle.DEFAULT
         Box(
             modifier =
                 Modifier
@@ -383,8 +394,14 @@ private fun NewMiniPlayer(
                     .height(64.dp)
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
-                    .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                    .let { base ->
+                        if (useGlassBackdrop) {
+                            base.hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                        } else {
+                            base.background(color = backgroundColor)
+                        }
+                    }
+                    .border(1.dp, glassStrokeBrush(), RoundedCornerShape(32.dp))
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,

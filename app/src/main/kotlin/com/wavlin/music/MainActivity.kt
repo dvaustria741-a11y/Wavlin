@@ -170,6 +170,9 @@ import com.wavlin.music.playback.PlayerConnection
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.AccountSettingsDialog
 import com.wavlin.music.ui.component.AppNavigationBar
+import com.wavlin.music.ui.component.LocalHazeState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import com.wavlin.music.ui.component.AppNavigationRail
 import com.wavlin.music.ui.component.BottomSheetMenu
 import com.wavlin.music.ui.component.BottomSheetPage
@@ -979,6 +982,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                val hazeState = remember { HazeState() }
 
                 CompositionLocalProvider(
                     LocalDatabase provides database,
@@ -991,6 +995,7 @@ class MainActivity : ComponentActivity() {
                     LocalSyncUtils provides syncUtils,
                     LocalListenTogetherManager provides listenTogetherManager,
                     LocalChangelogState provides showChangelog,
+                    LocalHazeState provides hazeState,
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
@@ -1239,7 +1244,7 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
-                        Row(Modifier.fillMaxSize()) {
+                        Row(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->

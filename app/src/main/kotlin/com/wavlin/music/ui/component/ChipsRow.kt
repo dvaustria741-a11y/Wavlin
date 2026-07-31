@@ -17,6 +17,7 @@ import androidx.compose.animation.shrinkOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,7 +82,7 @@ fun <E> ChipsRow(
                 ),
                 onClick = { onValueUpdate(value) },
                 shape = RoundedCornerShape(16.dp),
-                border = null
+                border = BorderStroke(1.dp, glassStrokeBrush())
             )
 
             Spacer(Modifier.width(8.dp))
@@ -142,7 +143,7 @@ fun <Int> ChoiceChipsRow(
                     )
                 },
                 shape = RoundedCornerShape(16.dp),
-                border = null,
+                border = BorderStroke(1.dp, glassStrokeBrush()),
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = containerColor,
                     labelColor = MaterialTheme.colorScheme.onSurface
@@ -199,7 +200,7 @@ fun <Int> ChoiceChipsRow(
                         ),
                         onClick = { onValueUpdate(value) },
                         shape = RoundedCornerShape(16.dp),
-                        border = null
+                        border = BorderStroke(1.dp, glassStrokeBrush())
                     )
                 }
             }

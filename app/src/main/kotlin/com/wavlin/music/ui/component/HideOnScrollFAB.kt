@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -62,9 +64,9 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -76,6 +78,8 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                containerColor = Color.Transparent,
+                modifier = Modifier.glassPanel(shape = CircleShape),
             ) {
                 Icon(
                     painter = painterResource(icon),
@@ -113,9 +117,9 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -127,6 +131,8 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                containerColor = Color.Transparent,
+                modifier = Modifier.glassPanel(shape = CircleShape),
             ) {
                 Icon(
                     painter = painterResource(icon),
@@ -164,9 +170,9 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
@@ -178,6 +184,8 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                containerColor = Color.Transparent,
+                modifier = Modifier.glassPanel(shape = CircleShape),
             ) {
                 Icon(
                     painter = painterResource(icon),

@@ -1661,6 +1661,7 @@ fun PlaylistThumbnail(
                 .size(size)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
+                .border(1.dp, glassStrokeBrush(), shape)
         ) {
             placeHolder()
         }
@@ -1679,11 +1680,13 @@ fun PlaylistThumbnail(
             modifier = Modifier
                 .size(size)
                 .clip(shape)
+                .border(1.dp, glassStrokeBrush(), shape)
         )
         else -> Box(
             modifier = Modifier
                 .size(size)
                 .clip(shape)
+                .border(1.dp, glassStrokeBrush(), shape)
         ) {
             listOf(
                 Alignment.TopStart,

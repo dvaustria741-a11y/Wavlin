@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLocale
@@ -91,6 +93,7 @@ import com.wavlin.music.ui.component.AlbumListItem
 import com.wavlin.music.ui.component.ArtistGridItem
 import com.wavlin.music.ui.component.ArtistListItem
 import com.wavlin.music.ui.component.CreatePlaylistDialog
+import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.LibrarySearchEmptyPlaceholder
 import com.wavlin.music.ui.component.LibrarySearchHeader
 import com.wavlin.music.ui.component.LocalMenuState
@@ -1064,6 +1067,7 @@ fun LibraryMixScreen(
         // Always visible + button (no scroll hiding)
         FloatingActionButton(
             onClick = { showCreatePlaylistDialog = true },
+            containerColor = Color.Transparent,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(
@@ -1071,6 +1075,7 @@ fun LibraryMixScreen(
                         .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                 )
                 .padding(16.dp)
+                .glassPanel(shape = CircleShape)
         ) {
             Icon(
                 painter = painterResource(R.drawable.add),

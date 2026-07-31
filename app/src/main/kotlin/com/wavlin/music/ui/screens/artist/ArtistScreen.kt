@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,6 +104,7 @@ import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.AlbumGridItem
 import com.wavlin.music.ui.component.ExpandableText
 import com.wavlin.music.ui.component.HideOnScrollFAB
+import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.IconButton
 import com.wavlin.music.ui.component.LinkSegment
 import com.wavlin.music.ui.component.LocalMenuState
@@ -972,7 +974,8 @@ fun ArtistScreen(
 
                 if (showLocalFab) {
                     androidx.compose.material3.SmallFloatingActionButton(
-                        modifier = Modifier.padding(16.dp).offset(x = (-4).dp), // Align center with standard FAB (56dp vs 48dp)
+                        modifier = Modifier.padding(16.dp).offset(x = (-4).dp).glassPanel(shape = CircleShape), // Align center with standard FAB (56dp vs 48dp)
+                        containerColor = Color.Transparent,
                         onClick = onPlayAllClick,
                     ) {
                         Icon(
@@ -982,7 +985,8 @@ fun ArtistScreen(
                     }
                 } else {
                     androidx.compose.material3.FloatingActionButton(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(16.dp).glassPanel(shape = CircleShape),
+                        containerColor = Color.Transparent,
                         onClick = onPlayAllClick,
                     ) {
                         Icon(

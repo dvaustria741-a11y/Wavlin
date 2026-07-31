@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
@@ -110,6 +111,7 @@ import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.DraggableScrollbar
 import com.wavlin.music.ui.component.EmptyPlaceholder
+import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.ui.component.IconButton
 import com.wavlin.music.ui.component.LocalMenuState
@@ -729,6 +731,8 @@ fun AutoPlaylistScreen(
                             ),
                         )
                     },
+                    containerColor = Color.Transparent,
+                    modifier = Modifier.glassPanel(shape = CircleShape),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.upload),

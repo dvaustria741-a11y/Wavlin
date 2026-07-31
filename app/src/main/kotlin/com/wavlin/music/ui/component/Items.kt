@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1469,6 +1470,7 @@ fun ItemThumbnail(
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
             .clip(shape)
+            .border(1.dp, glassStrokeBrush(), shape)
     ) {
         if (albumIndex == null) {
             AsyncImage(
@@ -1550,6 +1552,7 @@ fun LocalThumbnail(
         modifier = modifier
             .aspectRatio(thumbnailRatio)
             .clip(shape)
+            .border(1.dp, glassStrokeBrush(), shape)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)

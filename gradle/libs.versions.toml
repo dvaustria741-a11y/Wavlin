@@ -34,6 +34,7 @@ desugaring = "2.1.5"
 junit = "4.13.2"
 timber = "5.0.1"
 materialKolor = "5.0.0"
+haze = "1.7.2"
 kuromojiIpadic = "0.9.0"
 extractor = "3cd3341"
 tinypinyin = "2.0.3"
@@ -64,6 +65,9 @@ lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.r
 material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+
+haze = { module = "dev.chrisbanes.haze:haze-android", version.ref = "haze" }
+haze-materials = { module = "dev.chrisbanes.haze:haze-materials-android", version.ref = "haze" }
 
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 browser = { module = "androidx.browser:browser", version.ref = "browser" }

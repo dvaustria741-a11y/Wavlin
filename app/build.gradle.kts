@@ -356,6 +356,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.palette)
     implementation(libs.materialKolor)
+    implementation(libs.haze)
+    implementation(libs.haze.materials)
 
     implementation(libs.appcompat)
 

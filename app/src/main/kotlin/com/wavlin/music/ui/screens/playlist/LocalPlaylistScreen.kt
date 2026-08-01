@@ -55,6 +55,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -140,6 +141,10 @@ import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.ActionPromptDialog
 import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.glassStrokeBrush
+import com.wavlin.music.ui.component.LocalHazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.DraggableScrollbar
 import com.wavlin.music.ui.component.EmptyPlaceholder
@@ -173,7 +178,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDateTime
 
 @SuppressLint("RememberReturnType")
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @Composable
 fun LocalPlaylistScreen(
     navController: NavController,
@@ -489,6 +494,12 @@ fun LocalPlaylistScreen(
         }
     }
 
+    val (screenDarkMode, _) = rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val screenDarkTheme = screenDarkMode == DarkMode.ON || (screenDarkMode == DarkMode.AUTO && isSystemInDarkTheme())
+    val screenPureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
+    val screenBaseColor =
+        if (screenPureBlackEnabled && screenDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -527,6 +538,8 @@ fun LocalPlaylistScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier =
                                 Modifier
+                                    .fillMaxWidth()
+                                    .background(screenBaseColor)
                                     .padding(start = 16.dp)
                                     .animateItem(),
                         ) {
@@ -749,6 +762,8 @@ fun LocalPlaylistScreen(
         )
 
         TopAppBar(
+            modifier = Modifier.hazeEffect(state = LocalHazeState.current, style = HazeMaterials.ultraThin()),
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             title = {
                 if (inSelectMode) {
                     Text(pluralStringResource(R.plurals.n_selected, selection.size, selection.size))

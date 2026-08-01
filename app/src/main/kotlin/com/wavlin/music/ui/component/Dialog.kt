@@ -252,9 +252,11 @@ fun ListDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .padding(24.dp)
+                .border(1.dp, glassStrokeBrush(), AlertDialogDefaults.shape),
             shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
+            color = AlertDialogDefaults.containerColor.copy(alpha = 0.85f),
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(

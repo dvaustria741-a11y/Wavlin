@@ -6,6 +6,7 @@
 package com.wavlin.music.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -120,10 +121,11 @@ fun AnimatedBottomSheet(
 fun BottomSheetMenu(
     modifier: Modifier = Modifier,
     state: MenuState,
-    background: Color = MaterialTheme.colorScheme.surface,
+    background: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
 ) {
     val focusManager = LocalFocusManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
@@ -132,6 +134,7 @@ fun BottomSheetMenu(
             state.isVisible = false
         },
         sheetState = sheetState,
+        shape = sheetShape,
         containerColor = background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         dragHandle = {
@@ -143,7 +146,9 @@ fun BottomSheetMenu(
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
             )
         },
-        modifier = modifier.fillMaxHeight()
+        modifier = modifier
+            .fillMaxHeight()
+            .border(1.dp, glassStrokeBrush(), sheetShape)
     ) {
         Column(
             modifier = Modifier

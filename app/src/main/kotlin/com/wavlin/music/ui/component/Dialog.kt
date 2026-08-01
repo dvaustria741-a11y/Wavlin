@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.component
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -166,9 +167,10 @@ fun AccountSettingsDialog(
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 72.dp, start = 16.dp, end = 16.dp)
-                        .clip(RoundedCornerShape(28.dp)),
+                        .clip(RoundedCornerShape(28.dp))
+                        .border(1.dp, glassStrokeBrush(), RoundedCornerShape(28.dp)),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                 tonalElevation = 8.dp,
             ) {
                 AccountSettings(

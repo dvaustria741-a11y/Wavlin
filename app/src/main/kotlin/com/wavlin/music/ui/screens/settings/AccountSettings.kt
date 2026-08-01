@@ -42,6 +42,7 @@ import com.wavlin.music.utils.reportException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -110,7 +111,7 @@ fun AccountSettings(
 
     Column(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(Color.Transparent)
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
@@ -378,7 +379,7 @@ fun AccountSettings(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .background(Color.Transparent)
         ) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.integrations)) },
@@ -389,7 +390,7 @@ fun AccountSettings(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(Color.Transparent)
             )
 
             Spacer(Modifier.height(4.dp))
@@ -413,7 +414,7 @@ fun AccountSettings(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(Color.Transparent)
             )
 
             Spacer(Modifier.height(4.dp))

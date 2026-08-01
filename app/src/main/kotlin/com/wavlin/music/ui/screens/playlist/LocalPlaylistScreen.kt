@@ -88,6 +88,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEachIndexed
@@ -128,6 +129,8 @@ import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.ActionPromptDialog
+import com.wavlin.music.ui.component.glassPanel
+import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.DraggableScrollbar
 import com.wavlin.music.ui.component.EmptyPlaceholder
@@ -1063,7 +1066,8 @@ fun LocalPlaylistHeader(
                                 .shadow(
                                     elevation = 16.dp,
                                     shape = RoundedCornerShape(3.dp),
-                                ),
+                                )
+                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
                         shape = RoundedCornerShape(3.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
                     ) {
@@ -1090,7 +1094,8 @@ fun LocalPlaylistHeader(
                                     elevation = 24.dp,
                                     shape = RoundedCornerShape(3.dp),
                                     spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                ),
+                                )
+                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
                         shape = RoundedCornerShape(3.dp),
                     ) {
                         AsyncImage(
@@ -1159,7 +1164,8 @@ fun LocalPlaylistHeader(
                                     elevation = 24.dp,
                                     shape = RoundedCornerShape(3.dp),
                                     spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                ),
+                                )
+                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
                         shape = RoundedCornerShape(3.dp),
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -1336,8 +1342,8 @@ fun LocalPlaylistHeader(
                     )
                 },
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
+                color = Color.Transparent,
+                modifier = Modifier.size(48.dp).glassPanel(shape = CircleShape),
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -1361,9 +1367,9 @@ fun LocalPlaylistHeader(
                         ),
                     )
                 },
-                color = MaterialTheme.colorScheme.primary,
+                color = Color.Transparent,
                 shape = CircleShape,
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(72.dp).glassPanel(shape = CircleShape),
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -1372,7 +1378,7 @@ fun LocalPlaylistHeader(
                     Icon(
                         painter = painterResource(R.drawable.play),
                         contentDescription = stringResource(R.string.play),
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp),
                     )
                 }
@@ -1456,8 +1462,8 @@ fun LocalPlaylistHeader(
                     }
                 },
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
+                color = Color.Transparent,
+                modifier = Modifier.size(48.dp).glassPanel(shape = CircleShape),
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),

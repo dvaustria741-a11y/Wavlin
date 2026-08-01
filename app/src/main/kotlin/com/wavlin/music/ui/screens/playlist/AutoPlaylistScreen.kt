@@ -83,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.fastSumBy
@@ -112,6 +113,7 @@ import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.DraggableScrollbar
 import com.wavlin.music.ui.component.EmptyPlaceholder
 import com.wavlin.music.ui.component.glassPanel
+import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.ui.component.IconButton
 import com.wavlin.music.ui.component.LocalMenuState
@@ -900,7 +902,8 @@ private fun AutoPlaylistHeader(
                             elevation = 24.dp,
                             shape = RoundedCornerShape(3.dp),
                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        ),
+                        )
+                        .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
                 shape = RoundedCornerShape(3.dp),
             ) {
                 AsyncImage(
@@ -961,8 +964,8 @@ private fun AutoPlaylistHeader(
                     )
                 },
                 shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
+                color = Color.Transparent,
+                modifier = Modifier.size(48.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -986,9 +989,9 @@ private fun AutoPlaylistHeader(
                         ),
                     )
                 },
-                color = MaterialTheme.colorScheme.primary,
+                color = Color.Transparent,
                 shape = androidx.compose.foundation.shape.CircleShape,
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(72.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -997,7 +1000,7 @@ private fun AutoPlaylistHeader(
                     Icon(
                         painter = painterResource(R.drawable.play),
                         contentDescription = stringResource(R.string.play),
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp),
                     )
                 }
@@ -1056,8 +1059,8 @@ private fun AutoPlaylistHeader(
                     }
                 },
                 shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp),
+                color = Color.Transparent,
+                modifier = Modifier.size(48.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),

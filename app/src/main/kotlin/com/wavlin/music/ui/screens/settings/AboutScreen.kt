@@ -89,6 +89,7 @@ private data class Contributor(
     val roleRes: Int,
     val githubHandle: String,
     val avatarUrl: String = "https://github.com/$githubHandle.png",
+    val avatarRes: Int? = null,
     val githubUrl: String = "https://github.com/$githubHandle",
     val sponsorUrl: String? = null,
     val polygon: RoundedPolygon? = null,
@@ -103,9 +104,10 @@ private data class CommunityLink(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val leadDeveloper = Contributor(
-    name = "Mo Agamy",
+    name = "Zenkai",
     roleRes = R.string.credits_lead_developer,
     githubHandle = "mostafaalagamy",
+    avatarRes = R.drawable.dev_zenkai,
     polygon = MaterialShapes.Cookie9Sided,
     favoriteSongVideoId = "Mh2JWGWvy_Y"
 )
@@ -158,6 +160,7 @@ private fun ContributorAvatar(
     sizeDp: Int,
     modifier: Modifier = Modifier,
     shape: Shape = CircleShape,
+    avatarRes: Int? = null,
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -171,7 +174,7 @@ private fun ContributorAvatar(
         tonalElevation = 4.dp,
     ) {
         AsyncImage(
-            model = avatarUrl,
+            model = avatarRes ?: avatarUrl,
             contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -349,6 +352,7 @@ fun AboutScreen(
             
                     ContributorAvatar(
                         avatarUrl = leadDeveloper.avatarUrl,
+                        avatarRes = leadDeveloper.avatarRes,
                         sizeDp = 110,
                         shape = leadDeveloper.polygon?.toShape() ?: CircleShape,
                         contentDescription = leadDeveloper.name,
@@ -393,7 +397,7 @@ fun AboutScreen(
                 Spacer(Modifier.height(16.dp))
                 
                 Button(
-                    onClick = { uriHandler.openUri("https://buymeacoffee.com/mostafaalagamy") },
+                    onClick = { uriHandler.openUri("https://ko-fi.com/zenkaidev") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(

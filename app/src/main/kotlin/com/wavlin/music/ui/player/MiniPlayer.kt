@@ -10,8 +10,12 @@ package com.wavlin.music.ui.player
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -60,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -555,6 +560,22 @@ private fun NewMiniPlayerPlayButton(
     val trackColor = outlineColor.copy(alpha = 0.2f)
     val strokeWidth = 3.dp
 
+    // Vinyl-style spin: keeps turning while playing, and picks back up from the
+    // same angle (instead of resetting) when playback pauses and resumes.
+    val discRotation = remember { Animatable(0f) }
+    LaunchedEffect(effectiveIsPlaying) {
+        if (effectiveIsPlaying) {
+            discRotation.animateTo(
+                targetValue = discRotation.value + 360f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(durationMillis = 8000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart,
+                    ),
+            )
+        }
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -624,7 +645,7 @@ private fun NewMiniPlayerPlayButton(
                     model = thumbnailUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    modifier = Modifier.fillMaxSize().rotate(discRotation.value).clip(CircleShape),
                 )
             }
 

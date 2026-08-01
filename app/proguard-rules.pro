@@ -188,8 +188,23 @@
 -dontwarn io.ktor.**
 
 ## Listen Together Protobuf
--keep class com.wavlin.music.listentogether.proto.** { *; }
--keepclassmembers class com.wavlin.music.listentogether.proto.** { *; }
+# NOTE: metroproto/listentogether.proto declares
+# `option java_package = "com.metrolist.music.listentogether.proto"` (inherited from the
+# upstream Metrolist project this was forked from, never updated for the Wavlin rebrand),
+# so the generated classes live under com.metrolist.*, NOT com.wavlin.*. Keeping the wrong
+# package here silently does nothing, R8 renames the real fields (username_, clientTime_,
+# etc.), and protobuf-javalite's reflection-based MessageSchema throws
+# "Field {NAME}_ ... not found" for every single message at runtime.
+-keep class com.metrolist.music.listentogether.proto.** { *; }
+-keepclassmembers class com.metrolist.music.listentogether.proto.** { *; }
+
+# Defensive: protobuf-javalite always resolves its fields via reflection against the
+# generated message-info string, regardless of package. Keep the fields on every
+# GeneratedMessageLite subclass so this can't silently break again if the proto package
+# is ever corrected/renamed.
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+}
 
 ## Shazam Models
 -keep class com.wavlin.shazamkit.models.** { *; }

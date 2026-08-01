@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
@@ -1222,21 +1223,23 @@ fun LocalPlaylistHeader(
                         shape = RoundedCornerShape(3.dp),
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
-                            listOf(
-                                Alignment.TopStart,
-                                Alignment.TopEnd,
-                                Alignment.BottomStart,
-                                Alignment.BottomEnd,
-                            ).fastForEachIndexed { index, alignment ->
-                                AsyncImage(
-                                    model = playlist.thumbnails.getOrNull(index),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier =
-                                        Modifier
-                                            .align(alignment)
-                                            .size(85.dp),
-                                )
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                repeat(2) { row ->
+                                    Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                                        repeat(2) { col ->
+                                            val index = row * 2 + col
+                                            AsyncImage(
+                                                model = playlist.thumbnails.getOrNull(index),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxHeight()
+                                                        .weight(1f),
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

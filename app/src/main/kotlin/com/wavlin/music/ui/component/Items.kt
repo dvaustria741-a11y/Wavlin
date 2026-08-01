@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.border
@@ -1688,28 +1689,30 @@ fun PlaylistThumbnail(
                 .clip(shape)
                 .border(1.dp, glassStrokeBrush(), shape)
         ) {
-            listOf(
-                Alignment.TopStart,
-                Alignment.TopEnd,
-                Alignment.BottomStart,
-                Alignment.BottomEnd
-            ).fastForEachIndexed { index, alignment ->
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(thumbnails.getOrNull(index)?.resize((size.value * 1.5).toInt()))
-                        .apply { /* Removed cache key extensions due to unresolved in env */ }
-                        .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                        .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                        .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
-                    placeholder = painterResource(R.drawable.queue_music),
-                    error = painterResource(R.drawable.queue_music),
-                    modifier = Modifier
-                        .align(alignment)
-                        .size(size / 2)
-                )
+            Column(modifier = Modifier.fillMaxSize()) {
+                repeat(2) { row ->
+                    Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        repeat(2) { col ->
+                            val index = row * 2 + col
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(thumbnails.getOrNull(index)?.resize((size.value * 1.5).toInt()))
+                                    .apply { /* Removed cache key extensions due to unresolved in env */ }
+                                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                placeholder = painterResource(R.drawable.queue_music),
+                                error = painterResource(R.drawable.queue_music),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .weight(1f)
+                            )
+                        }
+                    }
+                }
             }
         }
     }

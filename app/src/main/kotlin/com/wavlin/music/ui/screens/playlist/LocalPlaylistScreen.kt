@@ -123,6 +123,7 @@ import com.wavlin.music.LocalSyncUtils
 import com.wavlin.music.R
 import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.PlaylistEditLockKey
+import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.PlaylistSongSortDescendingKey
 import com.wavlin.music.constants.PlaylistSongSortType
 import com.wavlin.music.constants.PlaylistSongSortTypeKey
@@ -965,6 +966,8 @@ fun LocalPlaylistHeader(
 
     val cropColor = MaterialTheme.colorScheme
     val darkTheme = darkMode == DarkMode.ON || (darkMode == DarkMode.AUTO && isSystemInDarkTheme())
+    val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
+    val pureBlack = remember(pureBlackEnabled, darkTheme) { pureBlackEnabled && darkTheme }
 
     val pickLauncher =
         rememberLauncherForActivityResult(
@@ -1067,7 +1070,8 @@ fun LocalPlaylistHeader(
                 .background(
                     brush =
                         if (headerGradientColors.size >= 2) {
-                            Brush.verticalGradient(headerGradientColors)
+                            val screenBaseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                            Brush.verticalGradient(headerGradientColors.dropLast(1) + screenBaseColor)
                         } else {
                             Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
                         },

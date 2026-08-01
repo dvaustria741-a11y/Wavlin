@@ -218,19 +218,15 @@
 
 <h3>Wavlin is free and open-source. If it brings you joy, consider supporting its development!</h3>
 
-#### Monero (XMR)
+#### Ko-fi
 
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/assets/XMR.png" alt="Monero QR code" width="150" />
-
-```text
-44XjSELSWcgJTZiCKzjpCQWyXhokrH9RqH3rpp35FkSKi57T25hniHWHQNhLeXyFn3DDYqufmfRB1iEtENerZpJc7xJCcqt
-```
-
-#### Buy Me a Coffee
-
-<a href="https://www.buymeacoffee.com/mostafaalagamy">
-  <img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/assets/buymeacoffee.png?raw=true" alt="Buy Me a Coffee" width="150" />
+<a href="https://ko-fi.com/zenkaidev">
+  <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy me a coffee on Ko-fi" width="200" />
 </a>
+
+<br/>
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/assets/kofi_qr.png?raw=true" alt="Ko-fi QR code" width="150" />
 
 </div>
 

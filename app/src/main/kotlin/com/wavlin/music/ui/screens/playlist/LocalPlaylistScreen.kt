@@ -14,6 +14,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -73,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -123,6 +126,7 @@ import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.LocalSyncUtils
 import com.wavlin.music.R
+import com.wavlin.music.constants.AppBarHeight
 import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.PlaylistEditLockKey
 import com.wavlin.music.constants.PureBlackKey
@@ -500,9 +504,59 @@ fun LocalPlaylistScreen(
     val screenBaseColor =
         if (screenPureBlackEnabled && screenDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
 
+    // Same extraction as LocalPlaylistHeader - kept independent (rather than lifting all of that
+    // composable's edit/crop state up) just to paint the top status-bar/app-bar strip that sits
+    // above the LazyColumn's own header item and is otherwise never touched by its gradient.
+    var topBleedColor by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(playlist?.thumbnails?.firstOrNull()) {
+        topBleedColor = null
+        val url = playlist?.thumbnails?.firstOrNull() ?: return@LaunchedEffect
+        withContext(Dispatchers.IO) {
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .size(100, 100)
+                .allowHardware(false)
+                .build()
+            val result = runCatching { context.imageLoader.execute(request) }.getOrNull()
+            val bitmap = result?.image?.toBitmap()
+            if (bitmap != null) {
+                val palette = withContext(Dispatchers.Default) {
+                    Palette.from(bitmap)
+                        .maximumColorCount(8)
+                        .resizeBitmapArea(100 * 100)
+                        .generate()
+                }
+                val extracted = PlayerColorExtractor.extractGradientColors(
+                    palette = palette,
+                    fallbackColor = 0xFF000000.toInt(),
+                )
+                withContext(Dispatchers.Main) {
+                    topBleedColor = extracted.firstOrNull()
+                }
+            }
+        }
+    }
+    val topBleedAlpha by animateFloatAsState(
+        targetValue = if (showTopBarTitle) 0f else 1f,
+        label = "topBleedAlpha",
+    )
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
+        val bleedColor = topBleedColor
+        if (bleedColor != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer { alpha = topBleedAlpha }
+                        .background(bleedColor),
+            )
+        }
+
         LazyColumn(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime).asPaddingValues(),

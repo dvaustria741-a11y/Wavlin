@@ -81,6 +81,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -943,6 +944,49 @@ fun LocalPlaylistScreen(
     }
 }
 
+/**
+ * Builds a header gradient brush whose transition into [baseColor] decays to a
+ * near-zero rate of change right at the bottom edge, instead of stopping abruptly.
+ *
+ * A plain `Brush.verticalGradient(colors + baseColor)` interpolates linearly, so the
+ * color is still changing at a constant rate on the very last pixel before it meets
+ * the flat [baseColor] fill below it (e.g. the controls row). Human vision is very
+ * sensitive to that kind of rate-of-change discontinuity - it reads as a visible
+ * line (a Mach band) even though the colors on both sides match exactly. Easing the
+ * last portion of the gradient out to a ~0 slope removes the discontinuity, so the
+ * gradient and the flat fill below it read as one continuous surface.
+ */
+private fun easedHeaderGradient(
+    colors: List<Color>,
+    baseColor: Color,
+    fadeStartFraction: Float = 0.65f,
+    fadeSteps: Int = 10,
+): Brush {
+    if (colors.size < 2) return Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
+
+    val bodyColors = colors.dropLast(1)
+    val tailStart = bodyColors.last()
+
+    val stops =
+        buildList {
+            bodyColors.forEachIndexed { index, color ->
+                val fraction =
+                    if (bodyColors.size == 1) 0f else (index.toFloat() / (bodyColors.size - 1)) * fadeStartFraction
+                add(fraction to color)
+            }
+            for (step in 1..fadeSteps) {
+                val t = step.toFloat() / fadeSteps
+                // Cubic ease-out: fast at first, slope -> 0 by t = 1 so the color has
+                // essentially stopped changing right where the flat fill takes over.
+                val eased = 1f - (1f - t) * (1f - t) * (1f - t)
+                val fraction = fadeStartFraction + eased * (1f - fadeStartFraction)
+                add(fraction to lerp(tailStart, baseColor, eased))
+            }
+        }
+
+    return Brush.verticalGradient(*stops.toTypedArray())
+}
+
 @Composable
 fun LocalPlaylistHeader(
     playlist: Playlist,
@@ -1139,12 +1183,10 @@ fun LocalPlaylistHeader(
                 .fillMaxWidth()
                 .background(
                     brush =
-                        if (headerGradientColors.size >= 2) {
-                            val screenBaseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
-                            Brush.verticalGradient(headerGradientColors.dropLast(1) + screenBaseColor)
-                        } else {
-                            Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
-                        },
+                        easedHeaderGradient(
+                            colors = headerGradientColors,
+                            baseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                        ),
                 )
                 .padding(top = 8.dp, bottom = 20.dp)
                 .padding(horizontal = 16.dp),

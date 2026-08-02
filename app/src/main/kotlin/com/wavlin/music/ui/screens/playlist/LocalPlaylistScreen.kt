@@ -543,7 +543,7 @@ fun LocalPlaylistScreen(
     )
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(screenBaseColor),
     ) {
         val bleedColor = topBleedColor
         if (bleedColor != null) {

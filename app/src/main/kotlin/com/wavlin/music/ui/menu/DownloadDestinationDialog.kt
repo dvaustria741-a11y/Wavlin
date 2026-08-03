@@ -185,7 +185,13 @@ fun DownloadDestinationDialog(
                 TextButton(
                     enabled = downloadToLibrary || selectedPlaylistIds.isNotEmpty(),
                     onClick = {
-                        if (downloadToLibrary) {
+                        if (downloadToLibrary || selectedPlaylistIds.isNotEmpty()) {
+                            if (!downloadToLibrary) {
+                                // Saved to a playlist only - still cache the audio for offline
+                                // playback, but don't count it as an explicit "Download Library"
+                                // download (that's reserved for the checkbox above).
+                                viewModel.markSilentDownloads(songs.map { it.id })
+                            }
                             startDownloads(context)
                         }
                         if (selectedPlaylistIds.isNotEmpty()) {

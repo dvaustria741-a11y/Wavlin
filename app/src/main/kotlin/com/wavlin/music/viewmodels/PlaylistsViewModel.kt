@@ -15,6 +15,7 @@ import com.wavlin.music.constants.AddToPlaylistSortTypeKey
 import com.wavlin.music.constants.PlaylistSortType
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.extensions.toEnum
+import com.wavlin.music.playback.DownloadUtil
 import com.wavlin.music.utils.SyncUtils
 import com.wavlin.music.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +35,7 @@ constructor(
     @ApplicationContext context: Context,
     database: MusicDatabase,
     private val syncUtils: SyncUtils,
+    private val downloadUtil: DownloadUtil,
 ) : ViewModel() {
     val allPlaylists =
         context.dataStore.data
@@ -44,6 +46,13 @@ constructor(
             .flatMapLatest { (sortType, descending) ->
                 database.playlists(sortType, descending)
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // Marks songs so that when their download completes it caches the audio for offline
+    // playback without flipping isDownloaded / showing up in the "Downloaded" library section -
+    // used when a song is only being saved to a playlist, not explicitly downloaded.
+    fun markSilentDownloads(songIds: Collection<String>) {
+        downloadUtil.markSilentDownloads(songIds)
+    }
 
     // Suspend function that waits for sync to complete
     suspend fun sync() {

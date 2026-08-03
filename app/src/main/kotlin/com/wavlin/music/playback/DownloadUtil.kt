@@ -67,6 +67,19 @@ constructor(
 
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
+    // Songs downloaded silently (e.g. saved to a playlist without checking "Download Library")
+    // should still be cached to disk for offline playback, but shouldn't flip isDownloaded and
+    // show up in the "Downloaded" library section - that's reserved for explicit downloads.
+    private val silentDownloadIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    fun markSilentDownload(songId: String) {
+        silentDownloadIds.add(songId)
+    }
+
+    fun markSilentDownloads(songIds: Collection<String>) {
+        silentDownloadIds.addAll(songIds)
+    }
+
     private val dataSourceFactory =
         ResolvingDataSource.Factory(
             CacheDataSource
@@ -205,11 +218,18 @@ constructor(
                         scope.launch {
                             when (download.state) {
                                 Download.STATE_COMPLETED -> {
-                                    database.updateDownloadedInfo(download.request.id, true, LocalDateTime.now())
+                                    val songId = download.request.id
+                                    if (silentDownloadIds.remove(songId)) {
+                                        // Cached for offline playback only - not an explicit
+                                        // "Download Library" action, so leave isDownloaded alone.
+                                    } else {
+                                        database.updateDownloadedInfo(songId, true, LocalDateTime.now())
+                                    }
                                 }
                                 Download.STATE_FAILED,
                                 Download.STATE_STOPPED,
                                 Download.STATE_REMOVING -> {
+                                    silentDownloadIds.remove(download.request.id)
                                     database.updateDownloadedInfo(download.request.id, false, null)
                                 }
                                 else -> {

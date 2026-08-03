@@ -406,7 +406,12 @@ fun ThemeControls(
                             PaletteItem(
                                 palette = secretPalette,
                                 isSelected = selectedThemeColor == SecretPinkThemeColor,
-                                onClick = { onSelectedThemeColorChange(SecretPinkThemeColor) }
+                                onClick = {
+                                    onSelectedThemeColorChange(SecretPinkThemeColor)
+                                    // This theme is designed as a soft, light pastel look - dark mode
+                                    // would just desaturate it into a dark maroon accent instead.
+                                    onDarkModeChange(DarkMode.OFF)
+                                }
                             )
                         } else {
                             LockedPaletteItem(onClick = { showUnlockDialog = true })
@@ -449,6 +454,7 @@ fun ThemeControls(
                             if (input.trim().equals("pink", ignoreCase = true)) {
                                 secretPinkUnlocked = true
                                 onSelectedThemeColorChange(SecretPinkThemeColor)
+                                onDarkModeChange(DarkMode.OFF)
                                 showUnlockDialog = false
                                 Toast.makeText(context, R.string.secret_theme_unlocked_toast, Toast.LENGTH_SHORT).show()
                             } else {

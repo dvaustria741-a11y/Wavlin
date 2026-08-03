@@ -28,6 +28,10 @@ import com.materialkolor.score.Score
 
 val DefaultThemeColor = Color(0xFFED5564)
 
+// Secret "Pink" theme, unlocked via the password prompt in the color palette picker.
+// A soft pastel blush pink rather than the vivid Rose/Crimson already in the palette list.
+val SecretPinkThemeColor = Color(0xFFF7A8C4)
+
 @Composable
 fun WavlinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

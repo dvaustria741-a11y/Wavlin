@@ -735,6 +735,12 @@
 
     <!-- Theme Palette Names -->
     <string name="palette_dynamic">Dynamic</string>
+    <string name="palette_secret_pink">Pink</string>
+    <string name="secret_theme_locked_cd">Locked theme. Tap to enter a code.</string>
+    <string name="secret_theme_unlock_title">Enter code</string>
+    <string name="secret_theme_unlock_placeholder">Code</string>
+    <string name="secret_theme_unlocked_toast">Pink theme unlocked!</string>
+    <string name="secret_theme_incorrect_toast">Incorrect code</string>
     <string name="palette_crimson">Crimson</string>
     <string name="palette_rose">Rose</string>
     <string name="palette_purple">Purple</string>

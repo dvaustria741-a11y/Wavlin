@@ -2,6 +2,7 @@ package com.wavlin.music.ui.screens.settings
 
 import android.content.res.Configuration
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -53,7 +54,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,8 +80,11 @@ import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.DynamicThemeKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.PureBlackMiniPlayerKey
+import com.wavlin.music.constants.SecretPinkThemeUnlockedKey
 import com.wavlin.music.constants.SelectedThemeColorKey
+import com.wavlin.music.ui.component.TextFieldDialog
 import com.wavlin.music.ui.theme.DefaultThemeColor
+import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.theme.WavlinTheme
 import com.wavlin.music.utils.rememberEnumPreference
 import com.wavlin.music.utils.rememberPreference
@@ -385,11 +391,28 @@ fun ThemeControls(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
+
+                val context = LocalContext.current
+                var secretPinkUnlocked by rememberPreference(SecretPinkThemeUnlockedKey, defaultValue = false)
+                var showUnlockDialog by remember { mutableStateOf(false) }
+
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
+                    item {
+                        if (secretPinkUnlocked) {
+                            val secretPalette = ThemePalette(R.string.palette_secret_pink, SecretPinkThemeColor)
+                            PaletteItem(
+                                palette = secretPalette,
+                                isSelected = selectedThemeColor == SecretPinkThemeColor,
+                                onClick = { onSelectedThemeColorChange(SecretPinkThemeColor) }
+                            )
+                        } else {
+                            LockedPaletteItem(onClick = { showUnlockDialog = true })
+                        }
+                    }
+
                     items(PaletteColors) { palette ->
                         val isDynamicPalette = palette.seedColor == Color.Transparent
                         val isSelected = if (isDynamicPalette) {
@@ -407,6 +430,32 @@ fun ThemeControls(
                             }
                         )
                     }
+                }
+
+                if (showUnlockDialog) {
+                    TextFieldDialog(
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.lock),
+                                contentDescription = null
+                            )
+                        },
+                        title = { Text(stringResource(R.string.secret_theme_unlock_title)) },
+                        placeholder = { Text(stringResource(R.string.secret_theme_unlock_placeholder)) },
+                        isInputValid = { it.isNotBlank() },
+                        onDismiss = { showUnlockDialog = false },
+                        autoDismiss = false,
+                        onDone = { input ->
+                            if (input.trim().equals("pink", ignoreCase = true)) {
+                                secretPinkUnlocked = true
+                                onSelectedThemeColorChange(SecretPinkThemeColor)
+                                showUnlockDialog = false
+                                Toast.makeText(context, R.string.secret_theme_unlocked_toast, Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, R.string.secret_theme_incorrect_toast, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -541,6 +590,37 @@ fun ModeCircle(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LockedPaletteItem(
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val contentDesc = stringResource(R.string.secret_theme_locked_cd)
+
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick
+            )
+            .semantics {
+                contentDescription = contentDesc
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.lock),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

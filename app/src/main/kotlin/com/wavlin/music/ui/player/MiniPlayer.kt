@@ -10,6 +10,7 @@ package com.wavlin.music.ui.player
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -18,6 +19,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -70,7 +72,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -96,6 +101,7 @@ import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.MiniPlayerHeight
 import com.wavlin.music.constants.PureBlackMiniPlayerKey
 import com.wavlin.music.constants.SwipeSensitivityKey
+import com.wavlin.music.constants.SelectedThemeColorKey
 import com.wavlin.music.constants.SwipeThumbnailKey
 import com.wavlin.music.constants.ThumbnailCornerRadius
 import com.wavlin.music.constants.UseNewMiniPlayerDesignKey
@@ -126,7 +132,9 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.wavlin.music.ui.theme.DefaultThemeColor
 import com.wavlin.music.ui.theme.PlayerColorExtractor
+import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.glassStrokeBrush
@@ -225,7 +233,12 @@ private fun NewMiniPlayer(
         }
     val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
 
-    // Swipe settings
+    // Secret pink theme mascot - only shown when that theme is actually selected
+    val selectedThemeColorInt by rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
+    val isSecretPinkTheme = selectedThemeColorInt == SecretPinkThemeColor.toArgb()
+    val mascotIsPlaying by playerConnection.isPlaying.collectAsState()
+    val mascotCastIsPlaying by castHandler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
+    val mascotEffectiveIsPlaying = if (isCasting) mascotCastIsPlaying else mascotIsPlaying
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
 
@@ -532,7 +545,52 @@ private fun NewMiniPlayer(
                 }
             }
         }
+
+        if (isSecretPinkTheme) {
+            PinkMascot(
+                isPlaying = mascotEffectiveIsPlaying,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-8).dp, y = (-46).dp),
+            )
+        }
     }
+}
+
+@Composable
+private fun PinkMascot(
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val swingAngle = remember { Animatable(0f) }
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            swingAngle.snapTo(-8f)
+            swingAngle.animateTo(
+                targetValue = 8f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+            )
+        } else {
+            swingAngle.animateTo(0f, animationSpec = tween(300))
+        }
+    }
+
+    Image(
+        painter = painterResource(R.drawable.mascot_pink),
+        contentDescription = null,
+        modifier =
+            modifier
+                .width(56.dp)
+                .graphicsLayer {
+                    rotationZ = swingAngle.value
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                },
+    )
 }
 
 /**

@@ -734,6 +734,7 @@ fun AutoPlaylistScreen(
                         )
                     },
                     containerColor = Color.Transparent,
+                    shape = CircleShape,
                     modifier = Modifier.glassPanel(shape = CircleShape),
                 ) {
                     Icon(

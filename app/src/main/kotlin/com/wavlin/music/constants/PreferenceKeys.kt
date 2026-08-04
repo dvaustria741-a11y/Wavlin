@@ -21,6 +21,7 @@ val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")
 val SecretPinkThemeUnlockedKey = booleanPreferencesKey("secretPinkThemeUnlocked")
+val PreviousDarkModeBeforeSecretPinkKey = stringPreferencesKey("previousDarkModeBeforeSecretPink")
 val MiniPlayerOutlineKey = booleanPreferencesKey("miniPlayerOutline")
 val MiniPlayerBackgroundStyleKey = stringPreferencesKey("miniPlayerBackgroundStyle")
 

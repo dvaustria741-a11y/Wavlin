@@ -64,6 +64,7 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
+                    shape = CircleShape,
                     containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
@@ -78,6 +79,7 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                shape = CircleShape,
                 containerColor = Color.Transparent,
                 modifier = Modifier.glassPanel(shape = CircleShape),
             ) {
@@ -117,6 +119,7 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
+                    shape = CircleShape,
                     containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
@@ -131,6 +134,7 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                shape = CircleShape,
                 containerColor = Color.Transparent,
                 modifier = Modifier.glassPanel(shape = CircleShape),
             ) {
@@ -170,6 +174,7 @@ fun BoxScope.HideOnScrollFAB(
             if (onRecognitionClick != null) {
                 SmallFloatingActionButton(
                     onClick = onRecognitionClick,
+                    shape = CircleShape,
                     containerColor = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
@@ -184,6 +189,7 @@ fun BoxScope.HideOnScrollFAB(
             }
             FloatingActionButton(
                 onClick = onClick,
+                shape = CircleShape,
                 containerColor = Color.Transparent,
                 modifier = Modifier.glassPanel(shape = CircleShape),
             ) {

@@ -1067,6 +1067,7 @@ fun LibraryMixScreen(
         // Always visible + button (no scroll hiding)
         FloatingActionButton(
             onClick = { showCreatePlaylistDialog = true },
+            shape = CircleShape,
             containerColor = Color.Transparent,
             modifier = Modifier
                 .align(Alignment.BottomEnd)

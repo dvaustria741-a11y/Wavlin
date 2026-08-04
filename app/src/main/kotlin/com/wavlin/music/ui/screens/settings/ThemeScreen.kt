@@ -80,6 +80,7 @@ import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.DynamicThemeKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.PureBlackMiniPlayerKey
+import com.wavlin.music.constants.PreviousDarkModeBeforeSecretPinkKey
 import com.wavlin.music.constants.SecretPinkThemeUnlockedKey
 import com.wavlin.music.constants.SelectedThemeColorKey
 import com.wavlin.music.ui.component.TextFieldDialog
@@ -395,6 +396,11 @@ fun ThemeControls(
                 val context = LocalContext.current
                 var secretPinkUnlocked by rememberPreference(SecretPinkThemeUnlockedKey, defaultValue = false)
                 var showUnlockDialog by remember { mutableStateOf(false) }
+                var previousDarkModeName by rememberPreference(
+                    PreviousDarkModeBeforeSecretPinkKey,
+                    defaultValue = DarkMode.AUTO.name
+                )
+                val isCurrentlyPink = selectedThemeColor == SecretPinkThemeColor
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
@@ -405,12 +411,18 @@ fun ThemeControls(
                             val secretPalette = ThemePalette(R.string.palette_secret_pink, SecretPinkThemeColor)
                             PaletteItem(
                                 palette = secretPalette,
-                                isSelected = selectedThemeColor == SecretPinkThemeColor,
+                                isSelected = isCurrentlyPink,
                                 onClick = {
+                                    if (!isCurrentlyPink) {
+                                        // Remember whatever mode the user was actually in so we
+                                        // can put it back once they leave this theme - this theme
+                                        // is designed as a soft, light pastel look (dark mode would
+                                        // just desaturate it into a dark maroon accent instead), but
+                                        // forcing light shouldn't be a one-way trip for the user.
+                                        previousDarkModeName = darkMode.name
+                                        onDarkModeChange(DarkMode.OFF)
+                                    }
                                     onSelectedThemeColorChange(SecretPinkThemeColor)
-                                    // This theme is designed as a soft, light pastel look - dark mode
-                                    // would just desaturate it into a dark maroon accent instead.
-                                    onDarkModeChange(DarkMode.OFF)
                                 }
                             )
                         } else {
@@ -431,6 +443,13 @@ fun ThemeControls(
                             isSelected = isSelected,
                             onClick = { 
                                 val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
+                                if (isCurrentlyPink) {
+                                    // Leaving the pink theme - restore whatever mode the user was
+                                    // actually in before it forced light mode.
+                                    val restoredMode = runCatching { DarkMode.valueOf(previousDarkModeName) }
+                                        .getOrDefault(DarkMode.AUTO)
+                                    onDarkModeChange(restoredMode)
+                                }
                                 onSelectedThemeColorChange(colorToSave) 
                             }
                         )
@@ -453,8 +472,11 @@ fun ThemeControls(
                         onDone = { input ->
                             if (input.trim().equals("pink", ignoreCase = true)) {
                                 secretPinkUnlocked = true
+                                if (!isCurrentlyPink) {
+                                    previousDarkModeName = darkMode.name
+                                    onDarkModeChange(DarkMode.OFF)
+                                }
                                 onSelectedThemeColorChange(SecretPinkThemeColor)
-                                onDarkModeChange(DarkMode.OFF)
                                 showUnlockDialog = false
                                 Toast.makeText(context, R.string.secret_theme_unlocked_toast, Toast.LENGTH_SHORT).show()
                             } else {

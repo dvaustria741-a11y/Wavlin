@@ -975,6 +975,7 @@ fun ArtistScreen(
                 if (showLocalFab) {
                     androidx.compose.material3.SmallFloatingActionButton(
                         modifier = Modifier.padding(16.dp).offset(x = (-4).dp).glassPanel(shape = CircleShape), // Align center with standard FAB (56dp vs 48dp)
+                        shape = CircleShape,
                         containerColor = Color.Transparent,
                         onClick = onPlayAllClick,
                     ) {
@@ -986,6 +987,7 @@ fun ArtistScreen(
                 } else {
                     androidx.compose.material3.FloatingActionButton(
                         modifier = Modifier.padding(16.dp).glassPanel(shape = CircleShape),
+                        shape = CircleShape,
                         containerColor = Color.Transparent,
                         onClick = onPlayAllClick,
                     ) {

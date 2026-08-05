@@ -1002,7 +1002,6 @@ class MainActivity : ComponentActivity() {
                     }
 
                     Scaffold(
-                        modifier = Modifier.hazeSource(state = hazeState),
                         snackbarHost = { SnackbarHost(snackbarHostState) },
                         topBar = {
                             AnimatedVisibility(
@@ -1243,6 +1242,7 @@ class MainActivity : ComponentActivity() {
                         modifier =
                             Modifier
                                 .fillMaxSize()
+                                .hazeSource(state = hazeState)
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
                         Row(Modifier.fillMaxSize()) {

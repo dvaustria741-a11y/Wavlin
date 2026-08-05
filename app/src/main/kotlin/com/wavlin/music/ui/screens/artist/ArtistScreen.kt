@@ -36,7 +36,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -973,27 +972,27 @@ fun ArtistScreen(
                 }
 
                 if (showLocalFab) {
-                    androidx.compose.material3.SmallFloatingActionButton(
-                        modifier = Modifier.padding(16.dp).offset(x = (-4).dp).glassPanel(shape = CircleShape), // Align center with standard FAB (56dp vs 48dp)
-                        shape = CircleShape,
-                        containerColor = Color.Transparent,
+                    GlassIconButton(
+                        modifier = Modifier.padding(16.dp).offset(x = (-4).dp), // Align center with standard FAB (56dp vs 48dp)
+                        size = 40.dp,
+                        contentDescription = "Play All",
                         onClick = onPlayAllClick,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.play),
-                            contentDescription = "Play All",
+                            contentDescription = null,
                         )
                     }
                 } else {
-                    androidx.compose.material3.FloatingActionButton(
-                        modifier = Modifier.padding(16.dp).glassPanel(shape = CircleShape),
-                        shape = CircleShape,
-                        containerColor = Color.Transparent,
+                    GlassIconButton(
+                        modifier = Modifier.padding(16.dp),
+                        size = 56.dp,
+                        contentDescription = "Play All",
                         onClick = onPlayAllClick,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.play),
-                            contentDescription = "Play All",
+                            contentDescription = null,
                             modifier = Modifier.size(32.dp),
                         )
                     }

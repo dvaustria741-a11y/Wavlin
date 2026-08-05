@@ -551,8 +551,8 @@ private fun NewMiniPlayer(
                 isPlaying = mascotEffectiveIsPlaying,
                 modifier =
                     Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-2).dp, y = 2.dp),
+                        .align(Alignment.TopCenter)
+                        .offset(y = 0.dp),
             )
         }
     }
@@ -585,7 +585,7 @@ private fun PinkMascot(
         contentDescription = null,
         modifier =
             modifier
-                .width(38.dp)
+                .width(26.dp)
                 .graphicsLayer {
                     rotationZ = swingAngle.value
                     transformOrigin = TransformOrigin(0.5f, 0f)

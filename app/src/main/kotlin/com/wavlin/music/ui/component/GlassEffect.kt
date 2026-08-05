@@ -5,9 +5,19 @@
 
 package com.wavlin.music.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
@@ -16,6 +26,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
@@ -90,4 +102,42 @@ fun Modifier.glassTopEdgeGlow(height: Dp = 1.dp): Modifier = drawWithContent {
         ),
         size = Size(size.width, height.toPx()),
     )
+}
+
+/**
+ * Circular glass icon button built from bare primitives instead of Material3's
+ * FloatingActionButton/SmallFloatingActionButton (those compute shadow/elevation from an
+ * internal shape independent of any shape param passed in, which showed up as a visible
+ * polygon artifact behind the circular clipped content). Uses a flat translucent fill
+ * instead of real backdrop blur too - at this small a scale (40-56dp) blur sampling doesn't
+ * read as meaningfully "frosted" anyway, and skipping it avoids any further blur-related
+ * rendering quirks at the circular clip boundary.
+ */
+@Composable
+fun GlassIconButton(
+    onClick: () -> Unit,
+    size: Dp,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
+            .border(1.dp, glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, radius = size / 2),
+                onClick = onClick,
+            )
+            .let {
+                if (contentDescription != null) it.semantics { this.contentDescription = contentDescription } else it
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
 }

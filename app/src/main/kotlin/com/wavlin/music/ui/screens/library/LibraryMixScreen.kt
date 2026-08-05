@@ -27,9 +27,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +46,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLocale
@@ -89,11 +86,11 @@ import com.wavlin.music.extensions.reversed
 import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.AlbumGridItem
+import com.wavlin.music.ui.component.GlassIconButton
 import com.wavlin.music.ui.component.AlbumListItem
 import com.wavlin.music.ui.component.ArtistGridItem
 import com.wavlin.music.ui.component.ArtistListItem
 import com.wavlin.music.ui.component.CreatePlaylistDialog
-import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.LibrarySearchEmptyPlaceholder
 import com.wavlin.music.ui.component.LibrarySearchHeader
 import com.wavlin.music.ui.component.LocalMenuState
@@ -1065,10 +1062,10 @@ fun LibraryMixScreen(
         }
 
         // Always visible + button (no scroll hiding)
-        FloatingActionButton(
+        GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
-            shape = CircleShape,
-            containerColor = Color.Transparent,
+            size = 56.dp,
+            contentDescription = stringResource(R.string.create_playlist),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(
@@ -1076,11 +1073,10 @@ fun LibraryMixScreen(
                         .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                 )
                 .padding(16.dp)
-                .glassPanel(shape = CircleShape)
         ) {
             Icon(
                 painter = painterResource(R.drawable.add),
-                contentDescription = stringResource(R.string.create_playlist),
+                contentDescription = null,
             )
         }
 

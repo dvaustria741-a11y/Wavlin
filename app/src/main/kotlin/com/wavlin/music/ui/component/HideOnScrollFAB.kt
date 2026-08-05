@@ -21,21 +21,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.R
 import com.wavlin.music.ui.utils.isScrollingUp
+
+/**
+ * Circular glass icon button built from bare primitives instead of Material3's
+ * FloatingActionButton/SmallFloatingActionButton. Those compute their own shadow/elevation
+ * using an internal shape independent of the shape param passed to them - in this project's
+ * M3 Expressive alpha version that shows up as a visible polygon (hexagon/octagon) artifact
+ * bleeding out from behind the circular clipped content, even with shape = CircleShape set
+ * explicitly. Skipping the FAB Surface entirely avoids that regardless of the exact cause.
+ * See GlassEffect.kt for the shared implementation.
+ */
 
 @Composable
 fun BoxScope.HideOnScrollFAB(
@@ -62,26 +68,24 @@ fun BoxScope.HideOnScrollFAB(
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassIconButton(
                     onClick = onRecognitionClick,
-                    shape = CircleShape,
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
+                    size = 40.dp,
+                    contentDescription = stringResource(R.string.recognize_music),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
-                        contentDescription = stringResource(R.string.recognize_music),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassIconButton(
                 onClick = onClick,
-                shape = CircleShape,
-                containerColor = Color.Transparent,
-                modifier = Modifier.glassPanel(shape = CircleShape),
+                size = 56.dp,
+                contentDescription = null,
             ) {
                 Icon(
                     painter = painterResource(icon),
@@ -117,26 +121,24 @@ fun BoxScope.HideOnScrollFAB(
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassIconButton(
                     onClick = onRecognitionClick,
-                    shape = CircleShape,
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
+                    size = 40.dp,
+                    contentDescription = stringResource(R.string.recognize_music),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
-                        contentDescription = stringResource(R.string.recognize_music),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassIconButton(
                 onClick = onClick,
-                shape = CircleShape,
-                containerColor = Color.Transparent,
-                modifier = Modifier.glassPanel(shape = CircleShape),
+                size = 56.dp,
+                contentDescription = null,
             ) {
                 Icon(
                     painter = painterResource(icon),
@@ -172,26 +174,24 @@ fun BoxScope.HideOnScrollFAB(
             modifier = Modifier.padding(16.dp)
         ) {
             if (onRecognitionClick != null) {
-                SmallFloatingActionButton(
+                GlassIconButton(
                     onClick = onRecognitionClick,
-                    shape = CircleShape,
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape)
+                    size = 40.dp,
+                    contentDescription = stringResource(R.string.recognize_music),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.mic),
-                        contentDescription = stringResource(R.string.recognize_music),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            FloatingActionButton(
+            GlassIconButton(
                 onClick = onClick,
-                shape = CircleShape,
-                containerColor = Color.Transparent,
-                modifier = Modifier.glassPanel(shape = CircleShape),
+                size = 56.dp,
+                contentDescription = null,
             ) {
                 Icon(
                     painter = painterResource(icon),

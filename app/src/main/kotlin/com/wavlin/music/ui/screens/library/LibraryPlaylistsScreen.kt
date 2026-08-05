@@ -27,9 +27,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +37,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -78,6 +75,7 @@ import com.wavlin.music.constants.YtmSyncKey
 import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.ui.component.CreatePlaylistDialog
+import com.wavlin.music.ui.component.GlassIconButton
 import com.wavlin.music.ui.component.LibrarySearchEmptyPlaceholder
 import com.wavlin.music.ui.component.LibrarySearchHeader
 import com.wavlin.music.ui.component.LibraryPlaylistGridItem
@@ -86,7 +84,6 @@ import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.PlaylistGridItem
 import com.wavlin.music.ui.component.PlaylistListItem
 import com.wavlin.music.ui.component.SortHeader
-import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.extensions.matchesNormalizedQuery
 import com.wavlin.music.extensions.normalizeForSearch
 import com.wavlin.music.utils.rememberEnumPreference
@@ -544,10 +541,10 @@ fun LibraryPlaylistsScreen(
         }
 
         // Always visible + button (no scroll hiding)
-        FloatingActionButton(
+        GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
-            shape = CircleShape,
-            containerColor = Color.Transparent,
+            size = 56.dp,
+            contentDescription = stringResource(R.string.create_playlist),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(
@@ -555,11 +552,10 @@ fun LibraryPlaylistsScreen(
                         .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                 )
                 .padding(16.dp)
-                .glassPanel(shape = CircleShape)
         ) {
             Icon(
                 painter = painterResource(R.drawable.add),
-                contentDescription = stringResource(R.string.create_playlist),
+                contentDescription = null,
             )
         }
     }

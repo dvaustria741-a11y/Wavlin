@@ -1088,19 +1088,164 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         bottomBar = {
-                            // Intentionally empty — the nav bar and player are rendered
-                            // as overlays inside the Scaffold content Box below, so that
-                            // hazeSource (on the content) and hazeEffect (on the nav bar /
-                            // mini-player) are siblings in the same SubcomposeLayout subtree.
-                            // Scaffold's bottomBar and content slots are separate subtrees and
-                            // Haze cannot sample across that boundary.
+                            val currentBackStackEntry = navController.currentBackStackEntry // reads reactively outside remember
+
+                            val onNavItemClick: (Screens, Boolean) -> Unit =
+                                remember(
+                                    navController,
+                                    coroutineScope,
+                                    topAppBarScrollBehavior,
+                                    playerBottomSheetState,
+                                    currentBackStackEntry,
+                                ) {
+                                    { screen: Screens, isSelected: Boolean ->
+                                        if (playerBottomSheetState.isExpanded) {
+                                            playerBottomSheetState.collapseSoft()
+                                        }
+                                        if (isSelected) {
+                                            val targetEntry =
+                                                try {
+                                                    val route = navController.currentBackStackEntry?.destination?.route
+                                                    if (route == SearchRoutes.ROUTE || route == "search_input") {
+                                                        // For search screens, use search_input entry
+                                                        navController.getBackStackEntry("search_input")
+                                                    } else {
+                                                        // For other screens, use current entry
+                                                        navController.currentBackStackEntry
+                                                    }
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+
+                                            // Use appropriate key based on screen type
+                                            if (screen == Screens.Search) {
+                                                val current = targetEntry?.savedStateHandle?.get<Int>("scrollToTopCount") ?: 0
+                                                targetEntry?.savedStateHandle?.set("scrollToTopCount", current + 1)
+                                            } else {
+                                                targetEntry?.savedStateHandle?.set("scrollToTop", true)
+                                            }
+
+                                            coroutineScope.launch {
+                                                topAppBarScrollBehavior.state.resetHeightOffset()
+                                            }
+                                        } else {
+                                            navController.navigate(screen.route) {
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
+                                    }
+                                }
+
+                            val onSearchLongClick: () -> Unit =
+                                remember(navController) {
+                                    {
+                                        navController.navigate("recognition") {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+
+                            // Pre-calculate values for graphicsLayer to avoid reading state during composition
+                            val navBarTotalHeight = bottomInset + NavigationBarHeight
+
+                            if (!showRail && currentRoute != "wrapped") {
+                                Box {
+                                    if (activePlayerConnection != null) {
+                                        BottomSheetPlayer(
+                                            state = playerBottomSheetState,
+                                            navController = navController,
+                                            pureBlack = pureBlack,
+                                        )
+                                    }
+
+                                    AppNavigationBar(
+                                        navigationItems = navigationItems,
+                                        currentRoute = currentRoute,
+                                        onItemClick = onNavItemClick,
+                                        pureBlack = pureBlack,
+                                        slimNav = slimNav,
+                                        onSearchLongClick = onSearchLongClick,
+                                        modifier =
+                                            Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .height(bottomInset + navPadding)
+                                                // Use graphicsLayer instead of offset to avoid recomposition
+                                                // graphicsLayer runs during draw phase, not composition phase
+                                                .graphicsLayer {
+                                                    val navBarHeightPx = navigationBarHeight.toPx()
+                                                    val totalHeightPx = navBarTotalHeight.toPx()
+
+                                                    translationY =
+                                                        if (navBarHeightPx == 0f) {
+                                                            totalHeightPx
+                                                        } else {
+                                                            // Read progress only during draw phase
+                                                            val progress = playerBottomSheetState.progress.coerceIn(0f, 1f)
+                                                            val slideOffset = totalHeightPx * progress
+                                                            val hideOffset =
+                                                                totalHeightPx * (1 - navBarHeightPx / NavigationBarHeight.toPx())
+                                                            slideOffset + hideOffset
+                                                        }
+                                                },
+                                    )
+
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .align(Alignment.BottomCenter)
+                                                .height(bottomInsetDp)
+                                                // Use graphicsLayer for background color changes
+                                                .graphicsLayer {
+                                                    val progress = playerBottomSheetState.progress
+                                                    alpha =
+                                                        if (progress > 0f ||
+                                                            (useNewMiniPlayerDesign && !shouldShowNavigationBar)
+                                                        ) {
+                                                            0f
+                                                        } else {
+                                                            1f
+                                                        }
+                                                }.background(baseBg),
+                                    )
+                                }
+                            } else {
+                                if (currentRoute != "wrapped") {
+                                    if (activePlayerConnection != null) {
+                                        BottomSheetPlayer(
+                                            state = playerBottomSheetState,
+                                            navController = navController,
+                                            pureBlack = pureBlack,
+                                        )
+                                    }
+                                }
+
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .height(bottomInsetDp)
+                                            // Use graphicsLayer for background color changes
+                                            .graphicsLayer {
+                                                val progress = playerBottomSheetState.progress
+                                                alpha =
+                                                    if (progress > 0f || (useNewMiniPlayerDesign && !shouldShowNavigationBar)) 0f else 1f
+                                            }.background(baseBg),
+                                )
+                            }
                         },
                         modifier =
                             Modifier
                                 .fillMaxSize()
+                                .hazeSource(state = hazeState)
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
-                        Row(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+                        Row(Modifier.fillMaxSize()) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->

@@ -393,6 +393,7 @@ dependencies {
     implementation(project(":innertube"))
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
+    implementation(project(":deezer"))
     implementation(project(":lastfm"))
     implementation(project(":betterlyrics"))
     implementation(project(":shazamkit"))
@@ -417,3 +418,4 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.ktor.client.mock)
 }
+

@@ -10,6 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wavlin.deezer.Deezer
 import com.wavlin.innertube.YouTube
+import com.wavlin.music.BuildConfig
+import com.wavlin.spotify.Spotify
 import com.wavlin.innertube.models.AlbumItem
 import com.wavlin.innertube.models.filterExplicit
 import com.wavlin.music.constants.HideExplicitKey
@@ -43,6 +45,13 @@ constructor(
 
     private val _isCheckingDeezer = MutableStateFlow(false)
     val isCheckingDeezer = _isCheckingDeezer.asStateFlow()
+
+    private val spotify by lazy {
+        Spotify(
+            clientId = BuildConfig.SPOTIFY_CLIENT_ID,
+            clientSecret = BuildConfig.SPOTIFY_CLIENT_SECRET,
+        )
+    }
 
     init {
         viewModelScope.launch {
@@ -91,20 +100,22 @@ constructor(
                 favouriteArtistNames.ifEmpty { libraryArtistNames }.distinct()
 
             if (artistNamesToCheck.isNotEmpty()) {
-                checkDeezerForMissingReleases(artistNamesToCheck)
+                checkForMissingReleases(artistNamesToCheck)
             }
         }
     }
 
     /**
-     * For each artist name, ask Deezer (free, no auth) whether they've dropped a
-     * new album/single/EP recently. Deezer's catalog tends to reflect new releases
-     * faster/more completely than YouTube Music's own "new releases" shelf. Any
-     * release Deezer knows about that isn't already in [newReleaseAlbums] gets
-     * searched for on YouTube Music so it can still be played through the app's
-     * normal pipeline - Deezer is only ever used for metadata, never playback.
+     * For each artist name, ask an external catalog whether they've dropped a new
+     * album/single/EP recently, then look it up on YouTube Music so it can still
+     * be played through the app's normal pipeline. Spotify's official Web API is
+     * tried first (better catalog coverage) when credentials are configured and
+     * valid; if Spotify is unconfigured, unauthorized (e.g. no Premium on the
+     * registering account), or simply doesn't know about the artist, this
+     * silently falls back to Deezer's free/no-auth API per artist. Either way,
+     * both sources are only ever used for metadata - never for playback.
      */
-    private suspend fun checkDeezerForMissingReleases(artistNames: List<String>) {
+    private suspend fun checkForMissingReleases(artistNames: List<String>) {
         _isCheckingDeezer.value = true
         try {
             val existingKeys =
@@ -115,16 +126,16 @@ constructor(
             val found = mutableListOf<AlbumItem>()
 
             // Small chunks with a short delay between them to stay well within
-            // Deezer's generous but rate-limited free tier.
+            // both APIs' generous but rate-limited free tiers.
             artistNames.chunked(5).forEach { chunk ->
                 chunk.forEach { artistName ->
                     runCatching {
-                        val releases = Deezer.getRecentReleases(artistName)
-                        releases.forEach { release ->
-                            val key = normalizedKey(artistName, release.title)
+                        val releaseTitles = fetchReleaseTitles(artistName)
+                        releaseTitles.forEach { title ->
+                            val key = normalizedKey(artistName, title)
                             if (key in existingKeys) return@forEach
 
-                            val matched = findOnYouTubeMusic(artistName, release.title)
+                            val matched = findOnYouTubeMusic(artistName, title)
                             if (matched != null && matched.normalizedKey() !in existingKeys) {
                                 existingKeys += matched.normalizedKey()
                                 found += matched
@@ -149,6 +160,23 @@ constructor(
         } finally {
             _isCheckingDeezer.value = false
         }
+    }
+
+    /**
+     * Returns recent release titles for [artistName]. Tries Spotify first (if
+     * configured), falling back to Deezer if Spotify returns nothing - whether
+     * that's because it's unconfigured, the credentials were rejected, or it
+     * just doesn't have data for this artist. Both APIs fail closed (empty list)
+     * on any error, so no explicit error handling is needed here.
+     */
+    private suspend fun fetchReleaseTitles(artistName: String): List<String> {
+        if (spotify.isConfigured) {
+            val spotifyReleases = spotify.getRecentReleases(artistName)
+            if (spotifyReleases.isNotEmpty()) {
+                return spotifyReleases.map { it.name }
+            }
+        }
+        return Deezer.getRecentReleases(artistName).map { it.title }
     }
 
     private suspend fun findOnYouTubeMusic(

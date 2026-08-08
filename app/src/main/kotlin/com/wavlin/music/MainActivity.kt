@@ -1242,10 +1242,9 @@ class MainActivity : ComponentActivity() {
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .hazeSource(state = hazeState)
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
-                        Row(Modifier.fillMaxSize()) {
+                        Row(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->

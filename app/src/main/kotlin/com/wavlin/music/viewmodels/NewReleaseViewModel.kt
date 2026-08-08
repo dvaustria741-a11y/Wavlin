@@ -10,22 +10,41 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wavlin.deezer.Deezer
 import com.wavlin.innertube.YouTube
-import com.wavlin.music.BuildConfig
-import com.wavlin.spotify.Spotify
 import com.wavlin.innertube.models.AlbumItem
 import com.wavlin.innertube.models.filterExplicit
 import com.wavlin.music.constants.HideExplicitKey
+import com.wavlin.music.constants.PendingNewReleasesKey
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.utils.dataStore
 import com.wavlin.music.utils.get
 import com.wavlin.music.utils.reportException
+import com.wavlin.music.utils.safeDataStoreEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+
+/**
+ * A Deezer-sourced release that hasn't been matched to anything on YouTube Music
+ * yet. Persisted across sessions so it can keep being retried until it either
+ * shows up on YouTube (and gets promoted into [NewReleaseViewModel.newReleaseAlbums])
+ * or expires after [PENDING_EXPIRY_DAYS].
+ */
+@Serializable
+data class PendingRelease(
+    val artistName: String,
+    val albumTitle: String,
+    val coverUrl: String? = null,
+    val firstSeenAtMillis: Long,
+)
 
 @HiltViewModel
 class NewReleaseViewModel
@@ -37,21 +56,15 @@ constructor(
     private val _newReleaseAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
     val newReleaseAlbums = _newReleaseAlbums.asStateFlow()
 
-    // Deezer-sourced releases that were found on YouTube Music but aren't part of
-    // YT Music's own "new releases" feed. Surfaced separately so the UI can badge
-    // them if desired, without changing the shape of newReleaseAlbums.
-    private val _deezerFoundAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
-    val deezerFoundAlbums = _deezerFoundAlbums.asStateFlow()
+    // Deezer releases still waiting on a YouTube Music upload. Exposed so the UI
+    // can optionally surface a "coming soon" section; safe to ignore otherwise.
+    private val _pendingReleases = MutableStateFlow<List<PendingRelease>>(emptyList())
+    val pendingReleases = _pendingReleases.asStateFlow()
 
     private val _isCheckingDeezer = MutableStateFlow(false)
     val isCheckingDeezer = _isCheckingDeezer.asStateFlow()
 
-    private val spotify by lazy {
-        Spotify(
-            clientId = BuildConfig.SPOTIFY_CLIENT_ID,
-            clientSecret = BuildConfig.SPOTIFY_CLIENT_SECRET,
-        )
-    }
+    private val json = Json { ignoreUnknownKeys = true }
 
     init {
         viewModelScope.launch {
@@ -94,89 +107,149 @@ constructor(
                     reportException(it)
                 }
 
+            // Retry anything still pending from previous sessions before looking
+            // for anything new.
+            recheckPendingReleases()
+
             // Prefer checking followed artists; if none are bookmarked, fall back to
             // the most-played artists in the library.
             val artistNamesToCheck =
                 favouriteArtistNames.ifEmpty { libraryArtistNames }.distinct()
 
             if (artistNamesToCheck.isNotEmpty()) {
-                checkForMissingReleases(artistNamesToCheck)
+                checkDeezerForMissingReleases(artistNamesToCheck)
             }
         }
     }
 
+    private fun loadPending(): List<PendingRelease> =
+        runCatching {
+            context.dataStore
+                .get(PendingNewReleasesKey, "")
+                .takeIf { it.isNotBlank() }
+                ?.let { json.decodeFromString<List<PendingRelease>>(it) }
+                ?: emptyList()
+        }.getOrDefault(emptyList())
+
+    private suspend fun savePending(pending: List<PendingRelease>) {
+        context.safeDataStoreEdit {
+            it[PendingNewReleasesKey] = json.encodeToString(pending)
+        }
+    }
+
     /**
-     * For each artist name, ask an external catalog whether they've dropped a new
-     * album/single/EP recently, then look it up on YouTube Music so it can still
-     * be played through the app's normal pipeline. Spotify's official Web API is
-     * tried first (better catalog coverage) when credentials are configured and
-     * valid; if Spotify is unconfigured, unauthorized (e.g. no Premium on the
-     * registering account), or simply doesn't know about the artist, this
-     * silently falls back to Deezer's free/no-auth API per artist. Either way,
-     * both sources are only ever used for metadata - never for playback.
+     * Retries every persisted [PendingRelease]: drops anything older than
+     * [PENDING_EXPIRY_DAYS], promotes anything now findable on YouTube Music into
+     * [newReleaseAlbums], and leaves the rest pending for the next app launch.
      */
-    private suspend fun checkForMissingReleases(artistNames: List<String>) {
+    private suspend fun recheckPendingReleases() {
+        val pending = loadPending()
+        if (pending.isEmpty()) return
+
+        val now = System.currentTimeMillis()
+        val expiryMillis = PENDING_EXPIRY_DAYS * 24 * 60 * 60 * 1000L
+        val notExpired = pending.filter { now - it.firstSeenAtMillis < expiryMillis }
+
+        val stillPending = mutableListOf<PendingRelease>()
+        val promoted = mutableListOf<AlbumItem>()
+
+        notExpired.forEach { release ->
+            val matched = findOnYouTubeMusic(release.artistName, release.albumTitle)
+            if (matched != null) {
+                promoted += matched
+            } else {
+                stillPending += release
+            }
+        }
+
+        if (promoted.isNotEmpty()) {
+            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+            _newReleaseAlbums.value =
+                (_newReleaseAlbums.value + promoted)
+                    .distinctBy { it.id }
+                    .filterExplicit(hideExplicit)
+        }
+
+        _pendingReleases.value = stillPending
+        if (stillPending.size != pending.size) {
+            savePending(stillPending)
+        }
+    }
+
+    /**
+     * For each artist name, ask Deezer (free, no auth) whether they've dropped a
+     * new album/single/EP recently. Deezer's catalog tends to reflect new releases
+     * faster/more completely than YouTube Music's own "new releases" shelf. Any
+     * release Deezer knows about that isn't already in [newReleaseAlbums] gets
+     * searched for on YouTube Music so it can still be played through the app's
+     * normal pipeline - Deezer is only ever used for metadata, never playback.
+     * Anything not (yet) found on YouTube is persisted as pending and retried on
+     * every future launch (see [recheckPendingReleases]) until it appears or expires.
+     */
+    private suspend fun checkDeezerForMissingReleases(artistNames: List<String>) {
         _isCheckingDeezer.value = true
         try {
             val existingKeys =
                 _newReleaseAlbums.value
                     .map { it.normalizedKey() }
                     .toMutableSet()
+            val pendingKeys =
+                _pendingReleases.value
+                    .map { normalizedKey(it.artistName, it.albumTitle) }
+                    .toMutableSet()
 
             val found = mutableListOf<AlbumItem>()
+            val newlyPending = mutableListOf<PendingRelease>()
+            val now = System.currentTimeMillis()
 
             // Small chunks with a short delay between them to stay well within
-            // both APIs' generous but rate-limited free tiers.
+            // Deezer's generous but rate-limited free tier.
             artistNames.chunked(5).forEach { chunk ->
                 chunk.forEach { artistName ->
                     runCatching {
-                        val releaseTitles = fetchReleaseTitles(artistName)
-                        releaseTitles.forEach { title ->
-                            val key = normalizedKey(artistName, title)
-                            if (key in existingKeys) return@forEach
+                        val releases = Deezer.getRecentReleases(artistName)
+                        releases.forEach { release ->
+                            val key = normalizedKey(artistName, release.title)
+                            if (key in existingKeys || key in pendingKeys) return@forEach
 
-                            val matched = findOnYouTubeMusic(artistName, title)
+                            val matched = findOnYouTubeMusic(artistName, release.title)
                             if (matched != null && matched.normalizedKey() !in existingKeys) {
                                 existingKeys += matched.normalizedKey()
                                 found += matched
+                            } else {
+                                pendingKeys += key
+                                newlyPending +=
+                                    PendingRelease(
+                                        artistName = artistName,
+                                        albumTitle = release.title,
+                                        coverUrl = release.cover_medium,
+                                        firstSeenAtMillis = now,
+                                    )
                             }
                         }
                     }
                 }
-                kotlinx.coroutines.delay(500)
+                delay(500)
             }
 
             if (found.isNotEmpty()) {
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val merged =
+                _newReleaseAlbums.value =
                     (_newReleaseAlbums.value + found)
                         .distinctBy { it.id }
                         .filterExplicit(hideExplicit)
-                _newReleaseAlbums.value = merged
-                _deezerFoundAlbums.value = found
+            }
+
+            if (newlyPending.isNotEmpty()) {
+                val merged = _pendingReleases.value + newlyPending
+                _pendingReleases.value = merged
+                savePending(merged)
             }
         } catch (e: Exception) {
             reportException(e)
         } finally {
             _isCheckingDeezer.value = false
         }
-    }
-
-    /**
-     * Returns recent release titles for [artistName]. Tries Spotify first (if
-     * configured), falling back to Deezer if Spotify returns nothing - whether
-     * that's because it's unconfigured, the credentials were rejected, or it
-     * just doesn't have data for this artist. Both APIs fail closed (empty list)
-     * on any error, so no explicit error handling is needed here.
-     */
-    private suspend fun fetchReleaseTitles(artistName: String): List<String> {
-        if (spotify.isConfigured) {
-            val spotifyReleases = spotify.getRecentReleases(artistName)
-            if (spotifyReleases.isNotEmpty()) {
-                return spotifyReleases.map { it.name }
-            }
-        }
-        return Deezer.getRecentReleases(artistName).map { it.title }
     }
 
     private suspend fun findOnYouTubeMusic(
@@ -245,5 +318,9 @@ constructor(
             }
         }
         return dp[a.length][b.length]
+    }
+
+    companion object {
+        private const val PENDING_EXPIRY_DAYS = 30
     }
 }

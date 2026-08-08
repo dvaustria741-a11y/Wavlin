@@ -79,6 +79,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.wavlin.innertube.YouTube
+import com.wavlin.innertube.utils.parseCookieString
 import com.wavlin.innertube.models.AlbumItem
 import com.wavlin.innertube.models.ArtistItem
 import com.wavlin.innertube.models.EpisodeItem
@@ -93,6 +94,7 @@ import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
 import com.wavlin.music.constants.AppBarHeight
 import com.wavlin.music.constants.HideExplicitKey
+import com.wavlin.music.constants.InnerTubeCookieKey
 import com.wavlin.music.constants.ShowArtistDescriptionKey
 import com.wavlin.music.constants.ShowArtistSubscriberCountKey
 import com.wavlin.music.constants.ShowMonthlyListenersKey
@@ -146,6 +148,8 @@ fun ArtistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
+    val (innerTubeCookie, _) = rememberPreference(InnerTubeCookieKey, "")
+    val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val artistPage = viewModel.artistPage
@@ -363,7 +367,16 @@ fun ArtistScreen(
                                     // Subscribe Button
                                     OutlinedButton(
                                         onClick = {
-                                            viewModel.toggleChannelSubscription()
+                                            if (!isLoggedIn) {
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        R.string.login_required_to_subscribe,
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                            } else {
+                                                viewModel.toggleChannelSubscription()
+                                            }
                                         },
                                         colors =
                                             ButtonDefaults.outlinedButtonColors(
@@ -1048,3 +1061,4 @@ fun ArtistScreen(
             },
     )
 }
+

@@ -8,6 +8,7 @@ package com.wavlin.music.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wavlin.deezer.Deezer
 import com.wavlin.innertube.YouTube
 import com.wavlin.innertube.models.AlbumItem
 import com.wavlin.innertube.models.filterExplicit
@@ -34,8 +35,20 @@ constructor(
     private val _newReleaseAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
     val newReleaseAlbums = _newReleaseAlbums.asStateFlow()
 
+    // Deezer-sourced releases that were found on YouTube Music but aren't part of
+    // YT Music's own "new releases" feed. Surfaced separately so the UI can badge
+    // them if desired, without changing the shape of newReleaseAlbums.
+    private val _deezerFoundAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
+    val deezerFoundAlbums = _deezerFoundAlbums.asStateFlow()
+
+    private val _isCheckingDeezer = MutableStateFlow(false)
+    val isCheckingDeezer = _isCheckingDeezer.asStateFlow()
+
     init {
         viewModelScope.launch {
+            var favouriteArtistNames: List<String> = emptyList()
+            var libraryArtistNames: List<String> = emptyList()
+
             YouTube
                 .newReleaseAlbums()
                 .onSuccess { albums ->
@@ -50,6 +63,9 @@ constructor(
                                 favIndex++
                             }
                         }
+                        favouriteArtistNames = list.filter { it.artist.bookmarkedAt != null }.map { it.artist.name }
+                        // Cap at 25 most-played to keep the Deezer/YouTube lookups reasonable.
+                        libraryArtistNames = list.take(25).map { it.artist.name }
                     }
                     _newReleaseAlbums.value =
                         albums
@@ -68,6 +84,138 @@ constructor(
                 }.onFailure {
                     reportException(it)
                 }
+
+            // Prefer checking followed artists; if none are bookmarked, fall back to
+            // the most-played artists in the library.
+            val artistNamesToCheck =
+                favouriteArtistNames.ifEmpty { libraryArtistNames }.distinct()
+
+            if (artistNamesToCheck.isNotEmpty()) {
+                checkDeezerForMissingReleases(artistNamesToCheck)
+            }
         }
+    }
+
+    /**
+     * For each artist name, ask Deezer (free, no auth) whether they've dropped a
+     * new album/single/EP recently. Deezer's catalog tends to reflect new releases
+     * faster/more completely than YouTube Music's own "new releases" shelf. Any
+     * release Deezer knows about that isn't already in [newReleaseAlbums] gets
+     * searched for on YouTube Music so it can still be played through the app's
+     * normal pipeline - Deezer is only ever used for metadata, never playback.
+     */
+    private suspend fun checkDeezerForMissingReleases(artistNames: List<String>) {
+        _isCheckingDeezer.value = true
+        try {
+            val existingKeys =
+                _newReleaseAlbums.value
+                    .map { it.normalizedKey() }
+                    .toMutableSet()
+
+            val found = mutableListOf<AlbumItem>()
+
+            // Small chunks with a short delay between them to stay well within
+            // Deezer's generous but rate-limited free tier.
+            artistNames.chunked(5).forEach { chunk ->
+                chunk.forEach { artistName ->
+                    runCatching {
+                        val releases = Deezer.getRecentReleases(artistName)
+                        releases.forEach { release ->
+                            val key = normalizedKey(artistName, release.title)
+                            if (key in existingKeys) return@forEach
+
+                            val matched = findOnYouTubeMusic(artistName, release.title)
+                            if (matched != null && matched.normalizedKey() !in existingKeys) {
+                                existingKeys += matched.normalizedKey()
+                                found += matched
+                            }
+                        }
+                    }
+                }
+                kotlinx.coroutines.delay(500)
+            }
+
+            if (found.isNotEmpty()) {
+                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val merged =
+                    (_newReleaseAlbums.value + found)
+                        .distinctBy { it.id }
+                        .filterExplicit(hideExplicit)
+                _newReleaseAlbums.value = merged
+                _deezerFoundAlbums.value = found
+            }
+        } catch (e: Exception) {
+            reportException(e)
+        } finally {
+            _isCheckingDeezer.value = false
+        }
+    }
+
+    private suspend fun findOnYouTubeMusic(
+        artistName: String,
+        albumTitle: String,
+    ): AlbumItem? =
+        runCatching {
+            YouTube
+                .search("$artistName $albumTitle", YouTube.SearchFilter.FILTER_ALBUM)
+                .getOrNull()
+                ?.items
+                ?.filterIsInstance<AlbumItem>()
+                ?.firstOrNull { candidate ->
+                    titleSimilarity(candidate.title, albumTitle) > 0.6 &&
+                        candidate.artists.orEmpty().any {
+                            titleSimilarity(it.name, artistName) > 0.6
+                        }
+                }
+        }.getOrNull()
+
+    private fun AlbumItem.normalizedKey(): String =
+        normalizedKey(artists.orEmpty().firstOrNull()?.name.orEmpty(), title)
+
+    private fun normalizedKey(
+        artist: String,
+        title: String,
+    ): String =
+        "${normalize(artist)}|${normalize(title)}"
+
+    private fun normalize(text: String): String =
+        text
+            .lowercase()
+            .replace(Regex("""[^a-z0-9]"""), "")
+
+    private fun titleSimilarity(
+        a: String,
+        b: String,
+    ): Double {
+        val s1 = normalize(a)
+        val s2 = normalize(b)
+        if (s1.isEmpty() || s2.isEmpty()) return 0.0
+        if (s1 == s2) return 1.0
+        if (s1.contains(s2) || s2.contains(s1)) return 0.85
+
+        val distance = levenshtein(s1, s2)
+        val maxLen = maxOf(s1.length, s2.length)
+        return 1.0 - (distance.toDouble() / maxLen)
+    }
+
+    private fun levenshtein(
+        a: String,
+        b: String,
+    ): Int {
+        val dp = Array(a.length + 1) { IntArray(b.length + 1) }
+        for (i in 0..a.length) dp[i][0] = i
+        for (j in 0..b.length) dp[0][j] = j
+        for (i in 1..a.length) {
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                dp[i][j] =
+                    minOf(
+                        dp[i - 1][j] + 1,
+                        dp[i][j - 1] + 1,
+                        dp[i - 1][j - 1] + cost,
+                    )
+            }
+        }
+        return dp[a.length][b.length]
     }
 }

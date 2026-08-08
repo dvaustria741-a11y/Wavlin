@@ -29,6 +29,7 @@ include(":app")
 include(":innertube")
 include(":kugou")
 include(":lrclib")
+include(":deezer")
 
 include(":lastfm")
 include(":betterlyrics")
@@ -50,3 +51,4 @@ include(":paxsenix")
 //        substitute(module("com.github.teamnewpipe:NewPipeExtractor")).using(project(":extractor"))
 //    }
 //}
+

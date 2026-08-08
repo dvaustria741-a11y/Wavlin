@@ -71,8 +71,6 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
 
       - name: Sign APK
         if: steps.check_release_secrets.outputs.ready == 'true'
@@ -103,4 +101,5 @@ jobs:
         with:
           name: ${{ matrix.variant == 'gms' && 'app-with-Google-Cast' || 'app-release' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*
+
 

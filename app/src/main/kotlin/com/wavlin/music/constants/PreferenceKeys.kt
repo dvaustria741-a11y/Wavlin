@@ -540,6 +540,10 @@ val AccountEmailKey = stringPreferencesKey("accountEmail")
 val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
 val UseLoginForBrowse = booleanPreferencesKey("useLoginForBrowse")
 
+// JSON-encoded list of PendingRelease - releases found via Deezer that haven't
+// shown up on YouTube Music yet, retried on each NewReleaseViewModel init.
+val PendingNewReleasesKey = stringPreferencesKey("pendingNewReleases")
+
 val LanguageCodeToName =
     mapOf(
         "af" to "Afrikaans",
@@ -733,3 +737,4 @@ val CountryCodeToName =
         "YE" to "Yemen",
         "ZW" to "Zimbabwe",
     )
+

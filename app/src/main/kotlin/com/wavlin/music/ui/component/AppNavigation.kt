@@ -72,8 +72,8 @@ fun AppNavigationRail(
     val hazeState = LocalHazeState.current
 
     NavigationRail(
-        modifier = if (pureBlack) modifier else modifier.hazeEffect(state = hazeState, style = HazeMaterials.thin()),
-        containerColor = if (pureBlack) Color.Black else Color.Transparent
+        modifier = modifier.hazeEffect(state = hazeState, style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin()),
+        containerColor = Color.Transparent
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
@@ -148,22 +148,18 @@ fun AppNavigationBar(
     slimNav: Boolean = false,
     onSearchLongClick: (() -> Unit)? = null
 ) {
-    // Pure black is an explicit OLED preference - respect it with a flat fill.
-    // Otherwise use a real frosted-glass backdrop blur (iOS-style) instead of a flat tint.
+    // Pure black is an explicit OLED preference - keep a heavy black tint, but still blur
+    // through it rather than falling back to a flat, zero-variation fill.
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val haptics = LocalHapticFeedback.current
     val viewConfiguration = LocalViewConfiguration.current
     val hazeState = LocalHazeState.current
 
     NavigationBar(
-        modifier = if (pureBlack) {
-            modifier
-        } else {
-            modifier
-                .hazeEffect(state = hazeState, style = HazeMaterials.thin())
-                .glassTopEdgeGlow()
-        },
-        containerColor = if (pureBlack) Color.Black else Color.Transparent,
+        modifier = modifier
+            .hazeEffect(state = hazeState, style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin())
+            .glassTopEdgeGlow(),
+        containerColor = Color.Transparent,
         contentColor = contentColor
     ) {
         navigationItems.forEach { screen ->

@@ -32,9 +32,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
+
+/**
+ * A near-black frosted style for surfaces under the "Pure Black" OLED preference. Keeps the
+ * dark aesthetic (heavy black tint) while still actually blurring content behind it, instead
+ * of Pure Black disabling glass entirely and falling back to a flat, zero-variation fill.
+ */
+fun pureBlackHazeStyle(): HazeStyle = HazeStyle(
+    backgroundColor = Color.Black,
+    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.75f))),
+    blurRadius = 20.dp,
+    noiseFactor = 0.15f,
+)
 
 /**
  * A single shared blur coordinator for the whole screen. The main scrollable content

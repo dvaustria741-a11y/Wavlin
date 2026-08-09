@@ -108,6 +108,7 @@ fun LibraryPodcastsScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     var podcastFilter by rememberEnumPreference(PodcastFilterKey, PodcastFilter.EPISODES)
 
@@ -403,7 +404,7 @@ fun LibraryPodcastsScreen(
                         SongListItem(
                             song = episode,
                             showInLibraryIcon = false,
-                            isActive = episode.id == mediaMetadata?.id,
+                            isActive = episode.id == mediaMetadata?.id && queueTitle == downloadedEpisodesStr,
                             isPlaying = isPlaying,
                             showLikedIcon = false,
                             showDownloadIcon = true,

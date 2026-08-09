@@ -336,6 +336,12 @@ class MusicService :
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
 
+    // Increments every time a new queue is loaded via playQueue(). Lets UI screens
+    // that play via YouTube radio/continuation (where the returned title isn't
+    // screen-specific) tell whether the currently-playing queue is the one *they*
+    // started, instead of relying on title matching alone.
+    val queueGeneration = MutableStateFlow(0L)
+
     val currentMediaMetadata = MutableStateFlow<com.wavlin.music.models.MediaMetadata?>(null)
     private val currentSong =
         currentMediaMetadata
@@ -1773,6 +1779,7 @@ class MusicService :
 
         currentQueue = queue
         queueTitle = null
+        queueGeneration.value++
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         val previousShuffleEnabled = player.shuffleModeEnabled
         if (!persistShuffleAcrossQueues) {

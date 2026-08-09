@@ -116,6 +116,7 @@ fun AlbumScreen(
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     val playlistId by viewModel.playlistId.collectAsStateWithLifecycle()
     val albumWithSongs by viewModel.albumWithSongs.collectAsStateWithLifecycle()
@@ -408,7 +409,7 @@ fun AlbumScreen(
                     SongListItem(
                         song = song,
                         albumIndex = index + 1,
-                        isActive = song.id == mediaMetadata?.id,
+                        isActive = song.id == mediaMetadata?.id && queueTitle == albumWithSongs?.album?.title,
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         trailingContent = {

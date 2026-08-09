@@ -97,6 +97,9 @@ fun HistoryScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val queueGeneration by playerConnection.queueGeneration.collectAsStateWithLifecycle()
+    var historyRadioPlayGeneration by remember { mutableStateOf<Long?>(null) }
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection =
@@ -261,7 +264,7 @@ fun HistoryScreen(
                     ) { song ->
                         YouTubeListItem(
                             item = song,
-                            isActive = song.id == mediaMetadata?.id,
+                            isActive = song.id == mediaMetadata?.id && queueGeneration == historyRadioPlayGeneration,
                             isPlaying = isPlaying,
                             trailingContent = {
                                 IconButton(
@@ -294,6 +297,7 @@ fun HistoryScreen(
                                                 playerConnection.playQueue(
                                                     YouTubeQueue.radio(song.toMediaMetadata()),
                                                 )
+                                                historyRadioPlayGeneration = playerConnection.service.queueGeneration.value
                                             }
                                         },
                                         onLongClick = {
@@ -338,7 +342,7 @@ fun HistoryScreen(
 
                         SongListItem(
                             song = event.song,
-                            isActive = event.song.id == mediaMetadata?.id,
+                            isActive = event.song.id == mediaMetadata?.id && queueTitle == dateTitle,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

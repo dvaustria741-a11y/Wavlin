@@ -149,6 +149,7 @@ fun AutoPlaylistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val playlist =
         when (viewModel.playlist) {
             "liked" -> stringResource(R.string.liked)
@@ -604,7 +605,7 @@ fun AutoPlaylistScreen(
 
                         SongListItem(
                             song = song,
-                            isActive = song.song.id == mediaMetadata?.id,
+                            isActive = song.song.id == mediaMetadata?.id && queueTitle == playlist,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

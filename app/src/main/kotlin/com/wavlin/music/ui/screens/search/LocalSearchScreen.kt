@@ -188,7 +188,7 @@ fun LocalSearchScreen(
                             SongListItem(
                                 song = item,
                                 showInLibraryIcon = true,
-                                isActive = (item.id == mediaMetadata?.id) && isPlaying,
+                                isActive = item.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 trailingContent = {
                                     IconButton(
@@ -251,7 +251,7 @@ fun LocalSearchScreen(
                         is Album -> {
                             AlbumListItem(
                                 album = item,
-                                isActive = (item.id == mediaMetadata?.album?.id) && isPlaying,
+                                isActive = item.id == mediaMetadata?.album?.id,
                                 isPlaying = isPlaying,
                                 modifier =
                                     Modifier

@@ -264,7 +264,7 @@ fun ChartsScreen(
                                     ) { song ->
                                         YouTubeListItem(
                                             item = song,
-                                            isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                                            isActive = song.id == mediaMetadata?.id,
                                             isPlaying = isPlaying,
                                             isSwipeable = false,
                                             trailingContent = {
@@ -338,7 +338,7 @@ fun ChartsScreen(
                                 ) { video ->
                                     YouTubeGridItem(
                                         item = video,
-                                        isActive = (video.id == mediaMetadata?.id) && isPlaying,
+                                        isActive = video.id == mediaMetadata?.id,
                                         isPlaying = isPlaying,
                                         coroutineScope = coroutineScope,
                                         modifier =

@@ -408,7 +408,7 @@ fun AlbumScreen(
                     SongListItem(
                         song = song,
                         albumIndex = index + 1,
-                        isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                        isActive = song.id == mediaMetadata?.id,
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         trailingContent = {
@@ -483,7 +483,7 @@ fun AlbumScreen(
                         ) { item ->
                             YouTubeGridItem(
                                 item = item,
-                                isActive = (mediaMetadata?.album?.id == item.id) && isPlaying,
+                                isActive = mediaMetadata?.album?.id == item.id,
                                 isPlaying = isPlaying,
                                 coroutineScope = scope,
                                 modifier =

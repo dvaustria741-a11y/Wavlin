@@ -321,7 +321,7 @@ fun TopPlaylistScreen(
                         SongListItem(
                             song = song,
                             albumIndex = index + 1,
-                            isActive = (song.song.id == mediaMetadata?.id) && isPlaying,
+                            isActive = song.song.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

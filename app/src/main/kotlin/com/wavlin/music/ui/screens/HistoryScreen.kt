@@ -261,7 +261,7 @@ fun HistoryScreen(
                     ) { song ->
                         YouTubeListItem(
                             item = song,
-                            isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                            isActive = song.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             trailingContent = {
                                 IconButton(
@@ -338,7 +338,7 @@ fun HistoryScreen(
 
                         SongListItem(
                             song = event.song,
-                            isActive = (event.song.id == mediaMetadata?.id) && isPlaying,
+                            isActive = event.song.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

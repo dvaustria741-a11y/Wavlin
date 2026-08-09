@@ -831,7 +831,7 @@ fun HomeScreen(
                                     }
                                 },
                             ),
-                    isActive = (it.id == mediaMetadata?.id) && isPlaying,
+                    isActive = it.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
                 )
             }
@@ -839,7 +839,7 @@ fun HomeScreen(
             is Album -> {
                 AlbumGridItem(
                     album = it,
-                    isActive = (it.id == mediaMetadata?.album?.id) && isPlaying,
+                    isActive = it.id == mediaMetadata?.album?.id,
                     isPlaying = isPlaying,
                     coroutineScope = scope,
                     modifier =
@@ -895,7 +895,7 @@ fun HomeScreen(
     val ytGridItem: @Composable (YTItem) -> Unit = { item ->
         YouTubeGridItem(
             item = item,
-            isActive = (item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id)) && isPlaying,
+            isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
             coroutineScope = scope,
             thumbnailRatio = 1f,
@@ -1801,7 +1801,7 @@ fun HomeScreen(
                                             SongListItem(
                                                 song = song!!,
                                                 showInLibraryIcon = true,
-                                                isActive = (song!!.id == mediaMetadata?.id) && isPlaying,
+                                                isActive = song!!.id == mediaMetadata?.id,
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 trailingContent = {
@@ -2123,7 +2123,7 @@ fun HomeScreen(
                                             SongListItem(
                                                 song = song!!,
                                                 showInLibraryIcon = true,
-                                                isActive = (song!!.id == mediaMetadata?.id) && isPlaying,
+                                                isActive = song!!.id == mediaMetadata?.id,
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 trailingContent = {
@@ -2352,7 +2352,7 @@ fun HomeScreen(
                                             ) { song ->
                                                 YouTubeListItem(
                                                     item = song,
-                                                    isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                                                    isActive = song.id == mediaMetadata?.id,
                                                     isPlaying = isPlaying,
                                                     isSwipeable = false,
                                                     trailingContent = {

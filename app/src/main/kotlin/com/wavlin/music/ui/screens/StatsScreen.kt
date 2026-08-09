@@ -468,7 +468,7 @@ fun StatsScreen(
                                         makeTimeString(song.timeListened),
                                     ),
                                 thumbnailUrl = song.thumbnailUrl,
-                                isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                                isActive = song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 modifier =
                                     Modifier
@@ -584,7 +584,7 @@ fun StatsScreen(
                                             makeTimeString(album.timeListened),
                                         ),
                                     thumbnailUrl = album.album.thumbnailUrl,
-                                    isActive = (album.id == mediaMetadata?.album?.id) && isPlaying,
+                                    isActive = album.id == mediaMetadata?.album?.id,
                                     isPlaying = isPlaying,
                                     modifier =
                                         Modifier

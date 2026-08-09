@@ -568,7 +568,7 @@ fun ArtistScreen(
                             SongListItem(
                                 song = song,
                                 showInLibraryIcon = true,
-                                isActive = (song.id == mediaMetadata?.id) && isPlaying,
+                                isActive = song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 trailingContent = {
                                     IconButton(
@@ -647,7 +647,7 @@ fun ArtistScreen(
                                 ) { album ->
                                     AlbumGridItem(
                                         album = album,
-                                        isActive = (mediaMetadata?.album?.id == album.id) && isPlaying,
+                                        isActive = mediaMetadata?.album?.id == album.id,
                                         isPlaying = isPlaying,
                                         coroutineScope = coroutineScope,
                                         modifier =
@@ -697,7 +697,7 @@ fun ArtistScreen(
                             ) { song ->
                                 YouTubeListItem(
                                     item = song as SongItem,
-                                    isActive = (mediaMetadata?.id == song.id) && isPlaying,
+                                    isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
                                     trailingContent = {
                                         IconButton(

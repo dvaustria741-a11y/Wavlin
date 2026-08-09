@@ -403,7 +403,7 @@ fun LibraryPodcastsScreen(
                         SongListItem(
                             song = episode,
                             showInLibraryIcon = false,
-                            isActive = episode.id == mediaMetadata?.id,
+                            isActive = (episode.id == mediaMetadata?.id) && isPlaying,
                             isPlaying = isPlaying,
                             showLikedIcon = false,
                             showDownloadIcon = true,

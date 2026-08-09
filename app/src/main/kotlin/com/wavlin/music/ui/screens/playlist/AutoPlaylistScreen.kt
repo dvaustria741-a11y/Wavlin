@@ -604,7 +604,7 @@ fun AutoPlaylistScreen(
 
                         SongListItem(
                             song = song,
-                            isActive = song.song.id == mediaMetadata?.id,
+                            isActive = (song.song.id == mediaMetadata?.id) && isPlaying,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

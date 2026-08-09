@@ -284,7 +284,7 @@ fun ExploreScreen(
                             ) { song ->
                                 YouTubeListItem(
                                     item = song,
-                                    isActive = song.id == mediaMetadata?.id,
+                                    isActive = (song.id == mediaMetadata?.id) && isPlaying,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -355,7 +355,7 @@ fun ExploreScreen(
                         ) { album ->
                             YouTubeGridItem(
                                 item = album,
-                                isActive = mediaMetadata?.album?.id == album.id,
+                                isActive = (mediaMetadata?.album?.id == album.id) && isPlaying,
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
                                 modifier =
@@ -395,7 +395,7 @@ fun ExploreScreen(
                         ) { video ->
                             YouTubeGridItem(
                                 item = video,
-                                isActive = video.id == mediaMetadata?.id,
+                                isActive = (video.id == mediaMetadata?.id) && isPlaying,
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
                                 modifier =

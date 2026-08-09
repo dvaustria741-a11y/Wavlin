@@ -624,7 +624,7 @@ fun LibraryMixScreen(
                                 SongListItem(
                                     song = item,
                                     showInLibraryIcon = true,
-                                    isActive = item.id == mediaMetadata?.id,
+                                    isActive = (item.id == mediaMetadata?.id) && isPlaying,
                                     isPlaying = isPlaying,
                                     trailingContent = {
                                         IconButton(
@@ -720,7 +720,7 @@ fun LibraryMixScreen(
                             is Album -> {
                                 AlbumListItem(
                                     album = item,
-                                    isActive = item.id == mediaMetadata?.album?.id,
+                                    isActive = (item.id == mediaMetadata?.album?.id) && isPlaying,
                                     isPlaying = isPlaying,
                                     trailingContent = {
                                         IconButton(
@@ -950,7 +950,7 @@ fun LibraryMixScreen(
                                 SongGridItem(
                                     song = item,
                                     showInLibraryIcon = true,
-                                    isActive = item.id == mediaMetadata?.id,
+                                    isActive = (item.id == mediaMetadata?.id) && isPlaying,
                                     isPlaying = isPlaying,
                                     fillMaxWidth = true,
                                     modifier =
@@ -1013,7 +1013,7 @@ fun LibraryMixScreen(
                             is Album -> {
                                 AlbumGridItem(
                                     album = item,
-                                    isActive = item.id == mediaMetadata?.album?.id,
+                                    isActive = (item.id == mediaMetadata?.album?.id) && isPlaying,
                                     isPlaying = isPlaying,
                                     coroutineScope = coroutineScope,
                                     fillMaxWidth = true,

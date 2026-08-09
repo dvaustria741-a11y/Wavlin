@@ -556,7 +556,7 @@ fun LibrarySongsScreen(
                 SongListItem(
                     song = song,
                     showInLibraryIcon = true,
-                    isActive = song.id == mediaMetadata?.id,
+                    isActive = (song.id == mediaMetadata?.id) && isPlaying,
                     isPlaying = isPlaying,
                     showLikedIcon = true,
                     showDownloadIcon = filter != SongFilter.DOWNLOADED,

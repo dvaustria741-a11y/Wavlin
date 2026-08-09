@@ -126,6 +126,7 @@ fun LibraryMixScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     var viewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
     val (sortType, onSortTypeChange) =
@@ -624,7 +625,7 @@ fun LibraryMixScreen(
                                 SongListItem(
                                     song = item,
                                     showInLibraryIcon = true,
-                                    isActive = item.id == mediaMetadata?.id,
+                                    isActive = item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr,
                                     isPlaying = isPlaying,
                                     trailingContent = {
                                         IconButton(
@@ -950,7 +951,7 @@ fun LibraryMixScreen(
                                 SongGridItem(
                                     song = item,
                                     showInLibraryIcon = true,
-                                    isActive = item.id == mediaMetadata?.id,
+                                    isActive = item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr,
                                     isPlaying = isPlaying,
                                     fillMaxWidth = true,
                                     modifier =

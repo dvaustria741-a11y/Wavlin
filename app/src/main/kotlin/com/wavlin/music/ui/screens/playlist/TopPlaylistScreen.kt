@@ -116,6 +116,7 @@ fun TopPlaylistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val maxSize = viewModel.top
 
     val songs by viewModel.topSongs.collectAsStateWithLifecycle(null)
@@ -321,7 +322,7 @@ fun TopPlaylistScreen(
                         SongListItem(
                             song = song,
                             albumIndex = index + 1,
-                            isActive = song.song.id == mediaMetadata?.id,
+                            isActive = song.song.id == mediaMetadata?.id && queueTitle == name,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

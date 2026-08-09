@@ -122,6 +122,7 @@ fun StatsScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
@@ -468,7 +469,7 @@ fun StatsScreen(
                                         makeTimeString(song.timeListened),
                                     ),
                                 thumbnailUrl = song.thumbnailUrl,
-                                isActive = song.id == mediaMetadata?.id,
+                                isActive = song.id == mediaMetadata?.id && queueTitle == context.getString(R.string.most_played_songs),
                                 isPlaying = isPlaying,
                                 modifier =
                                     Modifier

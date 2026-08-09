@@ -117,6 +117,7 @@ fun CachePlaylistScreen(
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val cachedSongs by viewModel.cachedSongs.collectAsStateWithLifecycle()
 
     val (sortType, onSortTypeChange) = rememberEnumPreference(
@@ -267,7 +268,7 @@ fun CachePlaylistScreen(
 
                     SongListItem(
                         song = song,
-                        isActive = song.id == mediaMetadata?.id,
+                        isActive = song.id == mediaMetadata?.id && queueTitle == "Cache Songs",
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         trailingContent = {

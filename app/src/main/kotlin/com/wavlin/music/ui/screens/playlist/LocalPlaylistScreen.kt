@@ -196,6 +196,7 @@ fun LocalPlaylistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
@@ -697,7 +698,7 @@ fun LocalPlaylistScreen(
                     val content: @Composable () -> Unit = {
                         SongListItem(
                             song = song.song,
-                            isActive = song.song.id == mediaMetadata?.id,
+                            isActive = song.song.id == mediaMetadata?.id && queueTitle == playlist?.playlist?.name,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
                             trailingContent = {

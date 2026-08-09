@@ -85,6 +85,7 @@ fun LocalSearchScreen(
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     val searchFilter by viewModel.filter.collectAsStateWithLifecycle()
     val result by viewModel.result.collectAsStateWithLifecycle()
@@ -188,7 +189,7 @@ fun LocalSearchScreen(
                             SongListItem(
                                 song = item,
                                 showInLibraryIcon = true,
-                                isActive = item.id == mediaMetadata?.id,
+                                isActive = item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr,
                                 isPlaying = isPlaying,
                                 trailingContent = {
                                     IconButton(

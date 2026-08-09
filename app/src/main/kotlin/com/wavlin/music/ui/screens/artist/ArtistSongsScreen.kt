@@ -70,6 +70,7 @@ fun ArtistSongsScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
 
     val (sortType, onSortTypeChange) =
         rememberEnumPreference(
@@ -132,7 +133,7 @@ fun ArtistSongsScreen(
                 SongListItem(
                     song = song,
                     showInLibraryIcon = true,
-                    isActive = song.id == mediaMetadata?.id,
+                    isActive = song.id == mediaMetadata?.id && queueTitle in setOf(queueAllSongsStr, artist?.artist?.name),
                     isPlaying = isPlaying,
                     trailingContent = {
                         IconButton(

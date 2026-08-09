@@ -125,6 +125,7 @@ fun LibrarySongsScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
@@ -556,7 +557,7 @@ fun LibrarySongsScreen(
                 SongListItem(
                     song = song,
                     showInLibraryIcon = true,
-                    isActive = song.id == mediaMetadata?.id,
+                    isActive = song.id == mediaMetadata?.id && queueTitle == queueAllSongsStr,
                     isPlaying = isPlaying,
                     showLikedIcon = true,
                     showDownloadIcon = filter != SongFilter.DOWNLOADED,

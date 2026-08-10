@@ -64,6 +64,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -652,6 +653,9 @@ fun HomeScreen(
     var quickPicksPlayGeneration by remember { mutableStateOf<Long?>(null) }
     var forgottenFavoritesPlayGeneration by remember { mutableStateOf<Long?>(null) }
     var keepListeningPlayGeneration by remember { mutableStateOf<Long?>(null) }
+    // Per-section-index generation tracking for the dynamic Home mix sections below,
+    // since remember() can't be called directly inside the LazyListScope builder body.
+    val sectionPlayGenerations = remember { mutableStateMapOf<Int, Long?>() }
 
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsStateWithLifecycle()
@@ -2276,9 +2280,6 @@ fun HomeScreen(
                                 val isSongsOnlySection =
                                     sectionData.items.isNotEmpty() &&
                                         sectionData.items.all { it is SongItem }
-                                // Scoped per section.index so playing a song from one dynamic
-                                // Home mix section doesn't highlight it in another.
-                                var sectionPlayGeneration by remember(section.index) { mutableStateOf<Long?>(null) }
 
                                 item(key = "home_section_title_${section.index}") {
                                     NavigationTitle(
@@ -2368,7 +2369,7 @@ fun HomeScreen(
                                             ) { song ->
                                                 YouTubeListItem(
                                                     item = song,
-                                                    isActive = song.id == mediaMetadata?.id && queueGeneration == sectionPlayGeneration,
+                                                    isActive = song.id == mediaMetadata?.id && queueGeneration == sectionPlayGenerations[section.index],
                                                     isPlaying = isPlaying,
                                                     isSwipeable = false,
                                                     trailingContent = {
@@ -2407,7 +2408,7 @@ fun HomeScreen(
                                                                                 )
                                                                             }
                                                                         )
-                                                                        sectionPlayGeneration = playerConnection.service.queueGeneration.value
+                                                                        sectionPlayGenerations[section.index] = playerConnection.service.queueGeneration.value
                                                                     }
                                                                 },
                                                                 onLongClick = {
@@ -2620,3 +2621,4 @@ fun HomeScreen(
         }
     }
 }
+

@@ -355,7 +355,7 @@ fun TopPlaylistScreen(
                                     onClick = {
                                         if (inSelectMode) {
                                             onCheckedChange(song.id !in selection)
-                                        } else if (song.song.id == mediaMetadata?.id) {
+                                        } else if (song.song.id == mediaMetadata?.id && queueTitle == name) {
                                             playerConnection.togglePlayPause()
                                         } else {
                                             playerConnection.playQueue(

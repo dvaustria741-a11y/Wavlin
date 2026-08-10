@@ -48,8 +48,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -92,6 +94,13 @@ fun ChartsScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val queueGeneration by playerConnection.queueGeneration.collectAsStateWithLifecycle()
+    // These sections play songs/videos individually via YouTube radio (not a named
+    // list), so the resulting queue title isn't screen-specific. Track which
+    // generation *this* screen's own plays started so the "now playing" highlight
+    // doesn't light up here just because the same song is playing from elsewhere.
+    var chartsPlayGeneration by remember { mutableStateOf<Long?>(null) }
 
     val chartsPage by viewModel.chartsPage.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -264,7 +273,7 @@ fun ChartsScreen(
                                     ) { song ->
                                         YouTubeListItem(
                                             item = song,
-                                            isActive = song.id == mediaMetadata?.id,
+                                            isActive = song.id == mediaMetadata?.id && queueGeneration == chartsPlayGeneration,
                                             isPlaying = isPlaying,
                                             isSwipeable = false,
                                             trailingContent = {
@@ -289,7 +298,7 @@ fun ChartsScreen(
                                                     .width(horizontalLazyGridItemWidth)
                                                     .combinedClickable(
                                                         onClick = {
-                                                            if (song.id == mediaMetadata?.id) {
+                                                            if (song.id == mediaMetadata?.id && queueGeneration == chartsPlayGeneration) {
                                                                 playerConnection.togglePlayPause()
                                                             } else {
                                                                 playerConnection.playQueue(
@@ -298,6 +307,7 @@ fun ChartsScreen(
                                                                         preloadItem = song.toMediaMetadata(),
                                                                     ),
                                                                 )
+                                                                chartsPlayGeneration = playerConnection.service.queueGeneration.value
                                                             }
                                                         },
                                                         onLongClick = {
@@ -338,14 +348,14 @@ fun ChartsScreen(
                                 ) { video ->
                                     YouTubeGridItem(
                                         item = video,
-                                        isActive = video.id == mediaMetadata?.id,
+                                        isActive = video.id == mediaMetadata?.id && queueGeneration == chartsPlayGeneration,
                                         isPlaying = isPlaying,
                                         coroutineScope = coroutineScope,
                                         modifier =
                                             Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (video.id == mediaMetadata?.id) {
+                                                        if (video.id == mediaMetadata?.id && queueGeneration == chartsPlayGeneration) {
                                                             playerConnection.togglePlayPause()
                                                         } else {
                                                             playerConnection.playQueue(
@@ -354,6 +364,7 @@ fun ChartsScreen(
                                                                     preloadItem = video.toMediaMetadata(),
                                                                 ),
                                                             )
+                                                            chartsPlayGeneration = playerConnection.service.queueGeneration.value
                                                         }
                                                     },
                                                     onLongClick = {

@@ -45,8 +45,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,6 +93,9 @@ fun ExploreScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val queueGeneration by playerConnection.queueGeneration.collectAsStateWithLifecycle()
+    var explorePlayGeneration by remember { mutableStateOf<Long?>(null) }
 
     val explorePage by exploreViewModel.explorePage.collectAsStateWithLifecycle()
     val chartsPage by chartsViewModel.chartsPage.collectAsStateWithLifecycle()
@@ -284,7 +289,7 @@ fun ExploreScreen(
                             ) { song ->
                                 YouTubeListItem(
                                     item = song,
-                                    isActive = song.id == mediaMetadata?.id,
+                                    isActive = song.id == mediaMetadata?.id && queueGeneration == explorePlayGeneration,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -309,7 +314,7 @@ fun ExploreScreen(
                                             .width(horizontalLazyGridItemWidth)
                                             .combinedClickable(
                                                 onClick = {
-                                                    if (song.id == mediaMetadata?.id) {
+                                                    if (song.id == mediaMetadata?.id && queueGeneration == explorePlayGeneration) {
                                                         playerConnection.togglePlayPause()
                                                     } else {
                                                         playerConnection.playQueue(
@@ -318,6 +323,7 @@ fun ExploreScreen(
                                                                 preloadItem = song.toMediaMetadata(),
                                                             ),
                                                         )
+                                                        explorePlayGeneration = playerConnection.service.queueGeneration.value
                                                     }
                                                 },
                                                 onLongClick = {
@@ -395,14 +401,14 @@ fun ExploreScreen(
                         ) { video ->
                             YouTubeGridItem(
                                 item = video,
-                                isActive = video.id == mediaMetadata?.id,
+                                isActive = video.id == mediaMetadata?.id && queueGeneration == explorePlayGeneration,
                                 isPlaying = isPlaying,
                                 coroutineScope = coroutineScope,
                                 modifier =
                                     Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (video.id == mediaMetadata?.id) {
+                                                if (video.id == mediaMetadata?.id && queueGeneration == explorePlayGeneration) {
                                                     playerConnection.togglePlayPause()
                                                 } else {
                                                     playerConnection.playQueue(
@@ -411,6 +417,7 @@ fun ExploreScreen(
                                                             preloadItem = video.toMediaMetadata(),
                                                         ),
                                                     )
+                                                    explorePlayGeneration = playerConnection.service.queueGeneration.value
                                                 }
                                             },
                                             onLongClick = {

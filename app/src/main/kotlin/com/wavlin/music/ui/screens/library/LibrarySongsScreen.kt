@@ -592,7 +592,7 @@ fun LibrarySongsScreen(
                                 onClick = {
                                     if (inSelectMode) {
                                         onCheckedChange(song.id !in selection)
-                                    } else if (song.id == mediaMetadata?.id) {
+                                    } else if (song.id == mediaMetadata?.id && queueTitle == queueAllSongsStr) {
                                         playerConnection.togglePlayPause()
                                     } else {
                                         playerConnection.playQueue(

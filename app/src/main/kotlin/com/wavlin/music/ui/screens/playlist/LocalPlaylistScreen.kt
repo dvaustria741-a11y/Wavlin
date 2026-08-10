@@ -746,7 +746,7 @@ fun LocalPlaylistScreen(
                                         onClick = {
                                             if (inSelectMode) {
                                                 onCheckedChange(!selection.contains(song.map.id))
-                                            } else if (song.song.id == mediaMetadata?.id) {
+                                            } else if (song.song.id == mediaMetadata?.id && queueTitle == playlist?.playlist?.name) {
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(

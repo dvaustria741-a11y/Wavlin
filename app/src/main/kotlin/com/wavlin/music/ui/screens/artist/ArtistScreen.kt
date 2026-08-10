@@ -152,6 +152,9 @@ fun ArtistScreen(
     val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val queueGeneration by playerConnection.queueGeneration.collectAsStateWithLifecycle()
+    var artistYtSongsPlayGeneration by remember { mutableStateOf<Long?>(null) }
     val artistPage = viewModel.artistPage
     val libraryArtist by viewModel.libraryArtist.collectAsStateWithLifecycle()
     val librarySongs by viewModel.librarySongs.collectAsStateWithLifecycle()
@@ -568,7 +571,7 @@ fun ArtistScreen(
                             SongListItem(
                                 song = song,
                                 showInLibraryIcon = true,
-                                isActive = song.id == mediaMetadata?.id,
+                                isActive = song.id == mediaMetadata?.id && queueTitle == (libraryArtist?.artist?.name ?: "Unknown Artist"),
                                 isPlaying = isPlaying,
                                 trailingContent = {
                                     IconButton(
@@ -593,7 +596,7 @@ fun ArtistScreen(
                                         .combinedClickable(
                                             onClick = {
                                                 if (!isGuest) {
-                                                    if (song.id == mediaMetadata?.id) {
+                                                    if (song.id == mediaMetadata?.id && queueTitle == (libraryArtist?.artist?.name ?: "Unknown Artist")) {
                                                         playerConnection.togglePlayPause()
                                                     } else {
                                                         playerConnection.playQueue(
@@ -697,7 +700,7 @@ fun ArtistScreen(
                             ) { song ->
                                 YouTubeListItem(
                                     item = song as SongItem,
-                                    isActive = mediaMetadata?.id == song.id,
+                                    isActive = mediaMetadata?.id == song.id && queueGeneration == artistYtSongsPlayGeneration,
                                     isPlaying = isPlaying,
                                     trailingContent = {
                                         IconButton(
@@ -721,7 +724,7 @@ fun ArtistScreen(
                                             .combinedClickable(
                                                 onClick = {
                                                     if (!isGuest) {
-                                                        if (song.id == mediaMetadata?.id) {
+                                                        if (song.id == mediaMetadata?.id && queueGeneration == artistYtSongsPlayGeneration) {
                                                             playerConnection.togglePlayPause()
                                                         } else {
                                                             playerConnection.playQueue(
@@ -730,6 +733,7 @@ fun ArtistScreen(
                                                                     song.toMediaMetadata(),
                                                                 ),
                                                             )
+                                                            artistYtSongsPlayGeneration = playerConnection.service.queueGeneration.value
                                                         }
                                                     }
                                                 },

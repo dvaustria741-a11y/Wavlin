@@ -649,7 +649,7 @@ fun LibraryMixScreen(
                                             .fillMaxWidth()
                                             .combinedClickable(
                                                 onClick = {
-                                                    if (item.id == mediaMetadata?.id) {
+                                                    if (item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr) {
                                                         playerConnection.togglePlayPause()
                                                     } else {
                                                         val filteredSongs = filteredItems.filterIsInstance<Song>()
@@ -959,7 +959,7 @@ fun LibraryMixScreen(
                                             .fillMaxWidth()
                                             .combinedClickable(
                                                 onClick = {
-                                                    if (item.id == mediaMetadata?.id) {
+                                                    if (item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr) {
                                                         playerConnection.togglePlayPause()
                                                     } else {
                                                         val filteredSongs = filteredItems.filterIsInstance<Song>()

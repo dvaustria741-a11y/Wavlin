@@ -291,7 +291,7 @@ fun HistoryScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (song.id == mediaMetadata?.id) {
+                                            if (song.id == mediaMetadata?.id && queueGeneration == historyRadioPlayGeneration) {
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(
@@ -377,7 +377,7 @@ fun HistoryScreen(
                                         onClick = {
                                             if (inSelectMode) {
                                                 onCheckedChange(event.event.id !in selection)
-                                            } else if (event.song.id == mediaMetadata?.id) {
+                                            } else if (event.song.id == mediaMetadata?.id && queueTitle == dateTitle) {
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(

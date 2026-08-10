@@ -301,7 +301,7 @@ fun CachePlaylistScreen(
                                 onClick = {
                                     if (inSelectMode) {
                                         onCheckedChange(song.id !in selection)
-                                    } else if (song.id == mediaMetadata?.id) {
+                                    } else if (song.id == mediaMetadata?.id && queueTitle == "Cache Songs") {
                                         playerConnection.togglePlayPause()
                                     } else {
                                         playerConnection.playQueue(

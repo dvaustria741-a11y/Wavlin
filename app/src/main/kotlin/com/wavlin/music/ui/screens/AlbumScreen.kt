@@ -445,7 +445,7 @@ fun AlbumScreen(
                                         if (inSelectMode) {
                                             onCheckedChange(song.id !in selection)
                                         } else if (!isListenTogetherGuest) {
-                                            if (song.id == mediaMetadata?.id) {
+                                            if (song.id == mediaMetadata?.id && queueTitle == albumWithSongs?.album?.title) {
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.service.getAutomix(playlistId)

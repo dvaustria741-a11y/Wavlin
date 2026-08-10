@@ -216,7 +216,7 @@ fun LocalSearchScreen(
                                     Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (item.id == mediaMetadata?.id) {
+                                                if (item.id == mediaMetadata?.id && queueTitle == queueSearchedSongsStr) {
                                                     playerConnection.togglePlayPause()
                                                 } else {
                                                     val songs =

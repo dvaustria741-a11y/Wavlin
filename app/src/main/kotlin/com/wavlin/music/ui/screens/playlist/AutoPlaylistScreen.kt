@@ -639,7 +639,7 @@ fun AutoPlaylistScreen(
                                         onClick = {
                                             if (inSelectMode) {
                                                 onCheckedChange(song.id !in selection)
-                                            } else if (song.song.id == mediaMetadata?.id) {
+                                            } else if (song.song.id == mediaMetadata?.id && queueTitle == playlist) {
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(

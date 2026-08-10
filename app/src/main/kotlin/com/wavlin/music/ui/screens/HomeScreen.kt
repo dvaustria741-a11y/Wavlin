@@ -642,6 +642,16 @@ fun HomeScreen(
 
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val queueGeneration by playerConnection.queueGeneration.collectAsStateWithLifecycle()
+    // Each of Home's own lists plays a single song into its own tiny queue (titled
+    // by the song itself) or a YouTube radio, neither of which is screen-specific -
+    // so track per-list which generation *this* list's own plays started, to keep
+    // the "now playing" highlight from lighting up here for songs playing from
+    // somewhere else in the app.
+    var quickPicksPlayGeneration by remember { mutableStateOf<Long?>(null) }
+    var forgottenFavoritesPlayGeneration by remember { mutableStateOf<Long?>(null) }
+    var keepListeningPlayGeneration by remember { mutableStateOf<Long?>(null) }
 
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsStateWithLifecycle()
@@ -803,7 +813,7 @@ fun HomeScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (!isListenTogetherGuest) {
-                                        if (it.id == mediaMetadata?.id) {
+                                        if (it.id == mediaMetadata?.id && queueGeneration == keepListeningPlayGeneration) {
                                             playerConnection.togglePlayPause()
                                         } else {
                                             playerConnection.playQueue(
@@ -816,6 +826,7 @@ fun HomeScreen(
                                                     )
                                                 }
                                             )
+                                            keepListeningPlayGeneration = playerConnection.service.queueGeneration.value
                                         }
                                     }
                                 },
@@ -831,7 +842,7 @@ fun HomeScreen(
                                     }
                                 },
                             ),
-                    isActive = it.id == mediaMetadata?.id,
+                    isActive = it.id == mediaMetadata?.id && queueGeneration == keepListeningPlayGeneration,
                     isPlaying = isPlaying,
                 )
             }
@@ -1801,7 +1812,7 @@ fun HomeScreen(
                                             SongListItem(
                                                 song = song!!,
                                                 showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id,
+                                                isActive = song!!.id == mediaMetadata?.id && queueGeneration == quickPicksPlayGeneration,
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 trailingContent = {
@@ -1827,7 +1838,7 @@ fun HomeScreen(
                                                         .combinedClickable(
                                                             onClick = {
                                                                 if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id) {
+                                                                    if (song!!.id == mediaMetadata?.id && queueGeneration == quickPicksPlayGeneration) {
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
                                                                         playerConnection.playQueue(
@@ -1842,6 +1853,7 @@ fun HomeScreen(
                                                                                 )
                                                                             }
                                                                         )
+                                                                        quickPicksPlayGeneration = playerConnection.service.queueGeneration.value
                                                                     }
                                                                 }
                                                             },
@@ -2123,7 +2135,7 @@ fun HomeScreen(
                                             SongListItem(
                                                 song = song!!,
                                                 showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id,
+                                                isActive = song!!.id == mediaMetadata?.id && queueGeneration == forgottenFavoritesPlayGeneration,
                                                 isPlaying = isPlaying,
                                                 isSwipeable = false,
                                                 trailingContent = {
@@ -2150,7 +2162,7 @@ fun HomeScreen(
                                                         .combinedClickable(
                                                             onClick = {
                                                                 if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id) {
+                                                                    if (song!!.id == mediaMetadata?.id && queueGeneration == forgottenFavoritesPlayGeneration) {
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
                                                                         playerConnection.playQueue(
@@ -2165,6 +2177,7 @@ fun HomeScreen(
                                                                                 )
                                                                             }
                                                                         )
+                                                                        forgottenFavoritesPlayGeneration = playerConnection.service.queueGeneration.value
                                                                     }
                                                                 }
                                                             },
@@ -2263,6 +2276,9 @@ fun HomeScreen(
                                 val isSongsOnlySection =
                                     sectionData.items.isNotEmpty() &&
                                         sectionData.items.all { it is SongItem }
+                                // Scoped per section.index so playing a song from one dynamic
+                                // Home mix section doesn't highlight it in another.
+                                var sectionPlayGeneration by remember(section.index) { mutableStateOf<Long?>(null) }
 
                                 item(key = "home_section_title_${section.index}") {
                                     NavigationTitle(
@@ -2352,7 +2368,7 @@ fun HomeScreen(
                                             ) { song ->
                                                 YouTubeListItem(
                                                     item = song,
-                                                    isActive = song.id == mediaMetadata?.id,
+                                                    isActive = song.id == mediaMetadata?.id && queueGeneration == sectionPlayGeneration,
                                                     isPlaying = isPlaying,
                                                     isSwipeable = false,
                                                     trailingContent = {
@@ -2391,6 +2407,7 @@ fun HomeScreen(
                                                                                 )
                                                                             }
                                                                         )
+                                                                        sectionPlayGeneration = playerConnection.service.queueGeneration.value
                                                                     }
                                                                 },
                                                                 onLongClick = {

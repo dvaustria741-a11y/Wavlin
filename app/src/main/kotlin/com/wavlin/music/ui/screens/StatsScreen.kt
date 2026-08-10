@@ -476,7 +476,7 @@ fun StatsScreen(
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
-                                                if (song.id == mediaMetadata?.id) {
+                                                if (song.id == mediaMetadata?.id && queueTitle == context.getString(R.string.most_played_songs)) {
                                                     playerConnection.togglePlayPause()
                                                 } else {
                                                     val targetSong = mostPlayedSongs.find { it.id == song.id }

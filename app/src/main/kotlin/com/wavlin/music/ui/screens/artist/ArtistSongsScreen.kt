@@ -157,7 +157,7 @@ fun ArtistSongsScreen(
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = {
-                                    if (song.id == mediaMetadata?.id) {
+                                    if (song.id == mediaMetadata?.id && queueTitle in setOf(queueAllSongsStr, artist?.artist?.name)) {
                                         playerConnection.togglePlayPause()
                                     } else {
                                         playerConnection.playQueue(

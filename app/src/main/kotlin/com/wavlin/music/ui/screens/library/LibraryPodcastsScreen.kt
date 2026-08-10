@@ -430,7 +430,7 @@ fun LibraryPodcastsScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        if (episode.id == mediaMetadata?.id) {
+                                        if (episode.id == mediaMetadata?.id && queueTitle == downloadedEpisodesStr) {
                                             playerConnection.togglePlayPause()
                                         } else {
                                             playerConnection.playQueue(

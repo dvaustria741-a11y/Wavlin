@@ -3821,7 +3821,7 @@ class MusicService :
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .setAudioProcessorChain(
-                        DefaultAudioSink.DefaultAudioProcessorChain(arrayOf(panProcessor)),
+                        DefaultAudioSink.DefaultAudioProcessorChain(panProcessor),
                     ).build()
             }
 

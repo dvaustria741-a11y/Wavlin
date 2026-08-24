@@ -192,6 +192,25 @@ class PlayerConnection(
 
     val waitingForNetworkConnection = service.waitingForNetworkConnection
 
+    // Dual Play: independent song per headphone channel. See DualPlayManager for details.
+    val dualPlayManager get() = service.dualPlayManager
+    val isDualPlayActive = service.dualPlayManager.isActive
+    val dualPlayBalance = service.dualPlayManager.balance
+    val dualPlayPartnerIsPlaying = service.dualPlayManager.partnerIsPlaying
+    val dualPlayPartnerMediaItem = service.dualPlayManager.partnerMediaItem
+    val dualPlayBluetoothRequired = service.dualPlayManager.bluetoothRequired
+
+    /** Returns false if Dual Play couldn't start (e.g. no Bluetooth output connected). */
+    fun startDualPlay(partnerSong: MediaItem): Boolean = service.dualPlayManager.start(partnerSong)
+
+    fun stopDualPlay() = service.dualPlayManager.stop()
+
+    fun dualPlayTogglePartnerPlayPause() = service.dualPlayManager.togglePartnerPlayPause()
+
+    fun dualPlaySkipPartnerNext() = service.dualPlayManager.skipPartnerNext()
+
+    fun setDualPlayBalance(value: Float) = service.dualPlayManager.setBalance(value)
+
     // Callback to check if playback changes should be blocked (e.g., Listen Together guest)
     var shouldBlockPlaybackChanges: (() -> Boolean)? = null
 

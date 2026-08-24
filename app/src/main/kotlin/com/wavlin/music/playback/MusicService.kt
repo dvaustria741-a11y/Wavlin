@@ -196,6 +196,7 @@ import com.wavlin.music.models.PersistQueue
 import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.alarm.MusicAlarmScheduler
 import com.wavlin.music.playback.alarm.MusicAlarmStore
+import com.wavlin.music.playback.audio.ChannelPanAudioProcessor
 import com.wavlin.music.playback.audio.SilenceDetectorAudioProcessor
 import com.wavlin.music.playback.queues.EmptyQueue
 import com.wavlin.music.playback.queues.ListQueue
@@ -426,6 +427,11 @@ class MusicService :
 
     private var loudnessSetupJob: Job? = null
     private var loudnessSetupGeneration: Long = 0L
+
+    // Dual Play: hard-pan processors, keyed per Player instance so each side of the
+    // channel split survives player replacement (error recovery, crossfade handoff, etc).
+    internal val playerPanProcessors = HashMap<Player, ChannelPanAudioProcessor>()
+    val dualPlayManager: DualPlayManager by lazy { DualPlayManager(this) }
 
     @Volatile
     private var normalizationEnabledCached: Boolean = false
@@ -969,6 +975,7 @@ class MusicService :
                 sleepTimer?.let { player.removeListener(it) }
                 playerNormalizationProcessors.remove(player)
                 playerSilenceProcessors.remove(player)
+                playerPanProcessors.remove(player)
                 player.release()
 
                 val newPlayer = createExoPlayer()
@@ -1307,6 +1314,7 @@ class MusicService :
         equalizerService.addAudioProcessor(eqProcessor)
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+        val panProcessor = ChannelPanAudioProcessor()
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1327,7 +1335,9 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(
+                    createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, panProcessor, useAudioTrackPlaybackParams),
+                )
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -1353,6 +1363,7 @@ class MusicService :
 
         playerNormalizationProcessors[player] = normalizationProcessor
         playerSilenceProcessors[player] = silenceProcessor
+        playerPanProcessors[player] = panProcessor
 
         if (prefs != null) {
             val offload = prefs[AudioOffload] ?: false
@@ -3791,10 +3802,57 @@ class MusicService :
             },
         )
 
+    /**
+     * Builds a standalone ExoPlayer for Dual Play mode's partner side (the second, independent
+     * song). Reuses the same data source / extractor pipeline as the main player, but its audio
+     * chain is intentionally minimal — just the hard-pan processor — since this player exists
+     * purely to carry one hard-panned channel, not the full main-player feature set (EQ,
+     * normalization, silence skipping).
+     */
+    internal fun buildDualPlayPartnerPlayer(panProcessor: ChannelPanAudioProcessor): ExoPlayer {
+        val renderersFactory =
+            object : DefaultRenderersFactory(this) {
+                override fun buildAudioSink(
+                    context: Context,
+                    enableFloatOutput: Boolean,
+                    enableAudioTrackPlaybackParams: Boolean,
+                ) = DefaultAudioSink
+                    .Builder(this@MusicService)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessorChain(
+                        DefaultAudioSink.DefaultAudioProcessorChain(arrayOf(panProcessor)),
+                    ).build()
+            }
+
+        val partnerPlayer =
+            ExoPlayer
+                .Builder(this)
+                .setMediaSourceFactory(createMediaSourceFactory())
+                .setRenderersFactory(renderersFactory)
+                .setHandleAudioBecomingNoisy(false)
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                .setAudioAttributes(
+                    AudioAttributes
+                        .Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build(),
+                    // Dual Play's two players intentionally share the output device and mix at
+                    // the hardware level, so the partner player must not fight the main player
+                    // for audio focus.
+                    false,
+                ).build()
+
+        playerPanProcessors[partnerPlayer] = panProcessor
+        return partnerPlayer
+    }
+
     private fun createRenderersFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
+        panProcessor: ChannelPanAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
         override fun buildAudioRenderers(
@@ -3855,6 +3913,7 @@ class MusicService :
                         normalizationProcessor,
                         eqProcessor,
                         silenceProcessor,
+                        panProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                     SonicAudioProcessor(),
@@ -4119,6 +4178,8 @@ class MusicService :
         sleepTimer?.let { player.removeListener(it) }
         playerNormalizationProcessors.remove(player)
         playerSilenceProcessors.remove(player)
+        playerPanProcessors.remove(player)
+        dualPlayManager.release()
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
         player.release()

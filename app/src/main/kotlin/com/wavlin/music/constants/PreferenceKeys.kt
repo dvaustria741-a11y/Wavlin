@@ -127,6 +127,10 @@ val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepea
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
+
+// Dual Play: independent song per headphone channel (left ear / right ear).
+val DualPlayBalanceKey = floatPreferencesKey("dualPlayBalance")
+val DualPlayBluetoothOnlyKey = booleanPreferencesKey("dualPlayBluetoothOnly")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 
 val LoudnessLevelKey = stringPreferencesKey("loudnessLevel")

@@ -624,6 +624,32 @@ fun SongMenu(
                         },
                         if (!isGuest) {
                             Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.dual_play)) },
+                                description = { Text(text = stringResource(R.string.dual_play_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.graphic_eq),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    onDismiss()
+                                    val started = playerConnection.startDualPlay(song.toMediaItem())
+                                    if (!started) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.dual_play_bluetooth_required),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    }
+                                },
+                            )
+                        } else {
+                            null
+                        },
+                        if (!isGuest) {
+                            Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.play_next)) },
                                 description = { Text(text = stringResource(R.string.play_next_desc)) },
                                 icon = {

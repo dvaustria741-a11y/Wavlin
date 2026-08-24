@@ -168,6 +168,17 @@ fun PlayerMenu(
         mutableStateOf(false)
     }
 
+    var showDualPlayDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val isDualPlayActive by playerConnection.isDualPlayActive.collectAsStateWithLifecycle()
+
+    DualPlayDialog(
+        isVisible = showDualPlayDialog,
+        onDismiss = { showDualPlayDialog = false },
+    )
+
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = com.wavlin.music.listentogether.RoomRole.NONE)
     val isListenTogetherGuest = listenTogetherRoleState?.value == com.wavlin.music.listentogether.RoomRole.GUEST
@@ -652,6 +663,35 @@ fun PlayerMenu(
                                     }
                                 },
                                 onClick = { showListenTogetherDialog = true },
+                            ),
+                        )
+                        add(
+                            Material3MenuItemData(
+                                title = {
+                                    Text(
+                                        text = stringResource(
+                                            if (isDualPlayActive) R.string.dual_play_stop else R.string.dual_play,
+                                        ),
+                                    )
+                                },
+                                description = if (isDualPlayActive) {
+                                    null
+                                } else {
+                                    { Text(text = stringResource(R.string.dual_play_desc)) }
+                                },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.graphic_eq),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    if (isDualPlayActive) {
+                                        playerConnection.stopDualPlay()
+                                    } else {
+                                        showDualPlayDialog = true
+                                    }
+                                },
                             ),
                         )
                         if (isListenTogetherGuest) {

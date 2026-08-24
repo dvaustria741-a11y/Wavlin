@@ -94,6 +94,11 @@
     <string name="pause">Pause</string>
     <string name="play_next">Play next</string>
     <string name="add_to_queue">Add to queue</string>
+    <string name="dual_play">Dual Play</string>
+    <string name="dual_play_desc">Play this in the other ear</string>
+    <string name="dual_play_bluetooth_required">Connect Bluetooth headphones to use Dual Play</string>
+    <string name="dual_play_stop">Stop Dual Play</string>
+    <string name="dual_play_balance">Balance</string>
     <string name="add_to_library">Add to library</string>
     <string name="add_all_to_library">Add all to library</string>
     <string name="remove_from_library">Remove from library</string>

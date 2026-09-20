@@ -39,11 +39,11 @@ object SpatialAudioUtils {
         /** No spatial/immersive audio capability for the current output route. */
         NONE,
 
-        /** Multichannel content can be spatialized, but not individual audio objects. */
+        /** Multichannel content can be spatialized — the main public-API capability level. */
         MULTICHANNEL,
 
-        /** Full object-based spatial audio — the closest public-API equivalent to Atmos. */
-        OBJECT_AUDIO,
+        /** Platform reports some other (non-standard/vendor-defined) spatialization level. */
+        OTHER,
 
         /** Device is below API 32, so the platform Spatializer API doesn't exist at all. */
         UNSUPPORTED_API_LEVEL,
@@ -61,9 +61,9 @@ object SpatialAudioUtils {
         return try {
             val audioManager = context.getSystemService<AudioManager>() ?: return ImmersiveLevel.NONE
             when (audioManager.spatializer.immersiveAudioLevel) {
+                Spatializer.SPATIALIZER_IMMERSIVE_LEVEL_NONE -> ImmersiveLevel.NONE
                 Spatializer.SPATIALIZER_IMMERSIVE_LEVEL_MULTICHANNEL -> ImmersiveLevel.MULTICHANNEL
-                Spatializer.SPATIALIZER_IMMERSIVE_LEVEL_OBJECT_AUDIO -> ImmersiveLevel.OBJECT_AUDIO
-                else -> ImmersiveLevel.NONE
+                else -> ImmersiveLevel.OTHER
             }
         } catch (e: Exception) {
             Timber.tag("SpatialAudioUtils").e(e, "Failed to query Spatializer")

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.wavlin.music.BuildConfig
@@ -66,6 +67,7 @@ import com.wavlin.music.constants.ShufflePlaylistFirstKey
 import com.wavlin.music.constants.SimilarContent
 import com.wavlin.music.constants.SkipSilenceInstantKey
 import com.wavlin.music.constants.SkipSilenceKey
+import com.wavlin.music.constants.SpatialAudioKey
 import com.wavlin.music.constants.StopMusicOnTaskClearKey
 import com.wavlin.music.constants.VarispeedKey
 import com.wavlin.music.ui.component.DefaultDialog
@@ -89,6 +91,7 @@ import com.wavlin.music.ui.component.encodeDayTimes
 import com.wavlin.music.constants.SleepTimerFadeOutKey
 import com.wavlin.music.constants.SleepTimerStopAfterCurrentSongKey
 import com.wavlin.music.ui.utils.getLoudnessLevelLabel
+import com.wavlin.music.utils.SpatialAudioUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,6 +145,14 @@ fun PlayerSettings(
         key = AudioTrackPlaybackParamsKey,
         defaultValue = true
     )
+
+    val (spatialAudio, onSpatialAudioChange) = rememberPreference(
+        key = SpatialAudioKey,
+        defaultValue = true
+    )
+    val context = LocalContext.current
+    val spatialAudioSupported = remember { SpatialAudioUtils.isSupportedOnThisDevice(context) }
+    val spatialAudioActiveNow = remember { SpatialAudioUtils.isSpatializerActiveNow(context) }
 
     val (varispeed, onVarispeedChange) = rememberPreference(
         key = VarispeedKey,
@@ -435,6 +446,38 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onAudioNormalizationChange(!audioNormalization) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.graphic_eq),
+                    title = { Text(stringResource(R.string.spatial_audio)) },
+                    description = {
+                        Text(
+                            stringResource(
+                                when {
+                                    !spatialAudioSupported -> R.string.spatial_audio_unsupported_desc
+                                    spatialAudioActiveNow -> R.string.spatial_audio_active_desc
+                                    else -> R.string.spatial_audio_supported_desc
+                                },
+                            ),
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = spatialAudio && spatialAudioSupported,
+                            enabled = spatialAudioSupported,
+                            onCheckedChange = onSpatialAudioChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (spatialAudio && spatialAudioSupported) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { if (spatialAudioSupported) onSpatialAudioChange(!spatialAudio) }
                 ))
                 if (audioNormalization) {
                     add(Material3SettingsItem(

@@ -292,6 +292,10 @@
     <string name="auto_load_more_desc">Automatically add more songs when the end of the queue is reached, if possible</string>
     <string name="skip_silence">Skip silence</string>
     <string name="audio_normalization">Audio normalization</string>
+    <string name="spatial_audio">Spatial audio</string>
+    <string name="spatial_audio_unsupported_desc">Not supported on this device</string>
+    <string name="spatial_audio_supported_desc">Available with compatible headphones</string>
+    <string name="spatial_audio_active_desc">Active on your current headphones</string>
     <string name="auto_skip_next_on_error">Auto skip to next song when error occurs</string>
     <string name="auto_skip_next_on_error_desc">Ensure your continuous playback experience</string>
     <string name="stop_music_on_task_clear">Stop music on task clear</string>

@@ -127,6 +127,9 @@ val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepea
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
+
+// Spatial audio / "Dolby Atmos"-style virtualization on supported devices + headphones.
+val SpatialAudioKey = booleanPreferencesKey("spatialAudio")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 
 val LoudnessLevelKey = stringPreferencesKey("loudnessLevel")

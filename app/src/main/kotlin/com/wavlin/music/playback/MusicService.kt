@@ -165,6 +165,7 @@ import com.wavlin.music.constants.ShufflePlaylistFirstKey
 import com.wavlin.music.constants.SimilarContent
 import com.wavlin.music.constants.SkipSilenceInstantKey
 import com.wavlin.music.constants.SkipSilenceKey
+import com.wavlin.music.constants.SpatialAudioKey
 import com.wavlin.music.constants.StopMusicOnTaskClearKey
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.Event
@@ -942,6 +943,18 @@ class MusicService :
                 secondaryPlayer?.setOffloadEnabled(useOffload)
             }
 
+        var isFirstSpatialAudioEmit = true
+        dataStore.data
+            .map { it[SpatialAudioKey] ?: true }
+            .distinctUntilChanged()
+            .collectLatest(scope) { spatialAudioEnabled ->
+                if (isFirstSpatialAudioEmit) {
+                    isFirstSpatialAudioEmit = false
+                    return@collectLatest
+                }
+                applySpatialAudioAttributes(spatialAudioEnabled)
+            }
+
         var isFirstAudioTrackParamsEmit = true
         dataStore.data
             .map { it[AudioTrackPlaybackParamsKey] ?: true }
@@ -1323,6 +1336,12 @@ class MusicService :
             }
         }
 
+        val spatialAudioEnabled = if (prefs != null) {
+            prefs[SpatialAudioKey] ?: true
+        } else {
+            runBlocking { dataStore.get(SpatialAudioKey, true) }
+        }
+
         val player =
             ExoPlayer
                 .Builder(this)
@@ -1344,7 +1363,9 @@ class MusicService :
                         .Builder()
                         .setUsage(C.USAGE_MEDIA)
                         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(),
+                        .setSpatializationBehavior(
+                            if (spatialAudioEnabled) C.SPATIALIZATION_BEHAVIOR_AUTO else C.SPATIALIZATION_BEHAVIOR_NEVER,
+                        ).build(),
                     false,
                 ).setSeekBackIncrementMs(5000)
                 .setSeekForwardIncrementMs(5000)
@@ -1374,6 +1395,22 @@ class MusicService :
         // Cleanup handled manually in onDestroy/release
         _playerFlow.value = player
         return player
+    }
+
+    private fun applySpatialAudioAttributes(enabled: Boolean) {
+        if (!::player.isInitialized) return
+        val attributes =
+            AudioAttributes
+                .Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setSpatializationBehavior(
+                    if (enabled) C.SPATIALIZATION_BEHAVIOR_AUTO else C.SPATIALIZATION_BEHAVIOR_NEVER,
+                ).build()
+        // handleAudioFocus=false: this only updates spatialization/routing metadata, it must not
+        // re-trigger a focus request (the player already holds focus from setup).
+        player.setAudioAttributes(attributes, false)
+        secondaryPlayer?.setAudioAttributes(attributes, false)
     }
 
     private fun setupAudioFocusRequest() {

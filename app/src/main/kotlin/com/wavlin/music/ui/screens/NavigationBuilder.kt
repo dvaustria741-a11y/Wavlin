@@ -46,6 +46,7 @@ import com.wavlin.music.ui.screens.settings.AboutScreen
 import com.wavlin.music.ui.screens.settings.AiSettings
 import com.wavlin.music.ui.screens.settings.AndroidAutoSettings
 import com.wavlin.music.ui.screens.settings.AppearanceSettings
+import com.wavlin.music.ui.screens.settings.DownloadedSongsScreen
 import com.wavlin.music.ui.screens.settings.BackupAndRestore
 import com.wavlin.music.ui.screens.settings.ContentSettings
 import com.wavlin.music.ui.screens.settings.DarkMode
@@ -379,6 +380,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/storage") {
         StorageSettings(navController)
+    }
+
+    composable("settings/storage/downloads") {
+        DownloadedSongsScreen(navController)
     }
 
     composable("settings/privacy") {

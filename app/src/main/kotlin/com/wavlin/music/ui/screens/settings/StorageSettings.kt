@@ -308,6 +308,11 @@ fun StorageSettings(
                         },
                     ),
                     Material3SettingsItem(
+                        icon = painterResource(R.drawable.offline),
+                        title = { Text(stringResource(R.string.view_downloaded_songs)) },
+                        onClick = { navController.navigate("settings/storage/downloads") },
+                    ),
+                    Material3SettingsItem(
                         icon = painterResource(R.drawable.clear_all),
                         title = { Text(stringResource(R.string.clear_all_downloads)) },
                         onClick = {

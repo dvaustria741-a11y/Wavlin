@@ -1022,4 +1022,11 @@
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="stream_source_android_creator">ANDROID_CREATOR</string>
     <string name="stream_source_android_creator_desc">Android creator client. Off by default; needs DroidGuard.</string>
+    <string name="no_downloaded_songs">No downloaded songs yet</string>
+    <string name="delete_downloads_title">Delete downloads</string>
+    <plurals name="delete_downloads_message">
+        <item quantity="one">Delete %1$d downloaded song from this device?</item>
+        <item quantity="other">Delete %1$d downloaded songs from this device?</item>
+    </plurals>
+    <string name="view_downloaded_songs">View downloaded songs</string>
 </resources>

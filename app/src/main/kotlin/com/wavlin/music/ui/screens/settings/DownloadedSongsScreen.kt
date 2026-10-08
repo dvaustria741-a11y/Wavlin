@@ -218,6 +218,7 @@ fun DownloadedSongsScreen(navController: NavController) {
                     IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = { showDeleteDialog = true },
+                        onLongClick = {},
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.delete),
@@ -225,7 +226,7 @@ fun DownloadedSongsScreen(navController: NavController) {
                         )
                     }
                 } else if (songs.isNotEmpty()) {
-                    IconButton(onClick = { inSelectMode = true }) {
+                    IconButton(onClick = { inSelectMode = true }, onLongClick = {}) {
                         Icon(
                             painter = painterResource(R.drawable.select_all),
                             contentDescription = null,

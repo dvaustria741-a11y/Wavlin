@@ -233,12 +233,6 @@ private fun NewMiniPlayer(
         }
     val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
 
-    // Secret pink theme mascot - only shown when that theme is actually selected
-    val selectedThemeColorInt by rememberPreference(SelectedThemeColorKey, defaultValue = DefaultThemeColor.toArgb())
-    val isSecretPinkTheme = selectedThemeColorInt == SecretPinkThemeColor.toArgb()
-    val mascotIsPlaying by playerConnection.isPlaying.collectAsState()
-    val mascotCastIsPlaying by castHandler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
-    val mascotEffectiveIsPlaying = if (isCasting) mascotCastIsPlaying else mascotIsPlaying
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
 
@@ -545,52 +539,7 @@ private fun NewMiniPlayer(
                 }
             }
         }
-
-        if (isSecretPinkTheme) {
-            PinkMascot(
-                isPlaying = mascotEffectiveIsPlaying,
-                modifier =
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .offset(y = 0.dp),
-            )
-        }
     }
-}
-
-@Composable
-private fun PinkMascot(
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val swingAngle = remember { Animatable(0f) }
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            swingAngle.snapTo(-8f)
-            swingAngle.animateTo(
-                targetValue = 8f,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-            )
-        } else {
-            swingAngle.animateTo(0f, animationSpec = tween(300))
-        }
-    }
-
-    Image(
-        painter = painterResource(R.drawable.mascot_pink),
-        contentDescription = null,
-        modifier =
-            modifier
-                .width(26.dp)
-                .graphicsLayer {
-                    rotationZ = swingAngle.value
-                    transformOrigin = TransformOrigin(0.5f, 0f)
-                },
-    )
 }
 
 /**

@@ -27,6 +27,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -90,6 +91,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -189,6 +191,7 @@ import com.wavlin.music.ui.screens.settings.DarkMode
 import com.wavlin.music.ui.screens.settings.NavigationTab
 import com.wavlin.music.ui.theme.ColorSaver
 import com.wavlin.music.ui.theme.DefaultThemeColor
+import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.theme.WavlinTheme
 import com.wavlin.music.ui.theme.extractThemeColor
 import com.wavlin.music.ui.utils.appBarScrollBehavior
@@ -668,6 +671,15 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface),
             ) {
+                val pinkWallpaper = selectedThemeColorInt == SecretPinkThemeColor.toArgb() && !useDarkTheme
+                if (pinkWallpaper) {
+                    Image(
+                        painter = painterResource(R.drawable.bg_pink_lilies),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 val density = LocalDensity.current
                 val configuration = LocalWindowInfo.current
                 val cutoutInsets = WindowInsets.displayCutout
@@ -1002,6 +1014,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     Scaffold(
+                        containerColor = if (pinkWallpaper) Color.Transparent else MaterialTheme.colorScheme.background,
                         snackbarHost = { SnackbarHost(snackbarHostState) },
                         topBar = {
                             AnimatedVisibility(

@@ -27,7 +27,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -82,7 +81,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -672,14 +673,6 @@ class MainActivity : ComponentActivity() {
                         .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface),
             ) {
                 val pinkWallpaper = selectedThemeColorInt == SecretPinkThemeColor.toArgb() && !useDarkTheme
-                if (pinkWallpaper) {
-                    Image(
-                        painter = painterResource(R.drawable.bg_pink_lilies),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
                 val density = LocalDensity.current
                 val configuration = LocalWindowInfo.current
                 val cutoutInsets = WindowInsets.displayCutout
@@ -1022,7 +1015,21 @@ class MainActivity : ComponentActivity() {
                                 enter = fadeIn(animationSpec = tween(durationMillis = 300)),
                                 exit = fadeOut(animationSpec = tween(durationMillis = 200)),
                             ) {
-                                Row {
+                                Row(
+                                    modifier =
+                                        if (pinkWallpaper) {
+                                            val scrimBase = MaterialTheme.colorScheme.surface
+                                            Modifier.background(
+                                                Brush.verticalGradient(
+                                                    0f to scrimBase.copy(alpha = 0.96f),
+                                                    0.6f to scrimBase.copy(alpha = 0.9f),
+                                                    1f to scrimBase.copy(alpha = 0f),
+                                                ),
+                                            )
+                                        } else {
+                                            Modifier
+                                        },
+                                ) {
                                     TopAppBar(
                                         title = {
                                             Text(
@@ -1081,8 +1088,22 @@ class MainActivity : ComponentActivity() {
                                         scrollBehavior = topAppBarScrollBehavior,
                                         colors =
                                             TopAppBarDefaults.topAppBarColors(
-                                                containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                                                containerColor =
+                                                    if (pinkWallpaper) {
+                                                        Color.Transparent
+                                                    } else if (pureBlack) {
+                                                        Color.Black
+                                                    } else {
+                                                        MaterialTheme.colorScheme.surfaceContainer
+                                                    },
+                                                scrolledContainerColor =
+                                                    if (pinkWallpaper) {
+                                                        Color.Transparent
+                                                    } else if (pureBlack) {
+                                                        Color.Black
+                                                    } else {
+                                                        MaterialTheme.colorScheme.surfaceContainer
+                                                    },
                                                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                                                 actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1257,7 +1278,23 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
-                        Row(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+                        Row(
+                            Modifier
+                                .fillMaxSize()
+                                .hazeSource(state = hazeState)
+                                .then(
+                                    if (pinkWallpaper) {
+                                        Modifier.paint(
+                                            painter = painterResource(R.drawable.bg_pink_lilies),
+                                            sizeToIntrinsics = false,
+                                            contentScale = ContentScale.Crop,
+                                            alpha = 0.6f,
+                                        )
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
+                        ) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->

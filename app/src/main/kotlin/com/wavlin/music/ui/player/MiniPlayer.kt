@@ -138,6 +138,7 @@ import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.LilySlicedBackground
+import com.wavlin.music.ui.component.pinkLilyHazeStyle
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.menu.AddToPlaylistDialog
@@ -410,10 +411,8 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .let { base ->
-                        if (useGlassBackdrop && pinkLily) {
-                            base
-                        } else if (useGlassBackdrop) {
-                            base.hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                        if (useGlassBackdrop) {
+                            base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
                         } else {
                             base.background(color = backgroundColor)
                         }
@@ -473,6 +472,7 @@ private fun NewMiniPlayer(
                     res = R.drawable.lily_pill_bar,
                     leftCapPx = 302,
                     rightCapPx = 400,
+                    alpha = 0.62f,
                     modifier = Modifier.matchParentSize(),
                 )
             }

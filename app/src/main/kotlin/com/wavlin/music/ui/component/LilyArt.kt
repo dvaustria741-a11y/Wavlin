@@ -37,6 +37,7 @@ fun LilySlicedBackground(
     leftCapPx: Int,
     rightCapPx: Int,
     modifier: Modifier = Modifier,
+    alpha: Float = 1f,
 ) {
     val img = ImageBitmap.imageResource(res)
     Canvas(modifier = modifier) {
@@ -64,6 +65,7 @@ fun LilySlicedBackground(
             srcSize = IntSize(midSrcW, img.height),
             dstOffset = IntOffset(midX, 0),
             dstSize = IntSize(midW, hi),
+            alpha = alpha,
             filterQuality = FilterQuality.High,
         )
         drawImage(
@@ -72,6 +74,7 @@ fun LilySlicedBackground(
             srcSize = IntSize(leftCapPx, img.height),
             dstOffset = IntOffset(0, 0),
             dstSize = IntSize(lwi, hi),
+            alpha = alpha,
             filterQuality = FilterQuality.High,
         )
         drawImage(
@@ -80,6 +83,7 @@ fun LilySlicedBackground(
             srcSize = IntSize(rightCapPx, img.height),
             dstOffset = IntOffset(wi - rwi, 0),
             dstSize = IntSize(rwi, hi),
+            alpha = alpha,
             filterQuality = FilterQuality.High,
         )
     }

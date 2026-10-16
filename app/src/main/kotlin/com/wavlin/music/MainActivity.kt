@@ -1024,8 +1024,8 @@ class MainActivity : ComponentActivity() {
                                             val scrimBase = MaterialTheme.colorScheme.surface
                                             Modifier.background(
                                                 Brush.verticalGradient(
-                                                    0f to scrimBase.copy(alpha = 0.96f),
-                                                    0.6f to scrimBase.copy(alpha = 0.9f),
+                                                    0f to scrimBase.copy(alpha = 0.99f),
+                                                    0.8f to scrimBase.copy(alpha = 0.97f),
                                                     1f to scrimBase.copy(alpha = 0f),
                                                 ),
                                             )

@@ -59,6 +59,14 @@ fun pureBlackHazeStyle(): HazeStyle = HazeStyle(
 /** True while the Secret Pink theme (light mode) is active, so glass surfaces can use the pink lily look. */
 val LocalPinkLilyTheme = staticCompositionLocalOf { false }
 
+/** A stronger pink frosted style for the bottom bar, so blurred artwork never shows as dark smudges. */
+fun pinkLilyNavHazeStyle(): HazeStyle = HazeStyle(
+    backgroundColor = Color(0xFFFFE9F1),
+    tints = listOf(HazeTint(Color(0xFFFFC2D6).copy(alpha = 0.82f))),
+    blurRadius = 28.dp,
+    noiseFactor = 0.03f,
+)
+
 /** A pink frosted-glass style for the Secret Pink theme. */
 fun pinkLilyHazeStyle(): HazeStyle = HazeStyle(
     backgroundColor = Color(0xFFFFE9F1),
@@ -146,12 +154,13 @@ fun GlassIconButton(
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val pinkLily = LocalPinkLilyTheme.current
     Box(
         modifier = modifier
             .size(size)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
-            .border(1.dp, glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
+            .background(if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
+            .border(1.dp, if (pinkLily) Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)) else glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, radius = size / 2),
@@ -162,6 +171,13 @@ fun GlassIconButton(
             },
         contentAlignment = Alignment.Center,
     ) {
+        if (pinkLily) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(com.wavlin.music.R.drawable.lily_btn_disc),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         content()
     }
 }

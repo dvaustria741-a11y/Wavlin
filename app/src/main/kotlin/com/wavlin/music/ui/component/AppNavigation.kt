@@ -163,7 +163,7 @@ fun AppNavigationBar(
                     if (pureBlack) {
                         pureBlackHazeStyle()
                     } else if (LocalPinkLilyTheme.current) {
-                        pinkLilyHazeStyle()
+                        pinkLilyNavHazeStyle()
                     } else {
                         HazeMaterials.thin()
                     },
@@ -211,6 +211,16 @@ fun AppNavigationBar(
             }
 
             NavigationBarItem(
+                colors =
+                    if (LocalPinkLilyTheme.current) {
+                        androidx.compose.material3.NavigationBarItemDefaults.colors(
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else {
+                        androidx.compose.material3.NavigationBarItemDefaults.colors()
+                    },
                 selected = isSelected,
                 onClick = {
                     if (!isSearchItem) {

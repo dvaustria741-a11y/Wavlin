@@ -174,6 +174,7 @@ import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.AccountSettingsDialog
 import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
+import com.wavlin.music.ui.component.LilyDiscBox
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -1042,47 +1043,55 @@ class MainActivity : ComponentActivity() {
                                         actions = {
                                             if (showHistoryButton) {
                                                 IconButton(onClick = { navController.navigate("history") }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.history),
-                                                        contentDescription = stringResource(R.string.history),
-                                                    )
+                                                    LilyDiscBox(pinkWallpaper) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.history),
+                                                            contentDescription = stringResource(R.string.history),
+                                                        )
+                                                    }
                                                 }
                                             }
                                             IconButton(onClick = { navController.navigate("stats") }) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.stats),
-                                                    contentDescription = stringResource(R.string.stats),
-                                                )
-                                            }
-                                            if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
+                                                LilyDiscBox(pinkWallpaper) {
                                                     Icon(
-                                                        painter = painterResource(R.drawable.group_outlined),
-                                                        contentDescription = stringResource(R.string.together),
+                                                        painter = painterResource(R.drawable.stats),
+                                                        contentDescription = stringResource(R.string.stats),
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { showAccountDialog = true }) {
-                                                BadgedBox(badge = {
-                                                    if (latestVersionName != BuildConfig.VERSION_NAME) {
-                                                        Badge()
-                                                    }
-                                                }) {
-                                                    if (accountImageUrl != null) {
-                                                        AsyncImage(
-                                                            model = accountImageUrl,
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier =
-                                                                Modifier
-                                                                    .size(24.dp)
-                                                                    .clip(CircleShape),
-                                                        )
-                                                    } else {
+                                            if (listenTogetherInTopBar) {
+                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
+                                                    LilyDiscBox(pinkWallpaper) {
                                                         Icon(
-                                                            painter = painterResource(R.drawable.account),
-                                                            contentDescription = stringResource(R.string.account),
-                                                            modifier = Modifier.size(24.dp),
+                                                            painter = painterResource(R.drawable.group_outlined),
+                                                            contentDescription = stringResource(R.string.together),
                                                         )
+                                                    }
+                                                }
+                                            }
+                                            IconButton(onClick = { showAccountDialog = true }) {
+                                                LilyDiscBox(pinkWallpaper) {
+                                                    BadgedBox(badge = {
+                                                        if (latestVersionName != BuildConfig.VERSION_NAME) {
+                                                            Badge()
+                                                        }
+                                                    }) {
+                                                        if (accountImageUrl != null) {
+                                                            AsyncImage(
+                                                                model = accountImageUrl,
+                                                                contentDescription = stringResource(R.string.account),
+                                                                modifier =
+                                                                    Modifier
+                                                                        .size(24.dp)
+                                                                        .clip(CircleShape),
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                painter = painterResource(R.drawable.account),
+                                                                contentDescription = stringResource(R.string.account),
+                                                                modifier = Modifier.size(24.dp),
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }

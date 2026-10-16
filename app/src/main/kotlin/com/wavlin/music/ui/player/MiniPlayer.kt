@@ -137,7 +137,7 @@ import com.wavlin.music.ui.theme.PlayerColorExtractor
 import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
-import com.wavlin.music.ui.component.pinkLilyHazeStyle
+import com.wavlin.music.ui.component.LilySlicedBackground
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.menu.AddToPlaylistDialog
@@ -410,13 +410,21 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .let { base ->
-                        if (useGlassBackdrop) {
-                            base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
+                        if (useGlassBackdrop && pinkLily) {
+                            base
+                        } else if (useGlassBackdrop) {
+                            base.hazeEffect(state = hazeState, style = HazeMaterials.thin())
                         } else {
                             base.background(color = backgroundColor)
                         }
                     }
-                    .border(1.dp, glassStrokeBrush(), RoundedCornerShape(32.dp))
+                    .let { base ->
+                        if (useGlassBackdrop && pinkLily) {
+                            base
+                        } else {
+                            base.border(1.dp, glassStrokeBrush(), RoundedCornerShape(32.dp))
+                        }
+                    }
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
@@ -461,17 +469,11 @@ private fun NewMiniPlayer(
                 else -> {}
             }
             if (pinkLily && useGlassBackdrop) {
-                Image(
-                    painter = painterResource(R.drawable.lily_sprig),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    alpha = 0.55f,
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .offset(x = 10.dp, y = 8.dp)
-                            .size(width = 84.dp, height = 90.dp)
-                            .rotate(-14f),
+                LilySlicedBackground(
+                    res = R.drawable.lily_pill_bar,
+                    leftCapPx = 302,
+                    rightCapPx = 400,
+                    modifier = Modifier.matchParentSize(),
                 )
             }
             Row(
@@ -1125,6 +1127,7 @@ private fun SubscribeButton(
     val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
 
 
+    val pinkLily = LocalPinkLilyTheme.current
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -1133,10 +1136,10 @@ private fun SubscribeButton(
                 .clip(CircleShape)
                 .border(
                     width = 1.dp,
-                    color = if (isSubscribed) primaryColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
+                    color = if (pinkLily) Color.Transparent else if (isSubscribed) primaryColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
                     shape = CircleShape,
                 ).background(
-                    color = if (isSubscribed) primaryColor.copy(alpha = 0.1f) else Color.Transparent,
+                    color = if (pinkLily) Color.Transparent else if (isSubscribed) primaryColor.copy(alpha = 0.1f) else Color.Transparent,
                     shape = CircleShape,
                 ).clickable {
                     database.transaction {
@@ -1158,6 +1161,13 @@ private fun SubscribeButton(
                     }
                 },
     ) {
+        if (pinkLily) {
+            Image(
+                painter = painterResource(R.drawable.lily_btn_disc),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Icon(
             painter = painterResource(if (isSubscribed) R.drawable.subscribed else R.drawable.subscribe),
             contentDescription = null,
@@ -1177,6 +1187,7 @@ private fun AddToPlaylistButton(
 {
     val contentDescription = stringResource(R.string.add_to_playlist_desc)
 
+    val pinkLily = LocalPinkLilyTheme.current
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -1184,7 +1195,7 @@ private fun AddToPlaylistButton(
             .clip(CircleShape)
             .border(
                 width = 1.dp,
-                color = outlineColor.copy(alpha = 0.3f),
+                color = if (pinkLily) Color.Transparent else outlineColor.copy(alpha = 0.3f),
                 shape = CircleShape,
             )
             .background(
@@ -1193,6 +1204,13 @@ private fun AddToPlaylistButton(
             )
             .clickable { onClick() },
     ) {
+        if (pinkLily) {
+            Image(
+                painter = painterResource(R.drawable.lily_btn_disc),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Icon(
             painter = painterResource(R.drawable.add),
             contentDescription = contentDescription,
@@ -1216,6 +1234,7 @@ private fun FavoriteButton(
     val isEpisode = librarySong?.song?.isEpisode == true
     val isLiked = if (isEpisode) librarySong?.song?.inLibrary != null else librarySong?.song?.liked == true
 
+    val pinkLily = LocalPinkLilyTheme.current
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -1224,13 +1243,20 @@ private fun FavoriteButton(
                 .clip(CircleShape)
                 .border(
                     width = 1.dp,
-                    color = if (isLiked) errorColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
+                    color = if (pinkLily) Color.Transparent else if (isLiked) errorColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
                     shape = CircleShape,
                 ).background(
-                    color = if (isLiked) errorColor.copy(alpha = 0.1f) else Color.Transparent,
+                    color = if (pinkLily) Color.Transparent else if (isLiked) errorColor.copy(alpha = 0.1f) else Color.Transparent,
                     shape = CircleShape,
                 ).clickable { playerConnection.service.toggleLike() },
     ) {
+        if (pinkLily) {
+            Image(
+                painter = painterResource(R.drawable.lily_btn_disc),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Icon(
             painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
             contentDescription = null,

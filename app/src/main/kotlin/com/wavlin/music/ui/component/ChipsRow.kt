@@ -64,6 +64,7 @@ fun <E> ChipsRow(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
+    val pinkLily = LocalPinkLilyTheme.current
     Row(
         modifier =
         modifier
@@ -74,7 +75,7 @@ fun <E> ChipsRow(
         Spacer(Modifier.width(12.dp))
 
         chips.forEach { (value, label) ->
-            FilterChip(
+            if (pinkLily) LilyChip(label = label, selected = currentValue == value) { onValueUpdate(value) } else FilterChip(
                 label = { Text(label) },
                 selected = currentValue == value,
                 colors = FilterChipDefaults.filterChipColors(
@@ -102,6 +103,7 @@ fun <Int> ChoiceChipsRow(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
+    val pinkLily = LocalPinkLilyTheme.current
     var expandIconDegree by remember { mutableFloatStateOf(0f) }
     val rotationAnimation by animateFloatAsState(
         targetValue = expandIconDegree,
@@ -192,7 +194,7 @@ fun <Int> ChoiceChipsRow(
                 chips.forEach { (value, label) ->
                     Spacer(Modifier.width(8.dp))
 
-                    FilterChip(
+                    if (pinkLily) LilyChip(label = label, selected = currentValue == value) { onValueUpdate(value) } else FilterChip(
                         label = { Text(label) },
                         selected = currentValue == value,
                         colors = FilterChipDefaults.filterChipColors(

@@ -157,7 +157,17 @@ fun AppNavigationBar(
 
     NavigationBar(
         modifier = modifier
-            .hazeEffect(state = hazeState, style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin())
+            .hazeEffect(
+                state = hazeState,
+                style =
+                    if (pureBlack) {
+                        pureBlackHazeStyle()
+                    } else if (LocalPinkLilyTheme.current) {
+                        pinkLilyHazeStyle()
+                    } else {
+                        HazeMaterials.thin()
+                    },
+            )
             .glassTopEdgeGlow(),
         containerColor = Color.Transparent,
         contentColor = contentColor

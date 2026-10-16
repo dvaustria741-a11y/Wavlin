@@ -174,6 +174,7 @@ import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.AccountSettingsDialog
 import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.wavlin.music.ui.component.AppNavigationRail
@@ -1001,6 +1002,7 @@ class MainActivity : ComponentActivity() {
                     LocalListenTogetherManager provides listenTogetherManager,
                     LocalChangelogState provides showChangelog,
                     LocalHazeState provides hazeState,
+                    LocalPinkLilyTheme provides pinkWallpaper,
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
@@ -1288,7 +1290,7 @@ class MainActivity : ComponentActivity() {
                                             painter = painterResource(R.drawable.bg_pink_lilies),
                                             sizeToIntrinsics = false,
                                             contentScale = ContentScale.Crop,
-                                            alpha = 0.6f,
+                                            alpha = 1f,
                                         )
                                     } else {
                                         Modifier

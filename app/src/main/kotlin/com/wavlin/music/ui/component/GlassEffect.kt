@@ -56,6 +56,17 @@ fun pureBlackHazeStyle(): HazeStyle = HazeStyle(
  * it via [glassPanel] to render a real iOS-style frosted backdrop blur instead of a
  * flat color.
  */
+/** True while the Secret Pink theme (light mode) is active, so glass surfaces can use the pink lily look. */
+val LocalPinkLilyTheme = staticCompositionLocalOf { false }
+
+/** A pink frosted-glass style for the Secret Pink theme. */
+fun pinkLilyHazeStyle(): HazeStyle = HazeStyle(
+    backgroundColor = Color(0xFFFFE9F1),
+    tints = listOf(HazeTint(Color(0xFFFFB3CC).copy(alpha = 0.42f))),
+    blurRadius = 24.dp,
+    noiseFactor = 0.04f,
+)
+
 val LocalHazeState = staticCompositionLocalOf<HazeState> {
     error("No HazeState provided - wrap the root content in Modifier.hazeSource(LocalHazeState.current)")
 }

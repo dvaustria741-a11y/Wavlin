@@ -136,6 +136,8 @@ import com.wavlin.music.ui.theme.DefaultThemeColor
 import com.wavlin.music.ui.theme.PlayerColorExtractor
 import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.component.LocalHazeState
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.pinkLilyHazeStyle
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.menu.AddToPlaylistDialog
@@ -395,6 +397,7 @@ private fun NewMiniPlayer(
     ) {
         val interactionSource = remember { MutableInteractionSource() }
         val hazeState = LocalHazeState.current
+        val pinkLily = LocalPinkLilyTheme.current
         // DEFAULT gets a real backdrop blur (samples the screen content behind it, like iOS).
         // Other styles (pure black, thumbnail blur, gradient, transparent) are explicit user
         // choices already, so they keep their own flat/artwork background untouched.
@@ -408,7 +411,7 @@ private fun NewMiniPlayer(
                     .clip(RoundedCornerShape(32.dp))
                     .let { base ->
                         if (useGlassBackdrop) {
-                            base.hazeEffect(state = hazeState, style = HazeMaterials.thin())
+                            base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
                         } else {
                             base.background(color = backgroundColor)
                         }
@@ -456,6 +459,20 @@ private fun NewMiniPlayer(
                     )
                 }
                 else -> {}
+            }
+            if (pinkLily && useGlassBackdrop) {
+                Image(
+                    painter = painterResource(R.drawable.lily_sprig),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    alpha = 0.55f,
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .offset(x = 10.dp, y = 8.dp)
+                            .size(width = 84.dp, height = 90.dp)
+                            .rotate(-14f),
+                )
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,

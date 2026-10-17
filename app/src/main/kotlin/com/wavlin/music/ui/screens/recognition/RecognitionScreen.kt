@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.recognition
 
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.pinkTopBarColors
 import android.Manifest
 import android.content.pm.PackageManager
@@ -24,6 +25,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -200,6 +202,7 @@ fun RecognitionScreen(
     }
 
     Scaffold(
+        containerColor = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
         colors = pinkTopBarColors(),
@@ -305,6 +308,25 @@ private fun ReadyState(onStartRecognition: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
+        if (LocalPinkLilyTheme.current) {
+            // Secret Pink: the mic sits on a big glass bubble.
+            Box(
+                modifier = Modifier.size(220.dp).clip(CircleShape).clickable { onStartRecognition() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.lily_bubble),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                )
+                Icon(
+                    painter = painterResource(R.drawable.mic),
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = com.wavlin.music.ui.theme.PinkInk,
+                )
+            }
+        } else
         Box(
             modifier =
                 Modifier

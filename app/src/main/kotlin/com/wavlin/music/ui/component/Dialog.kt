@@ -45,6 +45,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -162,16 +163,24 @@ fun AccountSettingsDialog(
                     },
             contentAlignment = Alignment.TopCenter,
         ) {
+            val pinkLily = LocalPinkLilyTheme.current
             Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 72.dp, start = 16.dp, end = 16.dp)
-                        .clip(RoundedCornerShape(28.dp))
-                        .border(1.dp, glassStrokeBrush(), RoundedCornerShape(28.dp)),
+                        .let { base ->
+                            if (pinkLily) {
+                                base.lilyNinePatch(res = com.wavlin.music.R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp)
+                            } else {
+                                base
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .border(1.dp, glassStrokeBrush(), RoundedCornerShape(28.dp))
+                            }
+                        },
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                tonalElevation = 8.dp,
+                color = if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                tonalElevation = if (pinkLily) 0.dp else 8.dp,
             ) {
                 AccountSettings(
                     navController = navController,

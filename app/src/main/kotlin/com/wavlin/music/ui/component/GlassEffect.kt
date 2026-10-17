@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -108,6 +110,19 @@ fun Modifier.glassPanel(
     strokeWidth: Dp = 1.dp,
     drawStroke: Boolean = true,
 ): Modifier = composed {
+    if (LocalPinkLilyTheme.current && shape == androidx.compose.foundation.shape.CircleShape) {
+        // Secret Pink: round glass buttons use the pale lily disc art instead of a haze outline.
+        val disc = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.wavlin.music.R.drawable.lily_btn_disc)
+        return@composed this
+            .clip(shape)
+            .drawBehind {
+                drawImage(
+                    image = disc,
+                    dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                )
+            }
+    }
     val hazeState = LocalHazeState.current
     var m = this
         .clip(shape)

@@ -179,3 +179,38 @@ fun pinkTopBarColors(): androidx.compose.material3.TopAppBarColors =
     } else {
         androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
     }
+
+/** Nine-patch draw: fixed-size corners (cut at [srcCap] source px) and stretchy edges and center. */
+fun DrawScope.drawLilyNinePatch(img: ImageBitmap, srcCap: Int, dstCapPx: Float) {
+    val w = size.width
+    val h = size.height
+    if (w <= 0f || h <= 0f) return
+    val cap = minOf(dstCapPx, w / 2f, h / 2f)
+    val sx = intArrayOf(0, srcCap, img.width - srcCap, img.width)
+    val sy = intArrayOf(0, srcCap, img.height - srcCap, img.height)
+    val dx = intArrayOf(0, cap.roundToInt(), (w - cap).roundToInt(), w.roundToInt())
+    val dy = intArrayOf(0, cap.roundToInt(), (h - cap).roundToInt(), h.roundToInt())
+    for (r in 0..2) {
+        for (c in 0..2) {
+            drawImage(
+                image = img,
+                srcOffset = IntOffset(sx[c], sy[r]),
+                srcSize = IntSize(sx[c + 1] - sx[c], sy[r + 1] - sy[r]),
+                dstOffset = IntOffset(dx[c], dy[r]),
+                dstSize = IntSize(dx[c + 1] - dx[c], dy[r + 1] - dy[r]),
+                filterQuality = FilterQuality.High,
+            )
+        }
+    }
+}
+
+/** Draws a nine-patch art behind the content, e.g. the frosted panel behind a dialog. */
+@Composable
+fun Modifier.lilyNinePatch(
+    @DrawableRes res: Int,
+    srcCap: Int,
+    dstCap: androidx.compose.ui.unit.Dp,
+): Modifier {
+    val img = ImageBitmap.imageResource(res)
+    return this.drawBehind { drawLilyNinePatch(img, srcCap, dstCap.toPx()) }
+}

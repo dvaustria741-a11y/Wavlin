@@ -145,6 +145,7 @@ import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.ActionPromptDialog
 import com.wavlin.music.ui.component.glassPanel
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.LocalHazeState
 import dev.chrisbanes.haze.hazeEffect
@@ -504,7 +505,13 @@ fun LocalPlaylistScreen(
     val screenDarkTheme = screenDarkMode == DarkMode.ON || (screenDarkMode == DarkMode.AUTO && isSystemInDarkTheme())
     val screenPureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
     val screenBaseColor =
-        if (screenPureBlackEnabled && screenDarkTheme) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+        if (LocalPinkLilyTheme.current) {
+            Color.Transparent
+        } else if (screenPureBlackEnabled && screenDarkTheme) {
+            Color.Black
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        }
 
     // Same extraction as LocalPlaylistHeader - kept independent (rather than lifting all of that
     // composable's edit/crop state up) just to paint the top status-bar/app-bar strip that sits
@@ -546,7 +553,7 @@ fun LocalPlaylistScreen(
     Box(
         modifier = Modifier.fillMaxSize().background(screenBaseColor),
     ) {
-        val bleedColor = topBleedColor
+        val bleedColor = if (LocalPinkLilyTheme.current) null else topBleedColor
         if (bleedColor != null) {
             Box(
                 modifier =
@@ -1185,7 +1192,7 @@ fun LocalPlaylistHeader(
                 .background(
                     brush =
                         easedHeaderGradient(
-                            colors = headerGradientColors,
+                            colors = if (LocalPinkLilyTheme.current) emptyList() else headerGradientColors,
                             baseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
                         ),
                 )
@@ -1224,7 +1231,13 @@ fun LocalPlaylistHeader(
             modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
         ) {
             when (playlist.thumbnails.size) {
-                0 -> {
+                0 -> if (LocalPinkLilyTheme.current) {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(R.drawable.lily_cover_empty),
+                        contentDescription = null,
+                        modifier = Modifier.size(170.dp),
+                    )
+                } else {
                     Surface(
                         modifier =
                             Modifier

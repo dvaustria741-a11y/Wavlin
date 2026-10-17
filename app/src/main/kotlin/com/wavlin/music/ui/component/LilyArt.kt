@@ -214,3 +214,23 @@ fun Modifier.lilyNinePatch(
     val img = ImageBitmap.imageResource(res)
     return this.drawBehind { drawLilyNinePatch(img, srcCap, dstCap.toPx()) }
 }
+
+/**
+ * Secret Pink only: a lily spray drawn behind a header's top-right corner so the cover art
+ * (drawn on top, on the left) overlaps it. No-op in every other theme.
+ */
+@Composable
+fun Modifier.lilyHeaderSpray(heightDp: Int = 236): Modifier {
+    if (!LocalPinkLilyTheme.current) return this
+    val img = ImageBitmap.imageResource(R.drawable.lily_header_spray)
+    return this.drawBehind {
+        val h = heightDp.dp.toPx()
+        val w = h * img.width / img.height
+        drawImage(
+            image = img,
+            dstOffset = IntOffset((size.width - w + 22.dp.toPx()).roundToInt(), 0),
+            dstSize = IntSize(w.roundToInt(), h.roundToInt()),
+            filterQuality = FilterQuality.High,
+        )
+    }
+}

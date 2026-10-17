@@ -147,6 +147,7 @@ import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.ActionPromptDialog
 import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.lilyHeaderSpray
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.LocalHazeState
 import dev.chrisbanes.haze.hazeEffect
@@ -1197,6 +1198,7 @@ fun LocalPlaylistHeader(
                             baseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
                         ),
                 )
+                .lilyHeaderSpray()
                 .padding(top = 8.dp, bottom = 20.dp)
                 .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.Start,

@@ -1,5 +1,6 @@
 package com.wavlin.music.ui.screens.equalizer
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.annotation.SuppressLint
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -187,6 +188,7 @@ private fun EqScreenContent(
     Scaffold(
         topBar = {
             TopAppBar(
+        colors = pinkTopBarColors(),
                 title = { Text(stringResource(R.string.equalizer_header)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {

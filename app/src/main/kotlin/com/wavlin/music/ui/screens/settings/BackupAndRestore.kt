@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -218,6 +219,7 @@ fun BackupAndRestore(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.backup_restore)) },
         navigationIcon = {
             IconButton(

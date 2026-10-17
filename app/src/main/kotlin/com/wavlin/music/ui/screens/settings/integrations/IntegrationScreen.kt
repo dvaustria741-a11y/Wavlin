@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings.integrations
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -58,6 +59,7 @@ fun IntegrationScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.integrations)) },
         navigationIcon = {
             IconButton(

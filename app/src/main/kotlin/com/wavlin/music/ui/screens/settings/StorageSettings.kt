@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -481,6 +482,7 @@ fun StorageSettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.storage)) },
         navigationIcon = {
             IconButton(

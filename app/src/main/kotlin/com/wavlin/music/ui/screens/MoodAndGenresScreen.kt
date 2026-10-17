@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -106,6 +107,7 @@ fun MoodAndGenresScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.mood_and_genres)) },
         navigationIcon = {
             IconButton(

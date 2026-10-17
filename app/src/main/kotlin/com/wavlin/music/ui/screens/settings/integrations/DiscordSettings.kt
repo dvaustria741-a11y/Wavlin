@@ -1,5 +1,6 @@
 package com.wavlin.music.ui.screens.settings.integrations
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -878,6 +879,7 @@ fun DiscordSettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.discord_integration)) },
         navigationIcon = {
             IconButton(

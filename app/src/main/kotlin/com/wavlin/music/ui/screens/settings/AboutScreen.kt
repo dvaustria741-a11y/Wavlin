@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -507,6 +508,7 @@ fun AboutScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.about)) },
         navigationIcon = {
             IconButton(

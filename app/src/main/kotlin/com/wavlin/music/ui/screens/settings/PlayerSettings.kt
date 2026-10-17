@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -1092,6 +1093,7 @@ fun PlayerSettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.player_and_audio)) },
         navigationIcon = {
             IconButton(

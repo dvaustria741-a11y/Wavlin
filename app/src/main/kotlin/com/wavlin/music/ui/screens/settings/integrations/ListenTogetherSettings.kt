@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings.integrations
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -517,6 +518,7 @@ fun ListenTogetherSettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.listen_together)) },
         navigationIcon = {
             IconButton(

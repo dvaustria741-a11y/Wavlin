@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -248,6 +249,7 @@ fun PrivacySettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.privacy)) },
         navigationIcon = {
             IconButton(

@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -1893,6 +1894,7 @@ fun AppearanceSettings(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.appearance)) },
         navigationIcon = {
             IconButton(

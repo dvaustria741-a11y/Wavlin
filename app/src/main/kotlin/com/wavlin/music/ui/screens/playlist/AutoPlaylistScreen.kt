@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.playlist
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
@@ -747,6 +748,7 @@ fun AutoPlaylistScreen(
         }
 
         TopAppBar(
+        colors = pinkTopBarColors(),
             title = {
                 when {
                     inSelectMode -> {

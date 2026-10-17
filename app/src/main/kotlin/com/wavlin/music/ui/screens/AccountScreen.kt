@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -319,6 +320,7 @@ fun AccountScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.account)) },
         navigationIcon = {
             IconButton(

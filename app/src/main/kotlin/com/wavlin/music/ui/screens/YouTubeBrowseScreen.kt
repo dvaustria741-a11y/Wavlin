@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.asPaddingValues
@@ -197,6 +198,7 @@ fun YouTubeBrowseScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(browseResult?.title.orEmpty()) },
         navigationIcon = {
             IconButton(

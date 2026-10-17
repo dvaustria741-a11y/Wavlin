@@ -1,5 +1,6 @@
 package com.wavlin.music.ui.screens.podcast
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -235,6 +236,7 @@ fun OnlinePodcastScreen(
         }
 
         TopAppBar(
+        colors = pinkTopBarColors(),
             title = {
                 if (isSearching) {
                     TextField(

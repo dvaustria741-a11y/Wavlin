@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -418,6 +419,7 @@ fun ListenTogetherScreen(
 
     if (shouldShowTopBar) {
         TopAppBar(
+        colors = pinkTopBarColors(),
             title = { Text(stringResource(R.string.together)) },
             navigationIcon = {
                 IconButton(

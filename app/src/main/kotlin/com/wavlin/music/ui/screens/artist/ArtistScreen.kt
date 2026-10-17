@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.artist
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -1061,7 +1062,7 @@ fun ArtistScreen(
             if (transparentAppBar) {
                 TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             } else {
-                TopAppBarDefaults.topAppBarColors()
+                pinkTopBarColors()
             },
     )
 }

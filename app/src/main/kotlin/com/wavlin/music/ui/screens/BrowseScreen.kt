@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.asPaddingValues
@@ -145,6 +146,7 @@ fun BrowseScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(title ?: "") },
         navigationIcon = {
             IconButton(

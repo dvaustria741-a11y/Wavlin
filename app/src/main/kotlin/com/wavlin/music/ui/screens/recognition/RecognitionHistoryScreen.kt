@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.recognition
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -149,6 +150,7 @@ fun RecognitionHistoryScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
+        colors = pinkTopBarColors(),
                 title = { Text(stringResource(R.string.recognition_history)) },
                 navigationIcon = {
                     IconButton(

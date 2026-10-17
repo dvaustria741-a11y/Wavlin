@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.artist
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -184,6 +185,7 @@ fun ArtistSongsScreen(
         }
 
         TopAppBar(
+        colors = pinkTopBarColors(),
             title = { Text(artist?.artist?.name.orEmpty()) },
             navigationIcon = {
                 IconButton(

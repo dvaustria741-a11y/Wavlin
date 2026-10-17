@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.playlist
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -412,6 +413,7 @@ fun TopPlaylistScreen(
         )
 
         TopAppBar(
+        colors = pinkTopBarColors(),
             title = {
                 when {
                     inSelectMode -> {

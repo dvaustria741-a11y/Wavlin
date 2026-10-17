@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.recognition
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -201,6 +202,7 @@ fun RecognitionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+        colors = pinkTopBarColors(),
                 title = { Text(stringResource(R.string.recognize_music)) },
                 navigationIcon = {
                     IconButton(

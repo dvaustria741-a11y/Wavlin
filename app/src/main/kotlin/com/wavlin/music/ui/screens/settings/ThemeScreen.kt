@@ -1,5 +1,6 @@
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.ui.component.pinkTopBarColors
 import android.content.res.Configuration
 import android.os.Build
 import android.widget.Toast
@@ -176,6 +177,7 @@ fun ThemeScreen(
     }
 
     TopAppBar(
+        colors = pinkTopBarColors(),
         title = { Text(stringResource(R.string.theme_colors)) },
         navigationIcon = {
             IconButton(onClick = { navController.navigateUp() }) {

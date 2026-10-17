@@ -163,3 +163,19 @@ fun LilyDiscBox(
 /** In the Secret Pink theme, plain surface fills turn transparent so the gingham wallpaper shows through. */
 @Composable
 fun pinkAwareFill(default: Color): Color = if (LocalPinkLilyTheme.current) Color.Transparent else default
+
+/**
+ * Top bar colors for the Secret Pink theme: transparent so the gingham wallpaper shows through, with a soft
+ * translucent pink once content scrolls underneath. Other themes keep the stock Material colors.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun pinkTopBarColors(): androidx.compose.material3.TopAppBarColors =
+    if (LocalPinkLilyTheme.current) {
+        androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color(0xFFFBE4EC).copy(alpha = 0.92f),
+        )
+    } else {
+        androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
+    }

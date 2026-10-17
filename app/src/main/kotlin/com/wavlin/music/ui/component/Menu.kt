@@ -8,6 +8,9 @@ package com.wavlin.music.ui.component
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import com.wavlin.music.R
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,9 +33,10 @@ import androidx.compose.ui.unit.dp
 fun Material3MenuGroup(
     items: List<Material3MenuItemData>
 ) {
+    val pinkLily = LocalPinkLilyTheme.current
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(if (pinkLily) 8.dp else 4.dp)
     ) {
         items.forEachIndexed { index, item ->
             val shape = when {
@@ -42,17 +46,30 @@ fun Material3MenuGroup(
                 else -> RoundedCornerShape(6.dp)
             }
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(),
-                shape = shape,
-                colors = item.cardColors ?: CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Material3MenuItemRow(item = item)
+            if (pinkLily && item.cardColors == null) {
+                // Secret Pink: each row is a stretchy glass pill.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize()
+                        .clip(RoundedCornerShape(percent = 50))
+                        .lilySliced(res = R.drawable.lily_row_glass, leftCapPx = 66, rightCapPx = 66, alpha = 0.9f),
+                ) {
+                    Material3MenuItemRow(item = item)
+                }
+            } else {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    shape = shape,
+                    colors = item.cardColors ?: CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Material3MenuItemRow(item = item)
+                }
             }
         }
     }

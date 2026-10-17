@@ -115,6 +115,7 @@ import com.wavlin.music.constants.AutoplayKey
 import com.wavlin.music.constants.CrossfadeDurationKey
 import com.wavlin.music.constants.CrossfadeEnabledKey
 import com.wavlin.music.constants.CrossfadeGaplessKey
+import com.wavlin.music.constants.KeepPlayingOverOtherAppsKey
 import com.wavlin.music.constants.DisableLoadMoreWhenRepeatAllKey
 import com.wavlin.music.constants.DiscordActivityNameKey
 import com.wavlin.music.constants.DiscordActivityTypeKey
@@ -1393,6 +1394,18 @@ class MusicService :
     }
 
     private fun handleAudioFocusChange(focusChange: Int) {
+        // "Keep playing over other apps": ignore focus loss caused by other media apps, but still
+        // yield to real calls (ringing / in a call).
+        val isFocusLoss = focusChange == AudioManager.AUDIOFOCUS_LOSS ||
+            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
+            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
+        if (isFocusLoss && dataStore.get(KeepPlayingOverOtherAppsKey, false)) {
+            val mode = audioManager.mode
+            val inCall = mode == AudioManager.MODE_IN_CALL ||
+                mode == AudioManager.MODE_IN_COMMUNICATION ||
+                mode == AudioManager.MODE_RINGTONE
+            if (!inCall) return
+        }
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN,
             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,

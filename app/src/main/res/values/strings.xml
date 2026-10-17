@@ -286,6 +286,9 @@
     <string name="audio_quality_high">High</string>
     <string name="audio_quality_low">Low</string>
     <string name="queue">Queue</string>
+    <string name="other_apps_audio">Other apps</string>
+    <string name="keep_playing_over_other_apps">Keep playing over other apps</string>
+    <string name="keep_playing_over_other_apps_desc">Don\'t pause when YouTube, TikTok or other apps play sound. Both will play at the same time. Phone calls still pause playback.</string>
     <string name="persistent_queue">Persistent queue</string>
     <string name="persistent_queue_desc">Restore your last queue when the app starts</string>
     <string name="auto_load_more">Auto load more songs</string>

@@ -46,6 +46,7 @@ import com.wavlin.music.constants.AutoDownloadOnLikeKey
 import com.wavlin.music.constants.CrossfadeDurationKey
 import com.wavlin.music.constants.CrossfadeEnabledKey
 import com.wavlin.music.constants.CrossfadeGaplessKey
+import com.wavlin.music.constants.KeepPlayingOverOtherAppsKey
 import com.wavlin.music.constants.AutoLoadMoreKey
 import com.wavlin.music.constants.AutoRadioQueueKey
 import com.wavlin.music.constants.AutoSkipNextOnErrorKey
@@ -111,6 +112,10 @@ fun PlayerSettings(
     val (crossfadeGapless, onCrossfadeGaplessChange) = rememberPreference(
         CrossfadeGaplessKey,
         defaultValue = true
+    )
+    val (keepPlayingOverOtherApps, onKeepPlayingOverOtherAppsChange) = rememberPreference(
+        KeepPlayingOverOtherAppsKey,
+        defaultValue = false
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
@@ -741,6 +746,35 @@ fun PlayerSettings(
         Spacer(modifier = Modifier.height(16.dp))
 
         AlarmSettingsSection()
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
+            title = stringResource(R.string.other_apps_audio),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.volume_up),
+                    title = { Text(stringResource(R.string.keep_playing_over_other_apps)) },
+                    description = { Text(stringResource(R.string.keep_playing_over_other_apps_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = keepPlayingOverOtherApps,
+                            onCheckedChange = onKeepPlayingOverOtherAppsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (keepPlayingOverOtherApps) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onKeepPlayingOverOtherAppsChange(!keepPlayingOverOtherApps) }
+                ),
+            )
+        )
 
         Spacer(modifier = Modifier.height(27.dp))
 

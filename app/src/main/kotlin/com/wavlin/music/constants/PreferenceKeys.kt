@@ -122,6 +122,7 @@ val AudioTrackPlaybackParamsKey = booleanPreferencesKey("audioTrackPlaybackParam
 val VarispeedKey = booleanPreferencesKey("varispeed")
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
+val KeepPlayingOverOtherAppsKey = booleanPreferencesKey("keepPlayingOverOtherApps")
 val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleAcrossQueues")
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")

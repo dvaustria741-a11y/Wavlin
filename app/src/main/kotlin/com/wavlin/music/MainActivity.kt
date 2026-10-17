@@ -1035,10 +1035,16 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     TopAppBar(
                                         title = {
-                                            Text(
-                                                text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                style = MaterialTheme.typography.titleLarge,
-                                            )
+                                            if (pinkWallpaper) {
+                                                com.wavlin.music.ui.component.ScriptTitle(
+                                                    text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = currentTitleRes?.let { stringResource(it) } ?: "",
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                )
+                                            }
                                         },
                                         actions = {
                                             if (showHistoryButton) {

@@ -1449,6 +1449,7 @@ fun HomeScreen(
                                 item(key = "speed_dial_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.speed_dial),
+                                        leadingIconRes = R.drawable.star,
                                     )
                                 }
 
@@ -1994,6 +1995,7 @@ fun HomeScreen(
                                 item(key = "keep_listening_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.keep_listening),
+                                        leadingIconRes = R.drawable.graphic_eq,
                                     )
                                 }
 

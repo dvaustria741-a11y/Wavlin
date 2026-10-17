@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -28,7 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
+import com.wavlin.music.ui.theme.PinkInk
+import com.wavlin.music.ui.theme.playball
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +48,9 @@ fun NavigationTitle(
     thumbnail: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     onPlayAllClick: (() -> Unit)? = null,
+    @DrawableRes leadingIconRes: Int? = null,
 ) {
+    val pinkLily = LocalPinkLilyTheme.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -55,6 +62,14 @@ fun NavigationTitle(
             }
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
+        if (pinkLily && leadingIconRes != null) {
+            Icon(
+                painter = painterResource(leadingIconRes),
+                contentDescription = null,
+                tint = PinkInk,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         thumbnail?.invoke()
 
         Column(
@@ -69,14 +84,26 @@ fun NavigationTitle(
                 )
             }
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-            )
+            if (pinkLily) {
+                Text(
+                    text = title,
+                    fontFamily = playball,
+                    fontSize = 30.sp,
+                    lineHeight = 36.sp,
+                    color = PinkInk,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                )
+            } else {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                )
+            }
         }
 
         onPlayAllClick?.let { playAllClick ->
@@ -100,9 +127,9 @@ fun NavigationTitle(
 
         if (onClick != null) {
             Icon(
-                painter = painterResource(R.drawable.arrow_forward),
+                painter = painterResource(if (pinkLily) R.drawable.navigate_next else R.drawable.arrow_forward),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = if (pinkLily) PinkInk else MaterialTheme.colorScheme.primary
             )
         }
     }

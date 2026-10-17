@@ -181,7 +181,7 @@ fun pinkTopBarColors(): androidx.compose.material3.TopAppBarColors =
     }
 
 /** Nine-patch draw: fixed-size corners (cut at [srcCap] source px) and stretchy edges and center. */
-fun DrawScope.drawLilyNinePatch(img: ImageBitmap, srcCap: Int, dstCapPx: Float) {
+fun DrawScope.drawLilyNinePatch(img: ImageBitmap, srcCap: Int, dstCapPx: Float, alpha: Float = 1f) {
     val w = size.width
     val h = size.height
     if (w <= 0f || h <= 0f) return
@@ -198,6 +198,7 @@ fun DrawScope.drawLilyNinePatch(img: ImageBitmap, srcCap: Int, dstCapPx: Float) 
                 srcSize = IntSize(sx[c + 1] - sx[c], sy[r + 1] - sy[r]),
                 dstOffset = IntOffset(dx[c], dy[r]),
                 dstSize = IntSize(dx[c + 1] - dx[c], dy[r + 1] - dy[r]),
+                alpha = alpha,
                 filterQuality = FilterQuality.High,
             )
         }
@@ -210,9 +211,10 @@ fun Modifier.lilyNinePatch(
     @DrawableRes res: Int,
     srcCap: Int,
     dstCap: androidx.compose.ui.unit.Dp,
+    alpha: Float = 1f,
 ): Modifier {
     val img = ImageBitmap.imageResource(res)
-    return this.drawBehind { drawLilyNinePatch(img, srcCap, dstCap.toPx()) }
+    return this.drawBehind { drawLilyNinePatch(img, srcCap, dstCap.toPx(), alpha) }
 }
 
 /**

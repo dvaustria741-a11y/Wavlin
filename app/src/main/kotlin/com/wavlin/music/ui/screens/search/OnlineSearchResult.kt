@@ -86,6 +86,7 @@ import com.wavlin.innertube.models.YTItem
 import com.wavlin.music.LocalDatabase
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.constants.AutoRadioQueueKey
 import com.wavlin.music.constants.HideVideoSongsKey
 import com.wavlin.music.constants.MiniPlayerBottomSpacing
@@ -364,7 +365,7 @@ fun OnlineSearchResult(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+                .background(if (pureBlack) Color.Black else if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
     ) {
         // Google-style SearchBar with Material 3 design

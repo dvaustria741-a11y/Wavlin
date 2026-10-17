@@ -48,6 +48,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.wavlin.music.LocalNavController
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.constants.CONTENT_TYPE_LIST
 import com.wavlin.music.constants.ListItemHeight
 import com.wavlin.music.db.entities.Album
@@ -111,7 +112,7 @@ fun LocalSearchScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+                .background(if (pureBlack) Color.Black else if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.background)
                 .let { base ->
                     if (isLandscape) {
                         base.windowInsetsPadding(

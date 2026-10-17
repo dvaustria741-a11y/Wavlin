@@ -173,6 +173,13 @@ fun AppNavigationBar(
                         HazeMaterials.thin()
                     },
             )
+            .let { base ->
+                if (LocalPinkLilyTheme.current) {
+                    base.lilySliced(res = R.drawable.lily_nav_bar, leftCapPx = 90, rightCapPx = 90, alpha = 0.94f)
+                } else {
+                    base
+                }
+            }
             .glassTopEdgeGlow(),
         containerColor = Color.Transparent,
         contentColor = contentColor

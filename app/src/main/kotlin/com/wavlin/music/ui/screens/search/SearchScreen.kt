@@ -6,6 +6,15 @@
 package com.wavlin.music.ui.screens.search
 
 import androidx.compose.foundation.layout.Box
+import com.wavlin.music.ui.theme.playball
+import com.wavlin.music.ui.theme.PinkInk
+import com.wavlin.music.ui.component.LilyDiscBox
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,6 +87,7 @@ fun SearchScreen(
     savedStateHandle: SavedStateHandle,
 ) {
     val navController = LocalNavController.current
+    val pinkLily = LocalPinkLilyTheme.current
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -181,7 +191,23 @@ fun SearchScreen(
             TopAppBar(
                 title = {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .let { base ->
+                                    if (pinkLily) {
+                                        // Secret Pink: frosted glass search pill
+                                        base
+                                            .background(Color.White.copy(alpha = 0.55f), CircleShape)
+                                            .border(
+                                                1.5.dp,
+                                                Brush.linearGradient(listOf(Color.White, Color(0xFFF4B6CB))),
+                                                CircleShape,
+                                            ).padding(start = 18.dp)
+                                    } else {
+                                        base
+                                    }
+                                },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         BasicTextField(
@@ -193,10 +219,10 @@ fun SearchScreen(
                                     .focusRequester(focusRequester),
                             textStyle =
                                 TextStyle(
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = if (pinkLily) PinkInk else MaterialTheme.colorScheme.onSurface,
                                     fontSize = 16.sp,
                                 ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            cursorBrush = SolidColor(if (pinkLily) PinkInk else MaterialTheme.colorScheme.primary),
                             singleLine = true,
                             decorationBox = { innerTextField ->
                                 if (query.text.isEmpty()) {
@@ -209,10 +235,18 @@ fun SearchScreen(
                                                 },
                                             ),
                                         style =
-                                            TextStyle(
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                                fontSize = 16.sp,
-                                            ),
+                                            if (pinkLily) {
+                                                TextStyle(
+                                                    color = PinkInk.copy(alpha = 0.7f),
+                                                    fontFamily = playball,
+                                                    fontSize = 20.sp,
+                                                )
+                                            } else {
+                                                TextStyle(
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                                    fontSize = 16.sp,
+                                                )
+                                            },
                                     )
                                 }
                                 innerTextField()
@@ -247,37 +281,55 @@ fun SearchScreen(
                                         }
                                 },
                             ) {
-                                Icon(
-                                    painter =
-                                        painterResource(
-                                            when (searchSource) {
-                                                SearchSource.LOCAL -> R.drawable.library_music
-                                                SearchSource.ONLINE -> R.drawable.language
-                                            },
-                                        ),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
+                                LilyDiscBox(pinkLily) {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                when (searchSource) {
+                                                    SearchSource.LOCAL -> R.drawable.library_music
+                                                    SearchSource.ONLINE -> R.drawable.language
+                                                },
+                                            ),
+                                        contentDescription = null,
+                                        tint = if (pinkLily) PinkInk else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
                             }
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = stringResource(R.string.dismiss),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
+                        LilyDiscBox(pinkLily) {
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_back),
+                                contentDescription = stringResource(R.string.dismiss),
+                                tint = if (pinkLily) PinkInk else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                        containerColor =
+                            if (pureBlack) {
+                                Color.Black
+                            } else if (pinkLily) {
+                                Color.Transparent
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainer
+                            },
                     ),
             )
         },
-        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
+        containerColor =
+            if (pureBlack) {
+                Color.Black
+            } else if (pinkLily) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.background
+            },
     ) { paddingValues ->
         Box(
             modifier =

@@ -470,9 +470,9 @@ private fun NewMiniPlayer(
             if (pinkLily && useGlassBackdrop) {
                 LilySlicedBackground(
                     res = R.drawable.lily_pill_bar,
-                    leftCapPx = 302,
-                    rightCapPx = 330,
-                    alpha = 0.92f,
+                    leftCapPx = 388,
+                    rightCapPx = 380,
+                    alpha = 0.95f,
                     modifier = Modifier.matchParentSize(),
                 )
             }
@@ -557,6 +557,20 @@ private fun NewMiniPlayer(
                 )
                 }
             }
+        }
+        if (pinkLily && useGlassBackdrop && !isTabletLandscape) {
+            // Secret Pink: the top half of the lily pokes out above the pill. The lower half is
+            // part of the pill art inside the clipped box, so the two halves join seamlessly.
+            Image(
+                painter = painterResource(R.drawable.lily_pill_top),
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 9.dp)
+                        .offset { IntOffset(offsetXAnimatable.value.roundToInt(), -16.5.dp.roundToPx()) }
+                        .size(width = 45.dp, height = 16.5.dp),
+            )
         }
     }
 }

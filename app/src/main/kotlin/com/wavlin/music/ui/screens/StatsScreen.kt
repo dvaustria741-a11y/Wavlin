@@ -786,6 +786,15 @@ fun StatsScreen(
                 }
             }
         },
+        colors =
+            if (com.wavlin.music.ui.component.LocalPinkLilyTheme.current) {
+                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                )
+            } else {
+                androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
+            },
     )
 }
 

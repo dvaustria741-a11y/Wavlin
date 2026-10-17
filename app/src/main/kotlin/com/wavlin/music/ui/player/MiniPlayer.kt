@@ -559,15 +559,17 @@ private fun NewMiniPlayer(
             }
         }
         if (pinkLily && useGlassBackdrop && !isTabletLandscape) {
-            // Secret Pink: a standalone lily layered over the pill's top-left corner.
+            // Secret Pink: a standalone lily layered over the pill's top-left corner, mirrored so it
+            // opens toward the pill. Kept inside the player's bounds because the sheet clips overhang.
             Image(
                 painter = painterResource(R.drawable.lily_flower),
                 contentDescription = null,
                 modifier =
                     Modifier
                         .align(Alignment.TopStart)
-                        .offset { IntOffset(offsetXAnimatable.value.roundToInt() - 8.dp.roundToPx(), (-20).dp.roundToPx()) }
-                        .size(width = 40.dp, height = 46.dp),
+                        .offset { IntOffset(offsetXAnimatable.value.roundToInt() - 4.dp.roundToPx(), 0) }
+                        .size(width = 34.dp, height = 39.dp)
+                        .graphicsLayer(scaleX = -1f),
             )
         }
     }

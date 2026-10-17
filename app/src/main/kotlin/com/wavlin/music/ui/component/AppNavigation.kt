@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -162,6 +163,13 @@ fun AppNavigationBar(
 
     NavigationBar(
         modifier = modifier
+            .let { base ->
+                if (LocalPinkLilyTheme.current) {
+                    base.clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
+                } else {
+                    base
+                }
+            }
             .hazeEffect(
                 state = hazeState,
                 style =
@@ -175,7 +183,7 @@ fun AppNavigationBar(
             )
             .let { base ->
                 if (LocalPinkLilyTheme.current) {
-                    base.lilySliced(res = R.drawable.lily_nav_bar, leftCapPx = 90, rightCapPx = 90, alpha = 0.94f)
+                    base.lilySliced(res = R.drawable.lily_nav_bar, leftCapPx = 130, rightCapPx = 130, alpha = 1f)
                 } else {
                     base
                 }

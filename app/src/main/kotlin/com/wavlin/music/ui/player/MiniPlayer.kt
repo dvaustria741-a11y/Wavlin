@@ -470,8 +470,8 @@ private fun NewMiniPlayer(
             if (pinkLily && useGlassBackdrop) {
                 LilySlicedBackground(
                     res = R.drawable.lily_pill_bar,
-                    leftCapPx = 388,
-                    rightCapPx = 380,
+                    leftCapPx = 354,
+                    rightCapPx = 354,
                     alpha = 0.95f,
                     modifier = Modifier.matchParentSize(),
                 )
@@ -559,30 +559,15 @@ private fun NewMiniPlayer(
             }
         }
         if (pinkLily && useGlassBackdrop && !isTabletLandscape) {
-            // Secret Pink: a separate lily layer sits over the pill's top-left corner. Its cut edges
-            // (top and left) are faded out so it blends into the corner instead of ending in a hard line.
+            // Secret Pink: a standalone lily layered over the pill's top-left corner.
             Image(
-                painter = painterResource(R.drawable.lily_corner_tl),
+                painter = painterResource(R.drawable.lily_flower),
                 contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                alignment = Alignment.TopStart,
                 modifier =
                     Modifier
                         .align(Alignment.TopStart)
-                        .offset { IntOffset(offsetXAnimatable.value.roundToInt() - 2.dp.roundToPx(), (-18).dp.roundToPx()) }
-                        .size(width = 40.dp, height = 42.dp)
-                        .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(
-                                brush = Brush.horizontalGradient(0f to Color.Transparent, 0.22f to Color.Black),
-                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
-                            )
-                            drawRect(
-                                brush = Brush.verticalGradient(0f to Color.Transparent, 0.22f to Color.Black),
-                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
-                            )
-                        },
+                        .offset { IntOffset(offsetXAnimatable.value.roundToInt() - 8.dp.roundToPx(), (-20).dp.roundToPx()) }
+                        .size(width = 40.dp, height = 46.dp),
             )
         }
     }

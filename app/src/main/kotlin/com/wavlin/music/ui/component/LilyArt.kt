@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -158,3 +159,7 @@ fun LilyDiscBox(
         content()
     }
 }
+
+/** In the Secret Pink theme, plain surface fills turn transparent so the gingham wallpaper shows through. */
+@Composable
+fun pinkAwareFill(default: Color): Color = if (LocalPinkLilyTheme.current) Color.Transparent else default

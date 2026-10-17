@@ -43,6 +43,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import com.wavlin.music.ui.component.pinkAwareFill
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -129,7 +130,7 @@ fun OnlineSearchScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background),
+                .background(if (pureBlack) Color.Black else pinkAwareFill(MaterialTheme.colorScheme.background)),
     ) {
         // Show parsed URL item at the top if present
         if (viewState.isUrlQuery && viewState.parsedUrlItem != null) {
@@ -360,7 +361,7 @@ fun OnlineSearchScreen(
                                         }
                                     }
                                 },
-                            ).background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                            ).background(if (pureBlack) Color.Black else pinkAwareFill(MaterialTheme.colorScheme.surface))
                             .animateItem(),
                 )
             }
@@ -633,7 +634,7 @@ fun OnlineSearchScreen(
                                     }
                                 }
                             },
-                        ).background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                        ).background(if (pureBlack) Color.Black else pinkAwareFill(MaterialTheme.colorScheme.surface))
                         .animateItem(),
             )
         }
@@ -656,7 +657,7 @@ fun SuggestionItem(
             modifier
                 .fillMaxWidth()
                 .height(SuggestionItemHeight)
-                .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                .background(if (pureBlack) Color.Black else pinkAwareFill(MaterialTheme.colorScheme.surface))
                 .clickable(onClick = onClick)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
     ) {

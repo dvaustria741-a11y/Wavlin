@@ -45,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import com.wavlin.music.ui.component.pinkAwareFill
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -254,7 +256,7 @@ fun HistoryScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.background),
+                                    .background(pinkAwareFill(MaterialTheme.colorScheme.background)),
                         )
                     }
 
@@ -323,7 +325,7 @@ fun HistoryScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface),
+                                    .background(pinkAwareFill(MaterialTheme.colorScheme.surface)),
                         )
                     }
 
@@ -551,5 +553,14 @@ fun HistoryScreen(
                 }
             }
         },
+        colors =
+            if (LocalPinkLilyTheme.current) {
+                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                )
+            } else {
+                androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
+            },
     )
 }

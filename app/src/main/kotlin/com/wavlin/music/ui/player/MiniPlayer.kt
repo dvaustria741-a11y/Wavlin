@@ -559,17 +559,30 @@ private fun NewMiniPlayer(
             }
         }
         if (pinkLily && useGlassBackdrop && !isTabletLandscape) {
-            // Secret Pink: the top half of the lily pokes out above the pill. The lower half is
-            // part of the pill art inside the clipped box, so the two halves join seamlessly.
+            // Secret Pink: a separate lily layer sits over the pill's top-left corner. Its cut edges
+            // (top and left) are faded out so it blends into the corner instead of ending in a hard line.
             Image(
-                painter = painterResource(R.drawable.lily_pill_top),
+                painter = painterResource(R.drawable.lily_corner_tl),
                 contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                alignment = Alignment.TopStart,
                 modifier =
                     Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(end = 9.dp)
-                        .offset { IntOffset(offsetXAnimatable.value.roundToInt(), -16.5.dp.roundToPx()) }
-                        .size(width = 45.dp, height = 16.5.dp),
+                        .align(Alignment.TopStart)
+                        .offset { IntOffset(offsetXAnimatable.value.roundToInt() - 2.dp.roundToPx(), (-18).dp.roundToPx()) }
+                        .size(width = 40.dp, height = 42.dp)
+                        .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = Brush.horizontalGradient(0f to Color.Transparent, 0.22f to Color.Black),
+                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                            )
+                            drawRect(
+                                brush = Brush.verticalGradient(0f to Color.Transparent, 0.22f to Color.Black),
+                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                            )
+                        },
             )
         }
     }

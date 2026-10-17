@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -145,32 +146,60 @@ fun BottomSheetMenu(
         contentColor = MaterialTheme.colorScheme.onSurface,
         scrimColor = if (pinkLily) PinkInk.copy(alpha = 0.32f) else BottomSheetDefaults.ScrimColor,
         dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 40.dp, height = 4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(
-                        if (pinkLily) PinkInk.copy(alpha = 0.35f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    )
-            )
+            // Secret Pink draws its own handle inside the sheet art (below).
+            if (!pinkLily) {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 40.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
+            }
         },
         modifier = if (pinkLily) {
-            modifier
-                .fillMaxHeight()
-                .lilyNinePatch(res = R.drawable.lily_sheet, srcCap = 260, dstCap = 76.dp, alpha = 0.92f)
+            modifier.fillMaxHeight()
         } else {
             modifier
                 .fillMaxHeight()
                 .border(1.dp, glassStrokeBrush(), sheetShape)
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-        ) {
-            state.content(this)
+        if (pinkLily) {
+            // The sheet art is drawn here, inside the sheet's own (offset) coordinates, so its top edge
+            // sits exactly where the sheet starts instead of at the top of the screen.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .lilyNinePatch(res = R.drawable.lily_sheet, srcCap = 260, dstCap = 76.dp, alpha = 0.92f),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 12.dp)
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(PinkInk.copy(alpha = 0.35f)),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                    ) {
+                        state.content(this)
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+                state.content(this)
+            }
         }
     }
 }

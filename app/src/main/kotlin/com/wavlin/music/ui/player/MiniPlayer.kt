@@ -471,8 +471,8 @@ private fun NewMiniPlayer(
                 LilySlicedBackground(
                     res = R.drawable.lily_pill_bar,
                     leftCapPx = 302,
-                    rightCapPx = 400,
-                    alpha = 0.62f,
+                    rightCapPx = 330,
+                    alpha = 0.92f,
                     modifier = Modifier.matchParentSize(),
                 )
             }

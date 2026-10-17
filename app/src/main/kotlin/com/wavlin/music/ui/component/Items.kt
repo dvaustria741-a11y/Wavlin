@@ -60,6 +60,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -1464,14 +1466,37 @@ fun ItemThumbnail(
     thumbnailRatio: Float = 1f
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
-    
+    val pinkLily = LocalPinkLilyTheme.current
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
+            .let { base ->
+                if (pinkLily) {
+                    // Secret Pink: soft rose glow under a thin glassy pink rim.
+                    base.shadow(
+                        elevation = 8.dp,
+                        shape = shape,
+                        clip = false,
+                        ambientColor = Color(0xFFD9779B),
+                        spotColor = Color(0xFFD9779B),
+                    )
+                } else {
+                    base
+                }
+            }
             .clip(shape)
-            .border(1.dp, glassStrokeBrush(), shape)
+            .border(
+                if (pinkLily) 2.dp else 1.dp,
+                if (pinkLily) {
+                    Brush.linearGradient(listOf(Color.White.copy(alpha = 0.95f), Color(0xFFF4B6CB)))
+                } else {
+                    glassStrokeBrush()
+                },
+                shape,
+            )
     ) {
         if (albumIndex == null) {
             AsyncImage(

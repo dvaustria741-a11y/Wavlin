@@ -30,6 +30,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -1018,7 +1021,7 @@ class MainActivity : ComponentActivity() {
                                 enter = fadeIn(animationSpec = tween(durationMillis = 300)),
                                 exit = fadeOut(animationSpec = tween(durationMillis = 200)),
                             ) {
-                                Row(
+                                Box(
                                     modifier =
                                         if (pinkWallpaper) {
                                             val scrimBase = MaterialTheme.colorScheme.surface
@@ -1033,6 +1036,19 @@ class MainActivity : ComponentActivity() {
                                             Modifier
                                         },
                                 ) {
+                                    if (pinkWallpaper) {
+                                        // Secret Pink: lily entering from the top-left corner, behind the title/actions.
+                                        Image(
+                                            painter = painterResource(R.drawable.lily_corner_tl),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
+                                            modifier =
+                                                Modifier
+                                                    .matchParentSize()
+                                                    .wrapContentSize(Alignment.TopStart, unbounded = true)
+                                                    .requiredSize(120.dp, 126.dp),
+                                        )
+                                    }
                                     TopAppBar(
                                         title = {
                                             if (pinkWallpaper) {
@@ -1302,7 +1318,7 @@ class MainActivity : ComponentActivity() {
                                 .then(
                                     if (pinkWallpaper) {
                                         Modifier.paint(
-                                            painter = painterResource(R.drawable.bg_pink_lilies),
+                                            painter = painterResource(R.drawable.bg_pink_gingham),
                                             sizeToIntrinsics = false,
                                             contentScale = ContentScale.Crop,
                                             alpha = 1f,

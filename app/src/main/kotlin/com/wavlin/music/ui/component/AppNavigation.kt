@@ -8,6 +8,11 @@ package com.wavlin.music.ui.component
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Spacer
+import com.wavlin.music.R
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -217,6 +222,7 @@ fun AppNavigationBar(
                             unselectedIconColor = MaterialTheme.colorScheme.onSurface,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurface,
                             selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                            indicatorColor = Color.Transparent,
                         )
                     } else {
                         androidx.compose.material3.NavigationBarItemDefaults.colors()
@@ -230,10 +236,21 @@ fun AppNavigationBar(
                 },
                 interactionSource = interactionSource,
                 icon = {
-                    Icon(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = stringResource(screen.titleId)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        if (LocalPinkLilyTheme.current && isSelected) {
+                            // Secret Pink: glossy pill behind the selected tab instead of the M3 indicator.
+                            LilySlicedBackground(
+                                res = R.drawable.lily_nav_pill,
+                                leftCapPx = 104,
+                                rightCapPx = 104,
+                                modifier = Modifier.requiredSize(64.dp, 32.dp),
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(id = iconRes),
+                            contentDescription = stringResource(screen.titleId)
+                        )
+                    }
                 },
                 label = if (!slimNav) {
                     {

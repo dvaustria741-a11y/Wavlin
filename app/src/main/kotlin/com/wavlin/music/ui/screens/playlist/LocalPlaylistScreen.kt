@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
@@ -1232,11 +1233,19 @@ fun LocalPlaylistHeader(
         ) {
             when (playlist.thumbnails.size) {
                 0 -> if (LocalPinkLilyTheme.current) {
-                    androidx.compose.foundation.Image(
-                        painter = painterResource(R.drawable.lily_cover_empty),
-                        contentDescription = null,
-                        modifier = Modifier.size(170.dp),
-                    )
+                    Box(modifier = Modifier.size(170.dp)) {
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(R.drawable.lily_cover_empty),
+                            contentDescription = null,
+                            modifier = Modifier.matchParentSize(),
+                        )
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(R.drawable.lily_corner_br),
+                            contentDescription = null,
+                            alignment = Alignment.BottomEnd,
+                            modifier = Modifier.align(Alignment.BottomEnd).offset(x = 14.dp, y = 12.dp).size(width = 84.dp, height = 90.dp),
+                        )
+                    }
                 } else {
                     Surface(
                         modifier =

@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -310,20 +311,33 @@ private fun ReadyState(onStartRecognition: () -> Unit) {
     ) {
         if (LocalPinkLilyTheme.current) {
             // Secret Pink: the mic sits on a big glass bubble.
-            Box(
-                modifier = Modifier.size(220.dp).clip(CircleShape).clickable { onStartRecognition() },
-                contentAlignment = Alignment.Center,
-            ) {
+            Box(modifier = Modifier.size(220.dp)) {
                 Image(
-                    painter = painterResource(R.drawable.lily_bubble),
+                    painter = painterResource(R.drawable.lily_petals),
                     contentDescription = null,
-                    modifier = Modifier.matchParentSize(),
+                    modifier = Modifier.align(Alignment.Center).size(310.dp),
                 )
-                Icon(
-                    painter = painterResource(R.drawable.mic),
+                Box(
+                    modifier = Modifier.matchParentSize().clip(CircleShape).clickable { onStartRecognition() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.lily_bubble),
+                        contentDescription = null,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.mic),
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = com.wavlin.music.ui.theme.PinkInk,
+                    )
+                }
+                Image(
+                    painter = painterResource(R.drawable.lily_corner_br),
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = com.wavlin.music.ui.theme.PinkInk,
+                    alignment = Alignment.BottomEnd,
+                    modifier = Modifier.align(Alignment.BottomEnd).offset(x = 36.dp, y = 30.dp).size(width = 112.dp, height = 120.dp),
                 )
             }
         } else

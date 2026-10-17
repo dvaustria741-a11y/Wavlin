@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -182,11 +183,21 @@ fun AccountSettingsDialog(
                 color = if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                 tonalElevation = if (pinkLily) 0.dp else 8.dp,
             ) {
-                AccountSettings(
-                    navController = navController,
-                    onClose = onDismiss,
-                    latestVersionName = latestVersionName,
-                )
+                Box {
+                    if (pinkLily) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(com.wavlin.music.R.drawable.lily_sprig_tr),
+                            contentDescription = null,
+                            alignment = Alignment.TopEnd,
+                            modifier = Modifier.align(Alignment.TopEnd).size(width = 120.dp, height = 112.dp),
+                        )
+                    }
+                    AccountSettings(
+                        navController = navController,
+                        onClose = onDismiss,
+                        latestVersionName = latestVersionName,
+                    )
+                }
             }
         }
     }

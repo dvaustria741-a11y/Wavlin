@@ -36,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.wavlin.music.ui.theme.PinkInk
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.Dp
@@ -125,7 +127,8 @@ fun BottomSheetMenu(
 ) {
     val focusManager = LocalFocusManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val pinkLily = LocalPinkLilyTheme.current
+    val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 32.dp else 28.dp, topEnd = if (pinkLily) 32.dp else 28.dp)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
@@ -135,20 +138,33 @@ fun BottomSheetMenu(
         },
         sheetState = sheetState,
         shape = sheetShape,
-        containerColor = background,
+        // Secret Pink: a solid blush sheet (no see-through, so the player/home underneath never ghosts behind
+        // the menu text) and a rose-tinted scrim instead of the default grey.
+        containerColor = if (pinkLily) Color(0xFFFCE6ED) else background,
         contentColor = MaterialTheme.colorScheme.onSurface,
+        scrimColor = if (pinkLily) PinkInk.copy(alpha = 0.32f) else BottomSheetDefaults.ScrimColor,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(width = 40.dp, height = 4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    .background(
+                        if (pinkLily) PinkInk.copy(alpha = 0.35f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    )
             )
         },
         modifier = modifier
             .fillMaxHeight()
-            .border(1.dp, glassStrokeBrush(), sheetShape)
+            .border(
+                if (pinkLily) 1.5.dp else 1.dp,
+                if (pinkLily) {
+                    Brush.verticalGradient(listOf(Color.White, Color(0xFFF4B6CB)))
+                } else {
+                    glassStrokeBrush()
+                },
+                sheetShape,
+            )
     ) {
         Column(
             modifier = Modifier

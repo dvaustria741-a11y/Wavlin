@@ -79,11 +79,17 @@ fun DefaultDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        val pinkLily = LocalPinkLilyTheme.current
         Surface(
-            modifier = Modifier.padding(24.dp),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+            modifier =
+                Modifier
+                    .padding(24.dp)
+                    .let { base ->
+                        if (pinkLily) base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp) else base
+                    },
+            shape = if (pinkLily) MaterialTheme.shapes.large else AlertDialogDefaults.shape,
+            color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor,
+            tonalElevation = if (pinkLily) 0.dp else AlertDialogDefaults.TonalElevation,
         ) {
             Column(
                 horizontalAlignment = horizontalAlignment,
@@ -271,13 +277,21 @@ fun ListDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        val pinkLily = LocalPinkLilyTheme.current
         Surface(
             modifier = Modifier
                 .padding(24.dp)
-                .border(1.dp, glassStrokeBrush(), AlertDialogDefaults.shape),
-            shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor.copy(alpha = 0.85f),
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+                .let { base ->
+                    if (pinkLily) {
+                        // Secret Pink: the frosted lily panel (solid, so nothing ghosts through the list)
+                        base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp)
+                    } else {
+                        base.border(1.dp, glassStrokeBrush(), AlertDialogDefaults.shape)
+                    }
+                },
+            shape = if (pinkLily) MaterialTheme.shapes.large else AlertDialogDefaults.shape,
+            color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor.copy(alpha = 0.85f),
+            tonalElevation = if (pinkLily) 0.dp else AlertDialogDefaults.TonalElevation,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

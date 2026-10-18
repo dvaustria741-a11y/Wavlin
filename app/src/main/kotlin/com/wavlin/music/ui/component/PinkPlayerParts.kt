@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.component
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,7 +36,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -133,11 +136,12 @@ fun PinkNowPlayingHeader(
             )
             Box(Modifier.width(44.dp).height(1.dp).background(PinkSwoosh))
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Box(Modifier.width(90.dp).height(1.dp).background(PinkSwoosh))
-            Text(text = "\uD83C\uDF80", fontSize = 18.sp, modifier = Modifier.padding(horizontal = 6.dp))
-            Box(Modifier.width(90.dp).height(1.dp).background(PinkSwoosh))
-        }
+        Image(
+            painter = painterResource(R.drawable.lily_bow),
+            contentDescription = null,
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.width(300.dp),
+        )
         if (!queueTitle.isNullOrBlank()) {
             Text(
                 text = queueTitle,

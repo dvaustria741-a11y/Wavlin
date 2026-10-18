@@ -556,10 +556,15 @@ private fun ThumbnailItem(
             },
         contentAlignment = Alignment.Center
     ) {
+        val pinkFrame = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
+        Box(
+            modifier = Modifier.size(dimensions.thumbnailSize),
+            contentAlignment = Alignment.Center,
+        ) {
         Box(
             modifier = Modifier
-                .size(dimensions.thumbnailSize)
-                .clip(RoundedCornerShape(dimensions.cornerRadius))
+                .size(if (pinkFrame) dimensions.thumbnailSize * 0.9f else dimensions.thumbnailSize)
+                .clip(RoundedCornerShape(if (pinkFrame) 18.dp else dimensions.cornerRadius))
         ) {
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
@@ -583,6 +588,16 @@ private fun ThumbnailItem(
                     .padding(8.dp),
                 tintColor = textBackgroundColor
             )
+        }
+        if (pinkFrame) {
+            // Secret Pink: glass frame drawn over the artwork.
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.lily_cover_frame),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         }
     }
 }

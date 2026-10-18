@@ -463,10 +463,14 @@ fun BottomSheetPlayer(
 
     val TextBackgroundColor by animateColorAsState(
         targetValue =
-            when (playerBackground) {
-                PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
-                PlayerBackgroundStyle.BLUR -> Color.White
-                PlayerBackgroundStyle.GRADIENT -> Color.White
+            if (LocalPinkLilyTheme.current) {
+                PinkInk
+            } else {
+                when (playerBackground) {
+                    PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
+                    PlayerBackgroundStyle.BLUR -> Color.White
+                    PlayerBackgroundStyle.GRADIENT -> Color.White
+                }
             },
         label = "TextBackgroundColor",
     )
@@ -1030,7 +1034,7 @@ fun BottomSheetPlayer(
                             text = title,
                             style =
                                 if (LocalPinkLilyTheme.current) {
-                                    MaterialTheme.typography.titleLarge.copy(fontFamily = playball, fontSize = 38.sp)
+                                    MaterialTheme.typography.titleLarge.copy(fontFamily = playball, fontSize = 32.sp)
                                 } else {
                                     MaterialTheme.typography.titleLarge
                                 },

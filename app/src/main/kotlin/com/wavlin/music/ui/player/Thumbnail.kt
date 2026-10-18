@@ -440,6 +440,8 @@ private fun ThumbnailHeader(
     textColor: Color,
     modifier: Modifier = Modifier
 ) {
+    // Secret Pink draws its own "Now Playing" header above the player.
+    if (com.wavlin.music.ui.component.LocalPinkLilyTheme.current) return
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = RoomRole.NONE)
     val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
@@ -557,13 +559,18 @@ private fun ThumbnailItem(
         contentAlignment = Alignment.Center
     ) {
         val pinkFrame = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
+        androidx.compose.foundation.layout.BoxWithConstraints(
+            modifier = Modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+        val side = if (pinkFrame) minOf(dimensions.thumbnailSize, maxWidth, maxHeight) else dimensions.thumbnailSize
         Box(
-            modifier = Modifier.size(dimensions.thumbnailSize),
+            modifier = Modifier.size(side),
             contentAlignment = Alignment.Center,
         ) {
         Box(
             modifier = Modifier
-                .size(if (pinkFrame) dimensions.thumbnailSize * 0.9f else dimensions.thumbnailSize)
+                .size(if (pinkFrame) side * 0.9f else side)
                 .clip(RoundedCornerShape(if (pinkFrame) 18.dp else dimensions.cornerRadius))
         ) {
             if (hidePlayerThumbnail) {
@@ -597,6 +604,7 @@ private fun ThumbnailItem(
                 contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
                 modifier = Modifier.matchParentSize(),
             )
+        }
         }
         }
     }

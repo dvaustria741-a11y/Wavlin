@@ -99,6 +99,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import com.wavlin.music.ui.component.lilyGlassAuto
+import com.wavlin.music.ui.component.lilyNinePatch
 import com.wavlin.music.LocalNavController
 import com.wavlin.music.LocalListenTogetherManager
 import com.wavlin.music.LocalPlayerConnection
@@ -383,12 +385,14 @@ fun Queue(
 
                     Spacer(modifier = Modifier.weight(1f))
 
+                    val pinkMore = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
                     Box(
                         modifier =
                             Modifier
                                 .size(buttonSize)
+                                .let { if (pinkMore) it.lilyGlassAuto() else it }
                                 .clip(CircleShape)
-                                .background(textButtonColor)
+                                .let { if (pinkMore) it else it.background(textButtonColor) }
                                 .clickable {
                                     menuState.show {
                                         PlayerMenu(
@@ -411,7 +415,7 @@ fun Queue(
                             painter = painterResource(id = R.drawable.more_vert),
                             contentDescription = null,
                             modifier = Modifier.size(iconSize),
-                            tint = iconButtonColor,
+                            tint = if (pinkMore) com.wavlin.music.ui.theme.PinkInk else iconButtonColor,
                         )
                     }
                 }
@@ -1290,8 +1294,14 @@ private fun PlayerQueueButton(
 
     val alphaFactor = if (enabled) 1f else 0.35f
 
+    val pinkGlass = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
     val appliedModifier =
-        if (isActive) {
+        if (pinkGlass) {
+            modifier
+                .then(Modifier.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 16.dp))
+                .then(Modifier.clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, onClick = onClick))
+                .alpha(alphaFactor)
+        } else if (isActive) {
             modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
         } else {
             modifier
@@ -1323,7 +1333,9 @@ private fun PlayerQueueButton(
             )
         } else {
             val baseTint =
-                if (isActive) {
+                if (pinkGlass) {
+                    com.wavlin.music.ui.theme.PinkInk
+                } else if (isActive) {
                     iconButtonColor
                 } else {
                     when (playerBackground) {

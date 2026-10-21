@@ -76,7 +76,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- Listen Together invite link -->
+            <!-- Listen Together invite link and shared playlist links -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
 
@@ -86,6 +86,8 @@
                 <data android:scheme="https" />
                 <data android:host="wavlin.cc" />
                 <data android:pathPrefix="/listen" />
+                <data android:pathPrefix="/playlist" />
+                <data android:pathPrefix="/shared" />
             </intent-filter>
 
             <!-- Youtube filter -->

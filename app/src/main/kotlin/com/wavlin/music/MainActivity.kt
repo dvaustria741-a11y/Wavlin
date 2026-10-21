@@ -13,6 +13,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -167,6 +168,7 @@ import com.wavlin.music.constants.StopMusicOnTaskClearKey
 import com.wavlin.music.constants.UpdateNotificationsEnabledKey
 import com.wavlin.music.constants.UseNewMiniPlayerDesignKey
 import com.wavlin.music.db.MusicDatabase
+import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.extensions.toEnum
 import com.wavlin.music.lyrics.LyricsProviderRegistry
@@ -1617,6 +1619,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            "shared" -> importSharedPlaylist(uri, navController)
+
             "browse" -> {
                 uri.lastPathSegment?.let { browseId ->
                     navController.navigate("album/$browseId")
@@ -1685,6 +1689,40 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun importSharedPlaylist(
+        uri: Uri,
+        navController: NavHostController,
+    ) {
+        val ids =
+            uri
+                .getQueryParameter("ids")
+                ?.split(",")
+                ?.filter { it.isNotBlank() }
+                ?.distinct()
+                ?.take(SHARED_PLAYLIST_MAX_IDS)
+                .orEmpty()
+        if (ids.isEmpty()) return
+        val name = uri.getQueryParameter("name")?.takeIf { it.isNotBlank() } ?: "Shared playlist"
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            YouTube
+                .queue(ids)
+                .onSuccess { songs ->
+                    val playlistEntity = PlaylistEntity(name = name)
+                    database.query {
+                        insert(playlistEntity)
+                        songs.forEach { insert(it.toMediaMetadata()) }
+                    }
+                    database.playlist(playlistEntity.id).first()?.let { playlist ->
+                        database.query { addSongsToPlaylist(playlist, songs.map { it.id to null }) }
+                    }
+                    withContext(Dispatchers.Main) {
+                        navController.navigate("local_playlist/${playlistEntity.id}")
+                    }
+                }.onFailure { reportException(it) }
+        }
+    }
+
     @SuppressLint("ObsoleteSdkInt")
     private fun setSystemBarAppearance(isDark: Boolean) {
         WindowCompat.getInsetsController(window, window.decorView.rootView).apply {
@@ -1699,6 +1737,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private const val SHARED_PLAYLIST_MAX_IDS = 50
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }
 val LocalNavController = staticCompositionLocalOf<NavController> { error("No NavController provided") }

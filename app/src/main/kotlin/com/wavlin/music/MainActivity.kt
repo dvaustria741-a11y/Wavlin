@@ -230,6 +230,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import timber.log.Timber
 import java.util.Locale
 import javax.inject.Inject
@@ -1605,6 +1608,7 @@ class MainActivity : ComponentActivity() {
                     when {
                         uri.getQueryParameter("ids") != null -> "shared"
                         uri.getQueryParameter("list") != null -> "playlist"
+                        uri.pathSegments.firstOrNull() == "p" -> "shared-code"
                         else -> null
                     }
                 else -> uri.pathSegments.firstOrNull()
@@ -1631,7 +1635,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            "shared" -> importSharedPlaylist(uri, navController)
+            "shared" ->
+                importSharedPlaylist(
+                    name = uri.getQueryParameter("name").orEmpty(),
+                    ids = uri.getQueryParameter("ids")?.split(",").orEmpty(),
+                    navController = navController,
+                )
+
+            "shared-code" -> importSharedPlaylistByCode(uri.pathSegments.getOrNull(1), navController)
 
             "browse" -> {
                 uri.lastPathSegment?.let { browseId ->
@@ -1701,26 +1712,44 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun importSharedPlaylist(
-        uri: Uri,
+    /** Looks up a playlist stored on the share server by its short code, then imports it. */
+    private fun importSharedPlaylistByCode(
+        code: String?,
         navController: NavHostController,
     ) {
-        val ids =
-            uri
-                .getQueryParameter("ids")
-                ?.split(",")
-                ?.filter { it.isNotBlank() }
-                ?.distinct()
-                ?.take(SHARED_PLAYLIST_MAX_IDS)
-                .orEmpty()
-        if (ids.isEmpty()) return
-        val name = uri.getQueryParameter("name")?.takeIf { it.isNotBlank() } ?: "Shared playlist"
+        val cleanCode = code?.removeSuffix(".json")?.takeIf { it.matches(Regex("[A-Za-z0-9]{4,32}")) } ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                val connection = URL("https://$SHARE_PAGE_HOST/p/$cleanCode.json").openConnection() as HttpURLConnection
+                try {
+                    connection.connectTimeout = 8000
+                    connection.readTimeout = 8000
+                    val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    val idArray = json.getJSONArray("ids")
+                    json.optString("name") to List(idArray.length()) { idArray.getString(it) }
+                } finally {
+                    connection.disconnect()
+                }
+            }.onSuccess { (name, ids) ->
+                withContext(Dispatchers.Main) { importSharedPlaylist(name, ids, navController) }
+            }.onFailure { reportException(it) }
+        }
+    }
+
+    private fun importSharedPlaylist(
+        name: String,
+        ids: List<String>,
+        navController: NavHostController,
+    ) {
+        val videoIds = ids.filter { it.isNotBlank() }.distinct().take(SHARED_PLAYLIST_MAX_IDS)
+        if (videoIds.isEmpty()) return
+        val playlistName = name.takeIf { it.isNotBlank() } ?: "Shared playlist"
 
         lifecycleScope.launch(Dispatchers.IO) {
             YouTube
-                .queue(ids)
+                .queue(videoIds)
                 .onSuccess { songs ->
-                    val playlistEntity = PlaylistEntity(name = name)
+                    val playlistEntity = PlaylistEntity(name = playlistName)
                     database.query {
                         insert(playlistEntity)
                         songs.forEach { insert(it.toMediaMetadata()) }

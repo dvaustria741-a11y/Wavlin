@@ -67,7 +67,6 @@
     <string name="dislike_all">Dislike all</string>
     <string name="sort_by_last_updated">Date updated</string>
     <string name="link_copied">Link copied to clipboard</string>
-    <string name="short_link_login_required">Sign in to YouTube Music for short share links</string>
     <string name="short_link_failed">Couldn\'t make a short link (%1$s), sharing the long one</string>
     <string name="starting_radio">Starting radio…</string>
     <string name="now_playing">Now Playing</string>

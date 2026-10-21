@@ -15,6 +15,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -62,16 +63,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.wavlin.innertube.YouTube
-import com.wavlin.innertube.utils.parseCookieString
 import com.wavlin.music.R
-import com.wavlin.music.constants.InnerTubeCookieKey
 import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.db.entities.PlaylistSong
-import com.wavlin.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -116,18 +115,18 @@ fun buildPlaylistShareLink(
 }
 
 /**
- * Short link for a local playlist: the tracks are put in an unlisted playlist on the signed-in
- * YouTube Music account and the link only carries that playlist's id. The id is cached per
- * playlist content so sharing the same playlist again does not create duplicates.
+ * Short link for a local playlist: the name, track ids and card picture are stored on the share server
+ * (no YouTube account needed) and the link only carries the short code the server returns. The code is
+ * cached per playlist content so sharing the same playlist again does not store it twice.
  *
  * Fails (with the reason as the message) when the link cannot be created.
  */
-suspend fun resolveShortShareLink(
+private suspend fun resolveShortShareLink(
     context: Context,
     playlist: Playlist,
     songs: List<PlaylistSong>,
+    cardJpeg: ByteArray?,
 ): Result<String> {
-    if (playlist.playlist.browseId != null) return Result.failure(IllegalStateException("already synced"))
     val ids =
         songs
             .asSequence()
@@ -135,21 +134,38 @@ suspend fun resolveShortShareLink(
             .filter { !it.isLocal && YOUTUBE_VIDEO_ID.matches(it.id) }
             .map { it.id }
             .distinct()
+            .take(SHARED_MAX_IDS)
             .toList()
     if (ids.isEmpty()) return Result.failure(IllegalStateException("no online tracks"))
 
     val prefs = context.getSharedPreferences(SHARE_LINKS_PREFS, Context.MODE_PRIVATE)
     val cacheKey = "${playlist.id}:${(playlist.playlist.name + ids.joinToString(",")).hashCode()}"
-    prefs.getString(cacheKey, null)?.let { return Result.success("$SHARE_PAGE_URL?list=$it") }
+    prefs.getString(cacheKey, null)?.let { return Result.success("${SHARE_PAGE_URL}p/$it") }
 
     return withContext(Dispatchers.IO) {
-        YouTube
-            .createUnlistedPlaylist(playlist.playlist.name, ids)
-            .mapCatching { youtubeId ->
-                check(youtubeId.isNotBlank()) { "empty playlist id" }
-                prefs.edit().putString(cacheKey, youtubeId).apply()
-                "$SHARE_PAGE_URL?list=$youtubeId"
-            }.onFailure { Log.e("PlaylistShare", "Short link failed", it) }
+        runCatching {
+            val body =
+                JSONObject()
+                    .put("name", playlist.playlist.name)
+                    .put("ids", JSONArray(ids))
+                    .apply { cardJpeg?.let { put("card", Base64.encodeToString(it, Base64.NO_WRAP)) } }
+                    .toString()
+            val connection = URL("${SHARE_PAGE_URL}p").openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.outputStream.use { it.write(body.toByteArray()) }
+                check(connection.responseCode in 200..299) { "server ${connection.responseCode}" }
+                val code = JSONObject(connection.inputStream.bufferedReader().use { it.readText() }).getString("code")
+                prefs.edit().putString(cacheKey, code).apply()
+                "${SHARE_PAGE_URL}p/$code"
+            } finally {
+                connection.disconnect()
+            }
+        }.onFailure { Log.e("PlaylistShare", "Short link failed", it) }
     }
 }
 
@@ -221,8 +237,6 @@ fun ColumnScope.PlaylistShareSheet(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
     val fallbackText = remember(playlist, songs) { buildPlaylistShareText(context, playlist, songs) }
     var isPreparing by remember { mutableStateOf(false) }
     val cardLayer = rememberGraphicsLayer()
@@ -232,22 +246,19 @@ fun ColumnScope.PlaylistShareSheet(
         if (isPreparing) return
         coroutineScope.launch {
             isPreparing = true
+            val cardJpeg = encodeCardJpeg(cardLayer)
+            val syncedId = playlist.playlist.browseId?.removePrefix("VL")
             val text =
-                if (playlist.playlist.browseId != null) {
-                    fallbackText
-                } else if (!isLoggedIn) {
-                    Toast.makeText(context, R.string.short_link_login_required, Toast.LENGTH_SHORT).show()
+                if (syncedId != null) {
+                    cardJpeg?.let { uploadShareCard(syncedId, it) }
                     fallbackText
                 } else {
-                    resolveShortShareLink(context, playlist, songs).getOrElse {
+                    resolveShortShareLink(context, playlist, songs, cardJpeg).getOrElse {
                         val reason = it.message ?: it::class.java.simpleName
                         Toast.makeText(context, context.getString(R.string.short_link_failed, reason), Toast.LENGTH_LONG).show()
                         fallbackText
                     }
                 }
-            Uri.parse(text).getQueryParameter("list")?.let { listId ->
-                encodeCardJpeg(cardLayer)?.let { uploadShareCard(listId, it) }
-            }
             isPreparing = false
             action(text)
             onDismiss()

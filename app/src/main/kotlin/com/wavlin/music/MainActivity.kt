@@ -1751,7 +1751,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val SHARED_PLAYLIST_MAX_IDS = 50
-private const val SHARE_PAGE_HOST = "dvaustria741-a11y.github.io"
+private const val SHARE_PAGE_HOST = "wavlin-share.dvaustria741.workers.dev"
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }
 val LocalNavController = staticCompositionLocalOf<NavController> { error("No NavController provided") }

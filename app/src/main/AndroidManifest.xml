@@ -90,7 +90,7 @@
                 <data android:pathPrefix="/shared" />
             </intent-filter>
 
-            <!-- Shared playlist links: wavlin:// scheme (from the share page) and the share page itself -->
+            <!-- Shared playlist links: wavlin:// scheme (from the share page) and the Worker share page -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -106,8 +106,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <data android:host="dvaustria741-a11y.github.io" />
-                <data android:pathPrefix="/Wavlin" />
+                <data android:host="wavlin-share.dvaustria741.workers.dev" />
+                <data android:pathPrefix="/" />
             </intent-filter>
 
             <!-- Youtube filter -->

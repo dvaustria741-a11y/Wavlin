@@ -68,7 +68,7 @@ private const val WHATSAPP_PACKAGE = "com.whatsapp"
 private const val SHARED_TEXT_MAX_TRACKS = 100
 
 private const val SHARED_MAX_IDS = 50
-private const val SHARE_PAGE_URL = "https://dvaustria741-a11y.github.io/Wavlin/"
+private const val SHARE_PAGE_URL = "https://wavlin-share.dvaustria741.workers.dev/"
 private const val SHARE_LINKS_PREFS = "playlist_share_links"
 private val YOUTUBE_VIDEO_ID = Regex("^[A-Za-z0-9_-]{11}$")
 

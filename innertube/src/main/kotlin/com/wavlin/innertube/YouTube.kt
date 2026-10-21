@@ -25,6 +25,7 @@ import com.wavlin.innertube.models.TasteProfile
 import com.wavlin.innertube.models.WatchEndpoint
 import com.wavlin.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.wavlin.innertube.models.YTItem
+import com.wavlin.innertube.models.body.CreatePlaylistBody
 import com.wavlin.innertube.models.YouTubeClient
 import com.wavlin.innertube.models.YouTubeClient.Companion.WEB
 import com.wavlin.innertube.models.YouTubeClient.Companion.WEB_REMIX

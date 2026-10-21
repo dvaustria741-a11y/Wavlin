@@ -10,6 +10,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -43,8 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -63,12 +72,16 @@ import com.wavlin.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 private const val PREVIEW_TRACK_COUNT = 4
 private const val WHATSAPP_PACKAGE = "com.whatsapp"
 private const val SHARED_TEXT_MAX_TRACKS = 100
 
 private const val SHARED_MAX_IDS = 50
+private const val CARD_IMAGE_WIDTH = 720
 private const val SHARE_PAGE_URL = "https://wavlin-share.dvaustria741.workers.dev/"
 private const val SHARE_LINKS_PREFS = "playlist_share_links"
 private val YOUTUBE_VIDEO_ID = Regex("^[A-Za-z0-9_-]{11}$")
@@ -88,7 +101,7 @@ fun buildPlaylistShareLink(
     playlist: Playlist,
     songs: List<PlaylistSong>,
 ): String? {
-    playlist.playlist.browseId?.let { return "$SHARE_PAGE_URL?list=$it" }
+    playlist.playlist.browseId?.let { return "$SHARE_PAGE_URL?list=${it.removePrefix("VL")}" }
     val ids =
         songs
             .asSequence()
@@ -140,6 +153,44 @@ suspend fun resolveShortShareLink(
     }
 }
 
+/** Renders the captured card to a small JPEG for the link preview picture. */
+private suspend fun encodeCardJpeg(layer: GraphicsLayer): ByteArray? =
+    runCatching {
+        val source = layer.toImageBitmap().asAndroidBitmap()
+        val scale = (CARD_IMAGE_WIDTH.toFloat() / source.width).coerceAtMost(1f)
+        val width = (source.width * scale).toInt().coerceAtLeast(1)
+        val height = (source.height * scale).toInt().coerceAtLeast(1)
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        canvas.drawColor(android.graphics.Color.BLACK)
+        canvas.drawBitmap(source, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
+        ByteArrayOutputStream().use { stream ->
+            output.compress(Bitmap.CompressFormat.JPEG, 88, stream)
+            stream.toByteArray()
+        }
+    }.onFailure { Log.e("PlaylistShare", "Card capture failed", it) }.getOrNull()
+
+/** Uploads the card so the share page can use it as the preview picture (the server keeps the first one per id). */
+private suspend fun uploadShareCard(
+    listId: String,
+    jpeg: ByteArray,
+) = withContext(Dispatchers.IO) {
+    runCatching {
+        val connection = URL("${SHARE_PAGE_URL}card/${Uri.encode(listId)}").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            connection.setRequestProperty("Content-Type", "image/jpeg")
+            connection.outputStream.use { it.write(jpeg) }
+            connection.responseCode
+        } finally {
+            connection.disconnect()
+        }
+    }.onFailure { Log.e("PlaylistShare", "Card upload failed", it) }
+}
+
 /** Text used for sharing: the link when we have one, otherwise a readable track list. */
 fun buildPlaylistShareText(
     context: Context,
@@ -174,6 +225,7 @@ fun ColumnScope.PlaylistShareSheet(
     val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
     val fallbackText = remember(playlist, songs) { buildPlaylistShareText(context, playlist, songs) }
     var isPreparing by remember { mutableStateOf(false) }
+    val cardLayer = rememberGraphicsLayer()
 
     // Shares with the short link when it can be made; otherwise falls back to the long link.
     fun share(action: (String) -> Unit) {
@@ -193,6 +245,9 @@ fun ColumnScope.PlaylistShareSheet(
                         fallbackText
                     }
                 }
+            Uri.parse(text).getQueryParameter("list")?.let { listId ->
+                encodeCardJpeg(cardLayer)?.let { uploadShareCard(listId, it) }
+            }
             isPreparing = false
             action(text)
             onDismiss()
@@ -203,7 +258,13 @@ fun ColumnScope.PlaylistShareSheet(
         playlist = playlist,
         songs = songs,
         ownerName = ownerName,
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .drawWithContent {
+                    cardLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(cardLayer)
+                },
     )
 
     Row(

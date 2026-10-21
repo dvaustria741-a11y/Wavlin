@@ -1529,7 +1529,7 @@ fun LocalPlaylistHeader(
                 val (accountName) = rememberPreference(AccountNameKey, "")
                 Surface(
                     onClick = {
-                        menuState.show {
+                        menuState.show(expandFully = true) {
                             PlaylistShareSheet(
                                 playlist = playlist,
                                 songs = songs,

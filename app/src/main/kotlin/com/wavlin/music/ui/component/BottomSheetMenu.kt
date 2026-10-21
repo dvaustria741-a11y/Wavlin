@@ -54,8 +54,14 @@ class MenuState(
 ) {
     var isVisible by mutableStateOf(isVisible)
     var content by mutableStateOf(content)
+    var expandFully by mutableStateOf(false)
 
-    fun show(content: @Composable ColumnScope.() -> Unit) {
+    /** [expandFully] opens tall content (e.g. the share card) fully instead of half-height. */
+    fun show(
+        expandFully: Boolean = false,
+        content: @Composable ColumnScope.() -> Unit,
+    ) {
+        this.expandFully = expandFully
         isVisible = true
         this.content = content
     }
@@ -71,6 +77,7 @@ fun AnimatedBottomSheet(
     isVisible: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    expandFully: Boolean = false,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
     sheetMaxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,
     shape: Shape = BottomSheetDefaults.ExpandedShape,
@@ -94,6 +101,7 @@ fun AnimatedBottomSheet(
     LaunchedEffect(isVisible) {
         if (isVisible) {
             sheetState.show()
+            if (expandFully) sheetState.expand()
         } else {
             sheetState.hide()
         }
@@ -134,6 +142,7 @@ fun BottomSheetMenu(
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
+        expandFully = state.expandFully,
         onDismissRequest = {
             focusManager.clearFocus()
             state.isVisible = false

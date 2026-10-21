@@ -202,7 +202,7 @@ fun LocalPlaylistMenu(
                     },
                     onClick = {
                         onDismiss()
-                        shareMenuState.show {
+                        shareMenuState.show(expandFully = true) {
                             PlaylistShareSheet(
                                 playlist = playlist,
                                 songs = songs,

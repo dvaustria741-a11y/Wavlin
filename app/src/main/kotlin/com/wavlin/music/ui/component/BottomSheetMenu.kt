@@ -10,9 +10,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -140,6 +142,8 @@ fun BottomSheetMenu(
     // Tall content (the share card) skips the half-height stop and opens fully; the state is keyed on it.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = state.expandFully)
     val pinkLily = LocalPinkLilyTheme.current
+    // The share sheet wraps its content (opens exactly as tall as the card + buttons); other menus fill the height.
+    val wrapContent = state.expandFully
     val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else 28.dp, topEnd = if (pinkLily) 30.dp else 28.dp)
 
     AnimatedBottomSheet(
@@ -168,11 +172,15 @@ fun BottomSheetMenu(
                 )
             }
         },
-        modifier = if (pinkLily) {
-            modifier.fillMaxHeight()
+        contentWindowInsets = if (wrapContent) {
+            { WindowInsets(0, 0, 0, 0) }
         } else {
-            modifier
-                .fillMaxHeight()
+            { BottomSheetDefaults.modalWindowInsets }
+        },
+        modifier = if (pinkLily) {
+            if (wrapContent) modifier else modifier.fillMaxHeight()
+        } else {
+            (if (wrapContent) modifier else modifier.fillMaxHeight())
                 .border(1.dp, glassStrokeBrush(), sheetShape)
         }
     ) {
@@ -182,7 +190,7 @@ fun BottomSheetMenu(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .then(if (wrapContent) Modifier else Modifier.weight(1f))
                     .lilyNinePatch(res = R.drawable.lily_sheet, srcCap = 260, dstCap = 76.dp, alpha = 0.92f),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -201,6 +209,7 @@ fun BottomSheetMenu(
                     ) {
                         state.content(this)
                     }
+                    if (wrapContent) Spacer(Modifier.navigationBarsPadding())
                 }
             }
         } else {
@@ -211,6 +220,7 @@ fun BottomSheetMenu(
             ) {
                 state.content(this)
             }
+            if (wrapContent) Spacer(Modifier.navigationBarsPadding())
         }
     }
 }

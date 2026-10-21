@@ -37,7 +37,11 @@ import com.wavlin.music.R
 import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.db.entities.PlaylistSong
 import com.wavlin.music.db.entities.Song
+import com.wavlin.music.constants.AccountNameKey
 import com.wavlin.music.ui.component.DefaultDialog
+import com.wavlin.music.ui.component.LocalMenuState
+import com.wavlin.music.ui.component.PlaylistShareSheet
+import com.wavlin.music.utils.rememberPreference
 import com.wavlin.music.ui.component.Material3MenuGroup
 import com.wavlin.music.ui.component.Material3MenuItemData
 import com.wavlin.music.utils.PlaylistExporter
@@ -65,6 +69,8 @@ fun LocalPlaylistMenu(
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
     val coroutineScope = rememberCoroutineScope()
     val localContext = LocalContext.current
+    val shareMenuState = LocalMenuState.current
+    val (shareOwnerName) = rememberPreference(AccountNameKey, "")
 
     val (showExportDialog, setShowExportDialog) = remember { mutableStateOf(false) }
 
@@ -195,21 +201,15 @@ fun LocalPlaylistMenu(
                         )
                     },
                     onClick = {
-                        val shareText =
-                            if (isYouTubePlaylist) {
-                                "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}"
-                            } else {
-                                songs.joinToString("\n") { it.song.song.title }
-                            }
-                        val sendIntent: Intent =
-                            Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                                type = "text/plain"
-                            }
-                        val shareIntent = Intent.createChooser(sendIntent, null)
-                        context.startActivity(shareIntent)
                         onDismiss()
+                        shareMenuState.show {
+                            PlaylistShareSheet(
+                                playlist = playlist,
+                                songs = songs,
+                                ownerName = shareOwnerName.ifBlank { context.getString(R.string.app_name) },
+                                onDismiss = shareMenuState::dismiss,
+                            )
+                        }
                     },
                 ),
             )

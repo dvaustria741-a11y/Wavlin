@@ -1029,4 +1029,10 @@
         <item quantity="other">Delete %1$d downloaded songs from this device?</item>
     </plurals>
     <string name="view_downloaded_songs">View downloaded songs</string>
+    <string name="share_playlist_by">Playlist by %1$s</string>
+    <string name="share_via_whatsapp">WhatsApp</string>
+    <string name="share_via_sms">SMS</string>
+    <string name="share_more">More</string>
+    <string name="share_app_not_found">App not installed</string>
+    <string name="share_playlist_tracks_text">%1$s — playlist on Wavlin</string>
 </resources>

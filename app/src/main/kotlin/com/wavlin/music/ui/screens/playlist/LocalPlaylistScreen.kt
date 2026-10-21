@@ -128,6 +128,7 @@ import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.LocalSyncUtils
 import com.wavlin.music.R
+import com.wavlin.music.constants.AccountNameKey
 import com.wavlin.music.constants.AppBarHeight
 import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.PlaylistEditLockKey
@@ -144,6 +145,7 @@ import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.playback.queues.ListQueue
+import com.wavlin.music.ui.component.PlaylistShareSheet
 import com.wavlin.music.ui.component.ActionPromptDialog
 import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
@@ -1524,21 +1526,17 @@ fun LocalPlaylistHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Share Button
+                val (accountName) = rememberPreference(AccountNameKey, "")
                 Surface(
                     onClick = {
-                        val shareText =
-                            if (playlist.playlist.browseId != null) {
-                                "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}"
-                            } else {
-                                songs.joinToString("\n") { it.song.song.title }
-                            }
-                        val sendIntent: Intent =
-                            Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                                type = "text/plain"
-                            }
-                        context.startActivity(Intent.createChooser(sendIntent, null))
+                        menuState.show {
+                            PlaylistShareSheet(
+                                playlist = playlist,
+                                songs = songs,
+                                ownerName = accountName.ifBlank { context.getString(R.string.app_name) },
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
                     },
                     shape = CircleShape,
                     color = Color.Transparent,

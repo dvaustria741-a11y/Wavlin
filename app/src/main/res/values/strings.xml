@@ -354,5 +354,13 @@
     <string name="intro_welcome_to">Welcome to</string>
     <string name="intro_show_animation">Launch intro animation</string>
     <string name="intro_show_animation_desc">Play the welcome animation when the app starts</string>
+    <string name="app_icon">App icon</string>
+    <string name="app_icon_desc">Choose the icon Wavlin shows on your home screen and app drawer</string>
+    <string name="app_icon_default">Default</string>
+    <string name="app_icon_classic">Default (no themed icon)</string>
+    <string name="app_icon_pink">Pink</string>
+    <string name="app_icon_red">Red</string>
+    <string name="app_icon_black">Black</string>
+    <string name="app_icon_note">Some launchers take a few seconds to refresh, and a pinned shortcut may need to be re-added after changing the icon.</string>
 </resources>
 

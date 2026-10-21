@@ -63,7 +63,6 @@ import com.wavlin.music.constants.DefaultOpenTabKey
 import com.wavlin.music.constants.DensityScale
 import com.wavlin.music.constants.DensityScaleKey
 import com.wavlin.music.constants.DynamicThemeKey
-import com.wavlin.music.constants.EnableDynamicIconKey
 import com.wavlin.music.constants.EnableHighRefreshRateKey
 import com.wavlin.music.constants.EnableLandscapeScalingKey
 import com.wavlin.music.constants.ExperimentalLyricsKey
@@ -116,7 +115,6 @@ import com.wavlin.music.ui.component.WavySlider
 import com.wavlin.music.ui.theme.DefaultThemeColor
 import com.wavlin.music.ui.theme.PlayerSliderColors
 import com.wavlin.music.ui.utils.backToMain
-import com.wavlin.music.utils.IconUtils
 import com.wavlin.music.utils.rememberEnumPreference
 import com.wavlin.music.utils.rememberPreference
 import kotlinx.coroutines.launch
@@ -135,16 +133,6 @@ fun AppearanceSettings(
             DynamicThemeKey,
             defaultValue = true,
         )
-    val (enableDynamicIcon, onEnableDynamicIconPrefChange) =
-        rememberPreference(
-            EnableDynamicIconKey,
-            defaultValue = true,
-        )
-    val iconContext = LocalContext.current
-    val onEnableDynamicIconChange: (Boolean) -> Unit = { newValue ->
-        onEnableDynamicIconPrefChange(newValue)
-        IconUtils.setIcon(iconContext, newValue)
-    }
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) =
         rememberPreference(
             EnableHighRefreshRateKey,
@@ -1053,30 +1041,6 @@ fun AppearanceSettings(
                             ),
                         )
                     }
-                    add(
-                        Material3SettingsItem(
-                            icon = painterResource(R.drawable.palette),
-                            title = { Text(stringResource(R.string.enable_dynamic_icon)) },
-                            description = { Text(stringResource(R.string.enable_dynamic_icon_desc)) },
-                            trailingContent = {
-                                Switch(
-                                    checked = enableDynamicIcon,
-                                    onCheckedChange = onEnableDynamicIconChange,
-                                    thumbContent = {
-                                        Icon(
-                                            painter =
-                                                painterResource(
-                                                    id = if (enableDynamicIcon) R.drawable.check else R.drawable.close,
-                                                ),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(SwitchDefaults.IconSize),
-                                        )
-                                    },
-                                )
-                            },
-                            onClick = { onEnableDynamicIconChange(!enableDynamicIcon) },
-                        ),
-                    )
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.palette),

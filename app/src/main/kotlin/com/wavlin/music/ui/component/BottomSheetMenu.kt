@@ -103,7 +103,6 @@ fun AnimatedBottomSheet(
     LaunchedEffect(isVisible) {
         if (isVisible) {
             sheetState.show()
-            if (expandFully) sheetState.expand()
         } else {
             sheetState.hide()
         }
@@ -138,7 +137,8 @@ fun BottomSheetMenu(
     background: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
 ) {
     val focusManager = LocalFocusManager.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    // Tall content (the share card) skips the half-height stop and opens fully; the state is keyed on it.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = state.expandFully)
     val pinkLily = LocalPinkLilyTheme.current
     val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else 28.dp, topEnd = if (pinkLily) 30.dp else 28.dp)
 

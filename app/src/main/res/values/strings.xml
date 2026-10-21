@@ -351,5 +351,8 @@
     <string name="pink_now_playing_style">Now Playing style</string>
     <string name="pink_now_playing_default">Default</string>
     <string name="pink_now_playing_modified">Modified</string>
+    <string name="intro_welcome_to">Welcome to</string>
+    <string name="intro_show_animation">Launch intro animation</string>
+    <string name="intro_show_animation_desc">Play the welcome animation when the app starts</string>
 </resources>
 

@@ -56,16 +56,43 @@ private const val PREVIEW_TRACK_COUNT = 4
 private const val WHATSAPP_PACKAGE = "com.whatsapp"
 private const val SHARED_TEXT_MAX_TRACKS = 100
 
+private const val WATCH_VIDEOS_MAX_IDS = 50
+private val YOUTUBE_VIDEO_ID = Regex("^[A-Za-z0-9_-]{11}$")
+
 /**
- * Builds the text that gets shared. Playlists synced with YouTube Music produce a real link,
- * local-only playlists fall back to a readable track list since they have no public URL.
+ * Builds a real, clickable link for the playlist.
+ *
+ * - Playlists synced with YouTube Music use their permanent playlist URL.
+ * - Local-only playlists have no public page, so we build a YouTube `watch_videos` link from the
+ *   first [WATCH_VIDEOS_MAX_IDS] tracks. It opens as a playable queue for anyone, no account needed.
+ *
+ * Returns null when there is nothing linkable (e.g. only imported local files).
  */
+fun buildPlaylistShareLink(
+    playlist: Playlist,
+    songs: List<PlaylistSong>,
+): String? {
+    playlist.playlist.browseId?.let { return "https://music.youtube.com/playlist?list=$it" }
+    val ids =
+        songs
+            .asSequence()
+            .map { it.song.song }
+            .filter { !it.isLocal && YOUTUBE_VIDEO_ID.matches(it.id) }
+            .map { it.id }
+            .distinct()
+            .take(WATCH_VIDEOS_MAX_IDS)
+            .toList()
+    if (ids.isEmpty()) return null
+    return "https://www.youtube.com/watch_videos?video_ids=${ids.joinToString(",")}"
+}
+
+/** Text used for sharing: the link when we have one, otherwise a readable track list. */
 fun buildPlaylistShareText(
     context: Context,
     playlist: Playlist,
     songs: List<PlaylistSong>,
 ): String {
-    playlist.playlist.browseId?.let { return "https://music.youtube.com/playlist?list=$it" }
+    buildPlaylistShareLink(playlist, songs)?.let { return it }
     val header = context.getString(R.string.share_playlist_tracks_text, playlist.playlist.name)
     val tracks =
         songs.take(SHARED_TEXT_MAX_TRACKS).mapIndexed { index, item ->

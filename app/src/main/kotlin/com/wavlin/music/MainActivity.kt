@@ -155,6 +155,7 @@ import com.wavlin.music.constants.PauseListenHistoryKey
 import com.wavlin.music.constants.PauseSearchHistoryKey
 import com.wavlin.music.constants.PreferredLyricsProvider
 import com.wavlin.music.constants.PreferredLyricsProviderKey
+import com.wavlin.music.constants.PinkNowPlayingModifiedKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.SYSTEM_DEFAULT
 import com.wavlin.music.constants.SelectedThemeColorKey
@@ -179,6 +180,7 @@ import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LilyDiscBox
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.LocalPinkNowPlaying
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.wavlin.music.ui.component.AppNavigationRail
@@ -678,6 +680,7 @@ class MainActivity : ComponentActivity() {
                         .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface),
             ) {
                 val pinkWallpaper = selectedThemeColorInt == SecretPinkThemeColor.toArgb() && !useDarkTheme
+                val (pinkNowPlayingModified, _) = rememberPreference(PinkNowPlayingModifiedKey, defaultValue = true)
                 val density = LocalDensity.current
                 val configuration = LocalWindowInfo.current
                 val cutoutInsets = WindowInsets.displayCutout
@@ -1007,6 +1010,7 @@ class MainActivity : ComponentActivity() {
                     LocalChangelogState provides showChangelog,
                     LocalHazeState provides hazeState,
                     LocalPinkLilyTheme provides pinkWallpaper,
+                    LocalPinkNowPlaying provides (pinkWallpaper && pinkNowPlayingModified),
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })

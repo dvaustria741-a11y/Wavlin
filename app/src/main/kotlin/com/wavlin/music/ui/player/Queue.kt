@@ -385,7 +385,7 @@ fun Queue(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    val pinkMore = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
+                    val pinkMore = com.wavlin.music.ui.component.LocalPinkNowPlaying.current
                     Box(
                         modifier =
                             Modifier
@@ -1294,7 +1294,7 @@ private fun PlayerQueueButton(
 
     val alphaFactor = if (enabled) 1f else 0.35f
 
-    val pinkGlass = com.wavlin.music.ui.component.LocalPinkLilyTheme.current
+    val pinkGlass = com.wavlin.music.ui.component.LocalPinkNowPlaying.current
     val appliedModifier =
         if (pinkGlass) {
             modifier

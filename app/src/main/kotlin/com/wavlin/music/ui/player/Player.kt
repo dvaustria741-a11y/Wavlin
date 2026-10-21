@@ -64,7 +64,7 @@ import com.wavlin.music.ui.component.FilledIconButton
 import com.wavlin.music.ui.component.PinkNowPlayingHeader
 import com.wavlin.music.ui.component.PinkSliderThumb
 import com.wavlin.music.ui.component.PinkSliderTrack
-import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.LocalPinkNowPlaying
 import com.wavlin.music.ui.theme.PinkInk
 import com.wavlin.music.ui.theme.playball
 import androidx.compose.material3.Icon
@@ -463,7 +463,7 @@ fun BottomSheetPlayer(
 
     val TextBackgroundColor by animateColorAsState(
         targetValue =
-            if (LocalPinkLilyTheme.current) {
+            if (LocalPinkNowPlaying.current) {
                 PinkInk
             } else {
                 when (playerBackground) {
@@ -849,7 +849,7 @@ fun BottomSheetPlayer(
                         .fillMaxSize()
                         .background(bottomSheetBackgroundColor),
             ) {
-                if (LocalPinkLilyTheme.current) {
+                if (LocalPinkNowPlaying.current) {
                     // Secret Pink: watercolor wallpaper with lily corners.
                     Image(
                         painter = painterResource(R.drawable.lily_player_bg),
@@ -1033,15 +1033,15 @@ fun BottomSheetPlayer(
                         Text(
                             text = title,
                             style =
-                                if (LocalPinkLilyTheme.current) {
+                                if (LocalPinkNowPlaying.current) {
                                     MaterialTheme.typography.titleLarge.copy(fontFamily = playball, fontSize = 32.sp)
                                 } else {
                                     MaterialTheme.typography.titleLarge
                                 },
-                            fontWeight = if (LocalPinkLilyTheme.current) FontWeight.Normal else FontWeight.Bold,
+                            fontWeight = if (LocalPinkNowPlaying.current) FontWeight.Normal else FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = if (LocalPinkLilyTheme.current) PinkInk else TextBackgroundColor,
+                            color = if (LocalPinkNowPlaying.current) PinkInk else TextBackgroundColor,
                             modifier =
                                 Modifier
                                     .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
@@ -1081,7 +1081,7 @@ fun BottomSheetPlayer(
                                     mediaMetadata.artists.forEachIndexed { index, artist ->
                                         val tag = "artist_${artist.id.orEmpty()}"
                                         pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
-                                        withStyle(SpanStyle(color = if (LocalPinkLilyTheme.current) Color(0xFFB03A6A) else TextBackgroundColor, fontSize = 16.sp)) {
+                                        withStyle(SpanStyle(color = if (LocalPinkNowPlaying.current) Color(0xFFB03A6A) else TextBackgroundColor, fontSize = 16.sp)) {
                                             append(artist.name)
                                         }
                                         pop()
@@ -1442,7 +1442,7 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(24.dp))
 
-            when (if (LocalPinkLilyTheme.current) SliderStyle.SLIM else sliderStyle) {
+            when (if (LocalPinkNowPlaying.current) SliderStyle.SLIM else sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
                         value = (sliderPosition ?: effectivePosition).toFloat(),
@@ -1547,10 +1547,10 @@ fun BottomSheetPlayer(
                         },
                         enabled = !isListenTogetherGuest,
                         thumb = {
-                            if (LocalPinkLilyTheme.current) PinkSliderThumb() else Spacer(modifier = Modifier.size(0.dp))
+                            if (LocalPinkNowPlaying.current) PinkSliderThumb() else Spacer(modifier = Modifier.size(0.dp))
                         },
                         track = { sliderState ->
-                            if (LocalPinkLilyTheme.current) {
+                            if (LocalPinkNowPlaying.current) {
                                 PinkSliderTrack(sliderState = sliderState)
                             } else {
                                 PlayerSliderTrack(
@@ -2000,7 +2000,7 @@ fun BottomSheetPlayer(
                             .padding(bottom = bottomPadding)
                             .animateContentSize(),
                 ) {
-                    if (LocalPinkLilyTheme.current && !showInlineLyrics) {
+                    if (LocalPinkNowPlaying.current && !showInlineLyrics) {
                         val pinkQueueTitle by playerConnection.queueTitle.collectAsState()
                         PinkNowPlayingHeader(queueTitle = pinkQueueTitle, modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)))
                     }

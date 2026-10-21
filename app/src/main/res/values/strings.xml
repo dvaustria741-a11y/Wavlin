@@ -348,5 +348,8 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+    <string name="pink_now_playing_style">Now Playing style</string>
+    <string name="pink_now_playing_default">Default</string>
+    <string name="pink_now_playing_modified">Modified</string>
 </resources>
 

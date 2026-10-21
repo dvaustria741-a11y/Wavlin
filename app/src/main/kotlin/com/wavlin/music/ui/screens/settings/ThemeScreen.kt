@@ -81,6 +81,7 @@ import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.DynamicThemeKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.PureBlackMiniPlayerKey
+import com.wavlin.music.constants.PinkNowPlayingModifiedKey
 import com.wavlin.music.constants.PreviousDarkModeBeforeSecretPinkKey
 import com.wavlin.music.constants.SecretPinkThemeUnlockedKey
 import com.wavlin.music.constants.SelectedThemeColorKey
@@ -486,6 +487,29 @@ fun ThemeControls(
                             }
                         }
                     )
+                }
+            }
+
+            if (selectedThemeColor == SecretPinkThemeColor) {
+                var pinkNowPlayingModified by rememberPreference(PinkNowPlayingModifiedKey, defaultValue = true)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.pink_now_playing_style),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        androidx.compose.material3.FilterChip(
+                            selected = !pinkNowPlayingModified,
+                            onClick = { pinkNowPlayingModified = false },
+                            label = { Text(stringResource(R.string.pink_now_playing_default)) }
+                        )
+                        androidx.compose.material3.FilterChip(
+                            selected = pinkNowPlayingModified,
+                            onClick = { pinkNowPlayingModified = true },
+                            label = { Text(stringResource(R.string.pink_now_playing_modified)) }
+                        )
+                    }
                 }
             }
         }

@@ -61,6 +61,9 @@ fun pureBlackHazeStyle(): HazeStyle = HazeStyle(
 /** True while the Secret Pink theme (light mode) is active, so glass surfaces can use the pink lily look. */
 val LocalPinkLilyTheme = staticCompositionLocalOf { false }
 
+/** True when the Secret Pink theme is on and the user picked the modified Now Playing style. */
+val LocalPinkNowPlaying = staticCompositionLocalOf { false }
+
 /** A stronger pink frosted style for the bottom bar, so blurred artwork never shows as dark smudges. */
 fun pinkLilyNavHazeStyle(): HazeStyle = HazeStyle(
     backgroundColor = Color(0xFFFFE9F1),

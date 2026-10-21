@@ -80,7 +80,7 @@ fun FilledIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalPinkLilyTheme.current) {
+    if (LocalPinkNowPlaying.current) {
         val round = shape == RoundedCornerShape(50)
         androidx.compose.material3.FilledIconButton(
             onClick = onClick,

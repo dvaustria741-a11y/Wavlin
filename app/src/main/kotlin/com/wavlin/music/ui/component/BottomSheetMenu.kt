@@ -56,9 +56,11 @@ class MenuState(
     var content by mutableStateOf(content)
     var expandFully by mutableStateOf(false)
 
+    fun show(content: @Composable ColumnScope.() -> Unit) = show(expandFully = false, content = content)
+
     /** [expandFully] opens tall content (e.g. the share card) fully instead of half-height. */
     fun show(
-        expandFully: Boolean = false,
+        expandFully: Boolean,
         content: @Composable ColumnScope.() -> Unit,
     ) {
         this.expandFully = expandFully

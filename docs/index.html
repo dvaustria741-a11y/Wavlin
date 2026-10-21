@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wavlin – Shared playlist</title>
+<meta name="theme-color" content="#121212">
+<style>
+  :root { --accent: #c9a8c4; --bg: #121212; --card: #1e1e1e; --text: #f2f2f2; --muted: #a8a8a8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 0%, #2a2230 0%, var(--bg) 60%);
+    color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .card {
+    width: min(92vw, 420px); padding: 32px 24px; border-radius: 28px;
+    background: var(--card); text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  .brand { font-weight: 700; letter-spacing: .08em; color: var(--accent); font-size: 14px; text-transform: uppercase; }
+  h1 { margin: 12px 0 6px; font-size: 24px; word-break: break-word; }
+  p { margin: 0 0 24px; color: var(--muted); font-size: 15px; line-height: 1.45; }
+  .btn {
+    display: block; width: 100%; padding: 15px; margin-top: 12px; border-radius: 999px;
+    font-size: 16px; font-weight: 600; text-decoration: none; border: 0;
+  }
+  .primary { background: var(--accent); color: #1a1220; }
+  .secondary { background: transparent; color: var(--text); border: 1px solid #3a3a3a; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">Wavlin</div>
+  <h1 id="title">Shared playlist</h1>
+  <p id="subtitle">Open this playlist in Wavlin.</p>
+  <a id="open" class="btn primary" href="#">Open in Wavlin</a>
+  <a id="youtube" class="btn secondary hidden" href="#">Open in YouTube Music</a>
+  <a id="get" class="btn secondary" href="https://github.com/dvaustria741-a11y/Wavlin/releases">Get Wavlin</a>
+</main>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var list = params.get('list');
+  var ids = params.get('ids');
+  var name = params.get('name');
+
+  var query = list
+    ? 'list=' + encodeURIComponent(list)
+    : 'name=' + encodeURIComponent(name || '') + '&ids=' + encodeURIComponent(ids || '');
+  var route = list ? 'playlist' : 'shared';
+  var hasPlaylist = !!(list || ids);
+
+  if (!hasPlaylist) {
+    document.getElementById('subtitle').textContent = 'This link does not contain a playlist.';
+    document.getElementById('open').classList.add('hidden');
+    return;
+  }
+
+  if (name) document.getElementById('title').textContent = name;
+  if (ids) {
+    var count = ids.split(',').filter(Boolean).length;
+    document.getElementById('subtitle').textContent = count + ' track' + (count === 1 ? '' : 's') + ' · tap to open in Wavlin';
+  }
+
+  var youtubeUrl = list ? 'https://music.youtube.com/playlist?list=' + encodeURIComponent(list) : '';
+  if (youtubeUrl) {
+    var yt = document.getElementById('youtube');
+    yt.href = youtubeUrl;
+    yt.classList.remove('hidden');
+  }
+
+  var customScheme = 'wavlin://' + route + '?' + query;
+  var intentUrl = 'intent://' + route + '?' + query +
+    '#Intent;scheme=wavlin;package=com.wavlin.music;' +
+    (youtubeUrl ? 'S.browser_fallback_url=' + encodeURIComponent(youtubeUrl) + ';' : '') + 'end';
+  var isAndroid = /Android/i.test(navigator.userAgent);
+  var target = isAndroid ? intentUrl : customScheme;
+
+  var open = document.getElementById('open');
+  open.href = target;
+
+  // Try once automatically; the button covers browsers that block unprompted app launches.
+  if (isAndroid) setTimeout(function () { location.href = target; }, 400);
+})();
+</script>
+</body>
+</html>

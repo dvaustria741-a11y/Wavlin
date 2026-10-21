@@ -34,7 +34,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,23 +52,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.wavlin.innertube.YouTube
+import com.wavlin.innertube.utils.parseCookieString
 import com.wavlin.music.R
+import com.wavlin.music.constants.InnerTubeCookieKey
 import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.db.entities.PlaylistSong
+import com.wavlin.music.utils.rememberPreference
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val PREVIEW_TRACK_COUNT = 4
 private const val WHATSAPP_PACKAGE = "com.whatsapp"
 private const val SHARED_TEXT_MAX_TRACKS = 100
 
 private const val SHARED_MAX_IDS = 50
+private const val SHARE_PAGE_URL = "https://dvaustria741-a11y.github.io/Wavlin/"
+private const val SHARE_LINKS_PREFS = "playlist_share_links"
 private val YOUTUBE_VIDEO_ID = Regex("^[A-Za-z0-9_-]{11}$")
 
 /**
  * Builds a Wavlin link for the playlist that opens inside the app.
  *
- * - Playlists synced with YouTube Music use `wavlin.cc/playlist?list=<browseId>`.
- * - Local-only playlists have no public page, so the name and the first [SHARED_MAX_IDS] track ids
- *   are carried in `wavlin.cc/shared`, which Wavlin imports as a new playlist.
+ * - Playlists synced with YouTube Music link to their `list` id.
+ * - Local-only playlists carry the name and the first [SHARED_MAX_IDS] track ids in the link. This
+ *   long form is the fallback; [resolveShortShareLink] replaces it with a short one when possible.
+ *
+ * Both open the Wavlin share page, which hands the playlist over to the app.
  *
  * Returns null when there is nothing linkable (e.g. only imported local files).
  */
@@ -72,7 +87,7 @@ fun buildPlaylistShareLink(
     playlist: Playlist,
     songs: List<PlaylistSong>,
 ): String? {
-    playlist.playlist.browseId?.let { return "https://wavlin.cc/playlist?list=$it" }
+    playlist.playlist.browseId?.let { return "$SHARE_PAGE_URL?list=$it" }
     val ids =
         songs
             .asSequence()
@@ -83,7 +98,42 @@ fun buildPlaylistShareLink(
             .take(SHARED_MAX_IDS)
             .toList()
     if (ids.isEmpty()) return null
-    return "https://wavlin.cc/shared?name=${Uri.encode(playlist.playlist.name)}&ids=${ids.joinToString(",")}"
+    return "$SHARE_PAGE_URL?name=${Uri.encode(playlist.playlist.name)}&ids=${ids.joinToString(",")}"
+}
+
+/**
+ * Short link for a local playlist: the tracks are put in an unlisted playlist on the signed-in
+ * YouTube Music account and the link only carries that playlist's id. The id is cached per
+ * playlist content so sharing the same playlist again does not create duplicates.
+ *
+ * Returns null when it cannot be created (signed out, offline, nothing linkable).
+ */
+suspend fun resolveShortShareLink(
+    context: Context,
+    playlist: Playlist,
+    songs: List<PlaylistSong>,
+): String? {
+    if (playlist.playlist.browseId != null) return null
+    val ids =
+        songs
+            .asSequence()
+            .map { it.song.song }
+            .filter { !it.isLocal && YOUTUBE_VIDEO_ID.matches(it.id) }
+            .map { it.id }
+            .distinct()
+            .toList()
+    if (ids.isEmpty()) return null
+
+    val prefs = context.getSharedPreferences(SHARE_LINKS_PREFS, Context.MODE_PRIVATE)
+    val cacheKey = "${playlist.id}:${(playlist.playlist.name + ids.joinToString(",")).hashCode()}"
+    prefs.getString(cacheKey, null)?.let { return "$SHARE_PAGE_URL?list=$it" }
+
+    val youtubeId =
+        withContext(Dispatchers.IO) {
+            YouTube.createUnlistedPlaylist(playlist.playlist.name, ids).getOrNull()
+        } ?: return null
+    prefs.edit().putString(cacheKey, youtubeId).apply()
+    return "$SHARE_PAGE_URL?list=$youtubeId"
 }
 
 /** Text used for sharing: the link when we have one, otherwise a readable track list. */
@@ -115,7 +165,23 @@ fun ColumnScope.PlaylistShareSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val shareText = remember(playlist, songs) { buildPlaylistShareText(context, playlist, songs) }
+    val coroutineScope = rememberCoroutineScope()
+    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
+    val isLoggedIn = remember(innerTubeCookie) { "SAPISID" in parseCookieString(innerTubeCookie) }
+    val fallbackText = remember(playlist, songs) { buildPlaylistShareText(context, playlist, songs) }
+    var isPreparing by remember { mutableStateOf(false) }
+
+    // Shares with the short link when it can be made; otherwise falls back to the long link.
+    fun share(action: (String) -> Unit) {
+        if (isPreparing) return
+        coroutineScope.launch {
+            isPreparing = true
+            val text = (if (isLoggedIn) resolveShortShareLink(context, playlist, songs) else null) ?: fallbackText
+            isPreparing = false
+            action(text)
+            onDismiss()
+        }
+    }
 
     PlaylistShareCard(
         playlist = playlist,
@@ -137,10 +203,11 @@ fun ColumnScope.PlaylistShareSheet(
             label = stringResource(R.string.copy_link),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             onClick = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText(playlist.playlist.name, shareText))
-                Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
-                onDismiss()
+                share { text ->
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText(playlist.playlist.name, text))
+                    Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                }
             },
         )
         ShareTarget(
@@ -148,28 +215,19 @@ fun ColumnScope.PlaylistShareSheet(
             label = stringResource(R.string.share_via_whatsapp),
             containerColor = Color(0xFF25D366),
             contentColor = Color.White,
-            onClick = {
-                sendTo(context, shareText, WHATSAPP_PACKAGE)
-                onDismiss()
-            },
+            onClick = { share { sendTo(context, it, WHATSAPP_PACKAGE) } },
         )
         ShareTarget(
             iconRes = R.drawable.share_chat,
             label = stringResource(R.string.share_via_sms),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            onClick = {
-                openSms(context, shareText)
-                onDismiss()
-            },
+            onClick = { share { openSms(context, it) } },
         )
         ShareTarget(
             iconRes = R.drawable.more_horiz,
             label = stringResource(R.string.share_more),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            onClick = {
-                sendTo(context, shareText, targetPackage = null)
-                onDismiss()
-            },
+            onClick = { share { sendTo(context, it, targetPackage = null) } },
         )
     }
     Spacer(Modifier.height(16.dp))

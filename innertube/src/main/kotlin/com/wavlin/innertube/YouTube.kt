@@ -3012,6 +3012,17 @@ object YouTube {
             innerTube.createPlaylist(WEB_REMIX, title).body<CreatePlaylistResponse>().playlistId
         }
 
+    /** Creates an unlisted playlist (anyone with the link can open it) already filled with [videoIds]. */
+    suspend fun createUnlistedPlaylist(
+        title: String,
+        videoIds: List<String>,
+    ) = runCatching {
+        innerTube
+            .createPlaylist(WEB_REMIX, title, CreatePlaylistBody.PrivacyStatus.UNLISTED, videoIds)
+            .body<CreatePlaylistResponse>()
+            .playlistId
+    }
+
     suspend fun renamePlaylist(
         playlistId: String,
         name: String,

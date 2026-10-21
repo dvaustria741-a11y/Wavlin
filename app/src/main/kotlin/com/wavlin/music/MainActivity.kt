@@ -1598,7 +1598,19 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        when (val path = uri.pathSegments.firstOrNull()) {
+        val route =
+            when {
+                uri.scheme == "wavlin" -> uri.host
+                uri.host == SHARE_PAGE_HOST ->
+                    when {
+                        uri.getQueryParameter("ids") != null -> "shared"
+                        uri.getQueryParameter("list") != null -> "playlist"
+                        else -> null
+                    }
+                else -> uri.pathSegments.firstOrNull()
+            }
+
+        when (route) {
             "playlist" -> {
                 uri.getQueryParameter("list")?.let { playlistId ->
                     if (playlistId.startsWith("OLAK5uy_")) {
@@ -1642,7 +1654,7 @@ class MainActivity : ComponentActivity() {
             else -> {
                 val videoId =
                     when {
-                        path == "watch" -> uri.getQueryParameter("v")
+                        route == "watch" -> uri.getQueryParameter("v")
                         uri.host == "youtu.be" -> uri.pathSegments.firstOrNull()
                         else -> null
                     }
@@ -1739,6 +1751,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val SHARED_PLAYLIST_MAX_IDS = 50
+private const val SHARE_PAGE_HOST = "dvaustria741-a11y.github.io"
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }
 val LocalNavController = staticCompositionLocalOf<NavController> { error("No NavController provided") }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -141,6 +142,8 @@ fun OnlineSearchResult(
 
     var lastHandledCount by rememberSaveable { mutableIntStateOf(0) }
     var isSearchFocused by remember { mutableStateOf(false) }
+    // Secret Pink makes the suggestion overlay transparent, so hide the results beneath it while it's open.
+    val resultsAlpha = if (isSearchFocused && LocalPinkLilyTheme.current) 0f else 1f
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(scrollToTopCount) {
@@ -485,12 +488,12 @@ fun OnlineSearchResult(
                             lazyListState.animateScrollToItem(0)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().alpha(resultsAlpha),
                 )
 
                 LazyColumn(
                     state = lazyListState,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().alpha(resultsAlpha),
                 ) {
                     if (searchFilter == null) {
                         searchSummary?.summaries?.forEach { summary ->

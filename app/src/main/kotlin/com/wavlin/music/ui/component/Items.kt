@@ -1465,7 +1465,7 @@ fun ItemThumbnail(
     isSelected: Boolean = false,
     thumbnailRatio: Float = 1f
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = rememberCropAlbumArt()
     val pinkLily = LocalPinkLilyTheme.current
 
     Box(
@@ -1571,7 +1571,7 @@ fun LocalThumbnail(
     playButtonVisible: Boolean = false,
     thumbnailRatio: Float = 1f
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = rememberCropAlbumArt()
     
     Box(
         contentAlignment = Alignment.Center,
@@ -1678,7 +1678,7 @@ fun PlaylistThumbnail(
     shape: Shape,
     cacheKey: String? = null
 ) {
-    val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val cropAlbumArt = rememberCropAlbumArt()
     
     when (thumbnails.size) {
         0 -> Box(
@@ -1993,4 +1993,16 @@ object Icon {
                 .padding(end = 2.dp)
         )
     }
+}
+
+
+/** Crop-album-art preference provided once at the root so each thumbnail doesn't open its own DataStore collector. */
+val LocalCropAlbumArt = androidx.compose.runtime.staticCompositionLocalOf<Boolean?> { null }
+
+@Composable
+private fun rememberCropAlbumArt(): Boolean {
+    val provided = LocalCropAlbumArt.current
+    if (provided != null) return provided
+    val fallback by rememberPreference(CropAlbumArtKey, false)
+    return fallback
 }

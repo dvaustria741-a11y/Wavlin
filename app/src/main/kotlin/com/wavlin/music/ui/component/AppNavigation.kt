@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Spacer
@@ -170,17 +171,17 @@ fun AppNavigationBar(
                     base
                 }
             }
-            .hazeEffect(
-                state = hazeState,
-                style =
-                    if (pureBlack) {
-                        pureBlackHazeStyle()
-                    } else if (LocalPinkLilyTheme.current) {
-                        pinkLilyNavHazeStyle()
-                    } else {
-                        HazeMaterials.thin()
-                    },
-            )
+            .let { base ->
+                if (LocalPinkLilyTheme.current && !pureBlack) {
+                    // Secret Pink: the old 82%-tint blur was visually opaque, so a flat fill looks identical and skips a per-frame blur.
+                    base.background(Color(0xFFFFC9DB))
+                } else {
+                    base.hazeEffect(
+                        state = hazeState,
+                        style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin(),
+                    )
+                }
+            }
             .let { base ->
                 if (LocalPinkLilyTheme.current) {
                     base.lilySliced(res = R.drawable.lily_nav_bar, leftCapPx = 130, rightCapPx = 130, alpha = 1f)

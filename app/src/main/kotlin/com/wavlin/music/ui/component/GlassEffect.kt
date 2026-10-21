@@ -76,7 +76,7 @@ fun pinkLilyNavHazeStyle(): HazeStyle = HazeStyle(
 fun pinkLilyHazeStyle(): HazeStyle = HazeStyle(
     backgroundColor = Color(0xFFFFE9F1),
     tints = listOf(HazeTint(Color(0xFFFFB3CC).copy(alpha = 0.42f))),
-    blurRadius = 24.dp,
+    blurRadius = 14.dp,
     noiseFactor = 0.04f,
 )
 

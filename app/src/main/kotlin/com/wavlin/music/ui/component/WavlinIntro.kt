@@ -415,8 +415,11 @@ private fun PinkIntro(p: () -> Float) {
                         for (sp in sparkles) {
                             val tw = 0.5f + 0.5f * sin(pv * 22f + sp[3])
                             val sz = sp[2].dp.toPx() * on * (0.55f + 0.45f * tw)
+                            // Precompute pixel coords here: Dp.toPx() can't be called inside withTransform.
+                            val tx = c.x + sp[0].dp.toPx()
+                            val ty = c.y + sp[1].dp.toPx()
                             withTransform({
-                                translate(c.x + sp[0].dp.toPx(), c.y + sp[1].dp.toPx())
+                                translate(tx, ty)
                                 scale(sz, sz, Offset.Zero)
                                 rotate(pv * 60f, Offset.Zero)
                             }) {

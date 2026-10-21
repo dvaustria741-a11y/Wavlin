@@ -45,6 +45,7 @@ import com.wavlin.music.ui.screens.search.SearchScreen
 import com.wavlin.music.ui.screens.settings.AboutScreen
 import com.wavlin.music.ui.screens.settings.AiSettings
 import com.wavlin.music.ui.screens.settings.AndroidAutoSettings
+import com.wavlin.music.ui.screens.settings.AppIconSettings
 import com.wavlin.music.ui.screens.settings.AppearanceSettings
 import com.wavlin.music.ui.screens.settings.DownloadedSongsScreen
 import com.wavlin.music.ui.screens.settings.BackupAndRestore
@@ -352,6 +353,10 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/appearance") {
         AppearanceSettings(navController, activity, snackbarHostState)
+    }
+
+    composable("settings/app_icon") {
+        AppIconSettings(navController, scrollBehavior)
     }
 
     composable("settings/appearance/theme") {

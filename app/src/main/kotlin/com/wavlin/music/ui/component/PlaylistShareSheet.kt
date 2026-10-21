@@ -11,6 +11,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -106,14 +107,14 @@ fun buildPlaylistShareLink(
  * YouTube Music account and the link only carries that playlist's id. The id is cached per
  * playlist content so sharing the same playlist again does not create duplicates.
  *
- * Returns null when it cannot be created (signed out, offline, nothing linkable).
+ * Fails (with the reason as the message) when the link cannot be created.
  */
 suspend fun resolveShortShareLink(
     context: Context,
     playlist: Playlist,
     songs: List<PlaylistSong>,
-): String? {
-    if (playlist.playlist.browseId != null) return null
+): Result<String> {
+    if (playlist.playlist.browseId != null) return Result.failure(IllegalStateException("already synced"))
     val ids =
         songs
             .asSequence()
@@ -122,18 +123,21 @@ suspend fun resolveShortShareLink(
             .map { it.id }
             .distinct()
             .toList()
-    if (ids.isEmpty()) return null
+    if (ids.isEmpty()) return Result.failure(IllegalStateException("no online tracks"))
 
     val prefs = context.getSharedPreferences(SHARE_LINKS_PREFS, Context.MODE_PRIVATE)
     val cacheKey = "${playlist.id}:${(playlist.playlist.name + ids.joinToString(",")).hashCode()}"
-    prefs.getString(cacheKey, null)?.let { return "$SHARE_PAGE_URL?list=$it" }
+    prefs.getString(cacheKey, null)?.let { return Result.success("$SHARE_PAGE_URL?list=$it") }
 
-    val youtubeId =
-        withContext(Dispatchers.IO) {
-            YouTube.createUnlistedPlaylist(playlist.playlist.name, ids).getOrNull()
-        } ?: return null
-    prefs.edit().putString(cacheKey, youtubeId).apply()
-    return "$SHARE_PAGE_URL?list=$youtubeId"
+    return withContext(Dispatchers.IO) {
+        YouTube
+            .createUnlistedPlaylist(playlist.playlist.name, ids)
+            .mapCatching { youtubeId ->
+                check(youtubeId.isNotBlank()) { "empty playlist id" }
+                prefs.edit().putString(cacheKey, youtubeId).apply()
+                "$SHARE_PAGE_URL?list=$youtubeId"
+            }.onFailure { Log.e("PlaylistShare", "Short link failed", it) }
+    }
 }
 
 /** Text used for sharing: the link when we have one, otherwise a readable track list. */
@@ -176,7 +180,19 @@ fun ColumnScope.PlaylistShareSheet(
         if (isPreparing) return
         coroutineScope.launch {
             isPreparing = true
-            val text = (if (isLoggedIn) resolveShortShareLink(context, playlist, songs) else null) ?: fallbackText
+            val text =
+                if (playlist.playlist.browseId != null) {
+                    fallbackText
+                } else if (!isLoggedIn) {
+                    Toast.makeText(context, R.string.short_link_login_required, Toast.LENGTH_SHORT).show()
+                    fallbackText
+                } else {
+                    resolveShortShareLink(context, playlist, songs).getOrElse {
+                        val reason = it.message ?: it::class.java.simpleName
+                        Toast.makeText(context, context.getString(R.string.short_link_failed, reason), Toast.LENGTH_LONG).show()
+                        fallbackText
+                    }
+                }
             isPreparing = false
             action(text)
             onDismiss()

@@ -27,6 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.map
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -64,7 +66,23 @@ fun DownloadedSongsScreen(navController: NavController) {
 
     val downloadedSongs by remember { database.downloadedSongsByCreateDateAsc() }
         .collectAsState(initial = emptyList())
-    val songs = remember(downloadedSongs) { downloadedSongs.asReversed() }
+    // "Downloaded songs" size counts everything in the download cache, but the database flag only marks
+    // explicit downloads. Also list every completed download whose flag is missing so the list matches.
+    val downloadUtil = com.wavlin.music.LocalDownloadUtil.current
+    val completedIds by remember(downloadUtil) {
+        downloadUtil.downloads.map { map ->
+            map.filterValues { it.state == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED }.keys.toSet()
+        }
+    }.collectAsState(initial = emptySet())
+    val extraSongs by produceState(emptyList<com.wavlin.music.db.entities.Song>(), completedIds, downloadedSongs) {
+        val flagged = downloadedSongs.mapTo(HashSet()) { it.id }
+        value =
+            completedIds
+                .filter { it !in flagged }
+                .mapNotNull { id -> database.getSongById(id) }
+                .filter { !it.song.isEpisode }
+    }
+    val songs = remember(downloadedSongs, extraSongs) { downloadedSongs.asReversed() + extraSongs }
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection = rememberSaveable(

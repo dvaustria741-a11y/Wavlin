@@ -31,18 +31,21 @@ import com.wavlin.music.ui.theme.playball
 fun ScriptTitle(
     text: String,
     modifier: Modifier = Modifier,
+    fontSize: androidx.compose.ui.unit.TextUnit = 44.sp,
+    showHeart: Boolean = true,
+    swooshWidth: androidx.compose.ui.unit.Dp = 118.dp,
 ) {
     Box(modifier = modifier.padding(bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = text,
                 fontFamily = playball,
-                fontSize = 44.sp,
-                lineHeight = 48.sp,
+                fontSize = fontSize,
+                lineHeight = fontSize * 1.1f,
                 color = PinkInk,
                 maxLines = 1,
             )
-            Icon(
+            if (showHeart) Icon(
                 painter = painterResource(R.drawable.ic_heart_outline),
                 contentDescription = null,
                 tint = PinkSwoosh.copy(alpha = 0.55f),
@@ -54,7 +57,7 @@ fun ScriptTitle(
                 .align(Alignment.BottomStart)
                 .offset(y = 2.dp)
                 .padding(start = 6.dp)
-                .size(width = 118.dp, height = 12.dp),
+                .size(width = swooshWidth, height = 12.dp),
         ) {
             val path = Path().apply {
                 moveTo(0f, size.height * 0.85f)

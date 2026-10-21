@@ -6,6 +6,10 @@
 package com.wavlin.music.ui.screens
 
 import com.wavlin.music.ui.component.pinkTopBarColors
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.ScriptTitle
+import com.wavlin.music.ui.component.lilyGlassAuto
+import com.wavlin.music.ui.component.lilyNinePatch
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -45,13 +49,10 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -240,7 +241,7 @@ fun ListenTogetherScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(if (LocalPinkLilyTheme.current) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background)
                 .imePadding(),
         contentPadding =
             PaddingValues(
@@ -420,7 +421,13 @@ fun ListenTogetherScreen(
     if (shouldShowTopBar) {
         TopAppBar(
         colors = pinkTopBarColors(),
-            title = { Text(stringResource(R.string.together)) },
+            title = {
+                if (LocalPinkLilyTheme.current) {
+                    ScriptTitle(text = stringResource(R.string.together), fontSize = 30.sp, showHeart = false, swooshWidth = 84.dp)
+                } else {
+                    Text(stringResource(R.string.together))
+                }
+            },
             navigationIcon = {
                 IconButton(
                     onClick = navController::navigateUp,
@@ -478,23 +485,26 @@ private fun HeaderSection(isInRoom: Boolean = false) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        val pink = LocalPinkLilyTheme.current
         Box(
             modifier =
                 Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .let { if (pink) it.lilyGlassAuto() else it.background(MaterialTheme.colorScheme.primaryContainer) },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(R.drawable.group_outlined),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (pink) com.wavlin.music.ui.theme.PinkInk else MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(48.dp),
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
+        if (pink) {
+            ScriptTitle(text = stringResource(R.string.listen_together), showHeart = false)
+        } else Text(
             text = stringResource(R.string.listen_together),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
@@ -1469,5 +1479,71 @@ private fun UserActionDialog(
                 }
             }
         }
+    }
+}
+
+// Secret Pink glass versions of Card / Button / FilledTonalButton. Other themes get the stock Material ones.
+@Composable
+private fun Card(
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = CardDefaults.shape,
+    colors: androidx.compose.material3.CardColors = CardDefaults.cardColors(),
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    if (LocalPinkLilyTheme.current) {
+        androidx.compose.material3.Card(
+            modifier = modifier.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 34.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            content = content,
+        )
+    } else {
+        androidx.compose.material3.Card(modifier = modifier, shape = shape, colors = colors, content = content)
+    }
+}
+
+@Composable
+private fun Button(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: androidx.compose.ui.graphics.Shape = ButtonDefaults.shape,
+    colors: androidx.compose.material3.ButtonColors = ButtonDefaults.buttonColors(),
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    if (LocalPinkLilyTheme.current) {
+        androidx.compose.material3.Button(
+            onClick = onClick,
+            modifier = modifier.lilyGlassAuto(),
+            enabled = enabled,
+            shape = RoundedCornerShape(50),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    contentColor = com.wavlin.music.ui.theme.PinkInk,
+                    disabledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    disabledContentColor = com.wavlin.music.ui.theme.PinkInk.copy(alpha = 0.4f),
+                ),
+            elevation = null,
+            content = content,
+        )
+    } else {
+        androidx.compose.material3.Button(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors, content = content)
+    }
+}
+
+@Composable
+private fun FilledTonalButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: androidx.compose.ui.graphics.Shape = ButtonDefaults.filledTonalShape,
+    colors: androidx.compose.material3.ButtonColors = ButtonDefaults.filledTonalButtonColors(),
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    if (LocalPinkLilyTheme.current) {
+        Button(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+    } else {
+        androidx.compose.material3.FilledTonalButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors, content = content)
     }
 }

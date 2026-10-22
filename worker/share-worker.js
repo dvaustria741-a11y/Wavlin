@@ -11,7 +11,7 @@
 
 const FALLBACK_IMAGE = "https://raw.githubusercontent.com/dvaustria741-a11y/Wavlin/main/docs/preview.png";
 const MAX_CARD_BYTES = 800 * 1024;
-const MAX_IDS = 100;
+const MAX_IDS = 10000;
 const TTL_SECONDS = 180 * 24 * 3600;
 const ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;

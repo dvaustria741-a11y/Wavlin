@@ -116,7 +116,7 @@ fun buildPlaylistShareLink(
 
 /**
  * Short link for a local playlist: the name, track ids and card picture are stored on the share server
- * (no YouTube account needed) and the link only carries the short code the server returns. The code is
+ * (no YouTube account needed, any number of tracks) and the link only carries the short code the server returns. The code is
  * cached per playlist content so sharing the same playlist again does not store it twice.
  *
  * Fails (with the reason as the message) when the link cannot be created.
@@ -134,7 +134,6 @@ private suspend fun resolveShortShareLink(
             .filter { !it.isLocal && YOUTUBE_VIDEO_ID.matches(it.id) }
             .map { it.id }
             .distinct()
-            .take(SHARED_MAX_IDS)
             .toList()
     if (ids.isEmpty()) return Result.failure(IllegalStateException("no online tracks"))
 

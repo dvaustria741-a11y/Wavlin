@@ -1741,13 +1741,20 @@ class MainActivity : ComponentActivity() {
         ids: List<String>,
         navController: NavHostController,
     ) {
-        val videoIds = ids.filter { it.isNotBlank() }.distinct().take(SHARED_PLAYLIST_MAX_IDS)
+        val videoIds = ids.filter { it.isNotBlank() }.distinct()
         if (videoIds.isEmpty()) return
         val playlistName = name.takeIf { it.isNotBlank() } ?: "Shared playlist"
 
         lifecycleScope.launch(Dispatchers.IO) {
-            YouTube
-                .queue(videoIds)
+            // The queue endpoint only takes a limited number of ids per request, so fetch in batches, in order.
+            val batches = videoIds.chunked(SHARED_PLAYLIST_BATCH_SIZE).map { YouTube.queue(it) }
+            val failure = batches.firstOrNull { it.isFailure }?.exceptionOrNull()
+            if (failure != null) {
+                reportException(failure)
+                return@launch
+            }
+            Result
+                .success(batches.flatMap { it.getOrThrow() })
                 .onSuccess { songs ->
                     val playlistEntity = PlaylistEntity(name = playlistName)
                     database.query {
@@ -1779,7 +1786,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private const val SHARED_PLAYLIST_MAX_IDS = 50
+private const val SHARED_PLAYLIST_BATCH_SIZE = 50
 private const val SHARE_PAGE_HOST = "wavlin-share.dvaustria741.workers.dev"
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }

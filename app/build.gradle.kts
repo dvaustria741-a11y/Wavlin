@@ -118,6 +118,12 @@ android {
 
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
+
+        // Spotify API keys from GitHub Secrets
+        val spotifyClientId = localProperties.getProperty("SPOTIFY_CLIENT_ID") ?: System.getenv("SPOTIFY_CLIENT_ID") ?: ""
+        val spotifyClientSecret = localProperties.getProperty("SPOTIFY_CLIENT_SECRET") ?: System.getenv("SPOTIFY_CLIENT_SECRET") ?: ""
+        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"$spotifyClientId\"")
+        buildConfigField("String", "SPOTIFY_CLIENT_SECRET", "\"$spotifyClientSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
     }

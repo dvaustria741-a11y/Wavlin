@@ -231,6 +231,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -370,6 +371,10 @@ class MusicService :
         applyEffectiveVolume()
     }
 
+    @Volatile
+    private var normalizationDuck = 1f
+    private var normalizationDuckRampJob: Job? = null
+
     private fun calculateEffectiveVolume(
         volume: Float = playerVolume.value,
         muted: Boolean = isMuted.value,
@@ -377,7 +382,31 @@ class MusicService :
         focusMultiplier: Float = audioFocusVolumeMultiplier.value,
     ): Float {
         if (muted) return 0f
-        return (volume * sleepTimerMultiplier * focusMultiplier).coerceIn(0f, 1f)
+        return (volume * sleepTimerMultiplier * focusMultiplier * normalizationDuck).coerceIn(0f, 1f)
+    }
+
+    // New track starts before its loudness gain is resolved; stay silent until it is, then ease back in.
+    private fun duckForNormalization() {
+        if (!::player.isInitialized || isCrossfading) return
+        normalizationDuckRampJob?.cancel()
+        normalizationDuck = 0f
+        applyEffectiveVolume()
+    }
+
+    private fun releaseNormalizationDuck() {
+        normalizationDuckRampJob?.cancel()
+        val start = normalizationDuck
+        if (start >= 1f) return
+        normalizationDuckRampJob = scope.launch(Dispatchers.Main) {
+            val steps = 8
+            for (step in 1..steps) {
+                normalizationDuck = start + (1f - start) * step / steps
+                applyEffectiveVolume()
+                delay(15)
+            }
+            normalizationDuck = 1f
+            applyEffectiveVolume()
+        }
     }
 
     private fun applyEffectiveVolume() {
@@ -2309,9 +2338,10 @@ class MusicService :
         }
     }
 
-    private fun setupAudioNormalization() {
+    private fun setupAudioNormalization(duckUntilReady: Boolean = false) {
         val requestGeneration = ++loudnessSetupGeneration
         loudnessSetupJob?.cancel()
+        if (duckUntilReady && normalizationEnabledCached) duckForNormalization()
 
         loudnessSetupJob = scope.launch {
             try {
@@ -2385,6 +2415,10 @@ class MusicService :
             } catch (e: Exception) {
                 reportException(e)
                 playerNormalizationProcessors.values.forEach { it.enabled = false }
+            } finally {
+                if (requestGeneration == loudnessSetupGeneration) {
+                    withContext(NonCancellable + Dispatchers.Main) { releaseNormalizationDuck() }
+                }
             }
         }
     }
@@ -2531,7 +2565,7 @@ class MusicService :
 
         lastPlaybackSpeed = -1.0f // force update song
 
-        setupAudioNormalization()
+        setupAudioNormalization(duckUntilReady = true)
 
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {

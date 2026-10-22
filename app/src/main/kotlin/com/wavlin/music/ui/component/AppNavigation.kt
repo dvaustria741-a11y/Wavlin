@@ -166,15 +166,8 @@ fun AppNavigationBar(
         modifier = modifier
             .let { base ->
                 if (LocalPinkLilyTheme.current) {
-                    base.clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp))
-                } else {
+                    // Secret Pink: the lily art is opaque and carries its own rounded corners, so no clip or fill underneath.
                     base
-                }
-            }
-            .let { base ->
-                if (LocalPinkLilyTheme.current && !pureBlack) {
-                    // Secret Pink: the old 82%-tint blur was visually opaque, so a flat fill looks identical and skips a per-frame blur.
-                    base.background(Color(0xFFFFC9DB))
                 } else {
                     base.hazeEffect(
                         state = hazeState,
@@ -189,7 +182,7 @@ fun AppNavigationBar(
                     base
                 }
             }
-            .glassTopEdgeGlow(),
+            .let { base -> if (LocalPinkLilyTheme.current) base else base.glassTopEdgeGlow() },
         containerColor = Color.Transparent,
         contentColor = contentColor
     ) {

@@ -75,7 +75,18 @@ import com.wavlin.music.constants.SearchSourceKey
 import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.HideOnScrollFAB
+import com.wavlin.innertube.YouTube
+import com.wavlin.innertube.models.SongItem
+import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.spotify.SpotifyProvider
+import com.wavlin.music.spotify.SpotifyTrack
+import com.wavlin.music.ui.menu.ImportPlaylistDialog
+import androidx.compose.runtime.key
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import com.wavlin.music.spotify.SpotifyResult
 import com.wavlin.music.utils.SearchRoutes
 import com.wavlin.music.utils.rememberEnumPreference
@@ -99,6 +110,8 @@ fun SearchScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val spotifyProvider = remember { SpotifyProvider() }
+    var spotifyCollection by remember { mutableStateOf<SpotifyResult.Tracks?>(null) }
+    var showSpotifyImport by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -163,8 +176,10 @@ fun SearchScreen(
                         is SpotifyResult.Track ->
                             navController.navigate(SearchRoutes.resultRoute(result.track.query))
 
-                        is SpotifyResult.Tracks ->
-                            navController.navigate(SearchRoutes.resultRoute(result.tracks.first().query))
+                        is SpotifyResult.Tracks -> {
+                            spotifyCollection = result
+                            showSpotifyImport = true
+                        }
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -208,6 +223,61 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    // Matches each Spotify track to a YouTube song (best duration match among the top results), keeping playlist order.
+    suspend fun importSpotifyTracks(tracks: List<SpotifyTrack>): List<String> {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Importing ${tracks.size} tracks...", Toast.LENGTH_SHORT).show()
+        }
+        val semaphore = Semaphore(5)
+        val matched =
+            coroutineScope {
+                tracks
+                    .map { track ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                try {
+                                    val items =
+                                        YouTube
+                                            .search(track.query, YouTube.SearchFilter.FILTER_SONG)
+                                            .getOrNull()
+                                            ?.items
+                                            ?.filterIsInstance<SongItem>()
+                                            .orEmpty()
+                                    val best =
+                                        items.firstOrNull { song ->
+                                            track.durationSeconds > 0 &&
+                                                song.duration != null &&
+                                                kotlin.math.abs(song.duration!! - track.durationSeconds) <= 5
+                                        } ?: items.firstOrNull()
+                                    best?.let {
+                                        database.insert(it.toMediaMetadata())
+                                        it.id
+                                    }
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }
+                    }.awaitAll()
+            }
+        val ids = matched.filterNotNull().distinct()
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Imported ${ids.size} of ${tracks.size} tracks", Toast.LENGTH_LONG).show()
+        }
+        return ids
+    }
+
+    key(spotifyCollection) {
+        ImportPlaylistDialog(
+            isVisible = showSpotifyImport,
+            onGetSong = { importSpotifyTracks(spotifyCollection?.tracks.orEmpty()) },
+            playlistTitle = spotifyCollection?.title.orEmpty(),
+            onDismiss = { showSpotifyImport = false },
+        )
     }
 
     val onSearch: (String) -> Unit = { searchQuery -> handleSearch(searchQuery) }

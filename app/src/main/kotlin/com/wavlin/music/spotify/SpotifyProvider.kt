@@ -8,9 +8,11 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.longOrNull
 
 data class SpotifyTrack(
     val title: String,
@@ -22,22 +24,24 @@ data class SpotifyTrack(
 
 sealed interface SpotifyResult {
     data class Track(val track: SpotifyTrack) : SpotifyResult
-    data class Tracks(val tracks: List<SpotifyTrack>) : SpotifyResult
+
+    data class Tracks(val title: String, val tracks: List<SpotifyTrack>) : SpotifyResult
 }
 
 class SpotifyException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
- * Unauthenticated Spotify metadata provider for Wavlin. Resolves tracks, albums,
- * and playlists using public web endpoints and Open Graph scraping (no API keys or Premium required).
+ * Keyless Spotify metadata provider. Reads the public embed pages (open.spotify.com/embed/...),
+ * which list the title and artists of a track and the tracks of a public playlist or album.
+ * Private playlists are not readable without a login.
  */
 class SpotifyProvider(
     private val client: HttpClient = HttpClient(CIO) {
         install(HttpTimeout) {
-            requestTimeoutMillis = 10000
+            requestTimeoutMillis = 15000
             connectTimeoutMillis = 10000
         }
-    }
+    },
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -45,7 +49,8 @@ class SpotifyProvider(
         private val TRACK_REGEX = Regex("spotify\\.com/(?:intl-[a-z]+/)?track/([a-zA-Z0-9]+)")
         private val PLAYLIST_REGEX = Regex("spotify\\.com/(?:intl-[a-z]+/)?playlist/([a-zA-Z0-9]+)")
         private val ALBUM_REGEX = Regex("spotify\\.com/(?:intl-[a-z]+/)?album/([a-zA-Z0-9]+)")
-        private const val OEMBED_URL = "https://open.spotify.com/oembed"
+        private val NEXT_DATA_REGEX =
+            Regex("<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>", RegexOption.DOT_MATCHES_ALL)
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -53,95 +58,99 @@ class SpotifyProvider(
             TRACK_REGEX.containsMatchIn(text) ||
                 PLAYLIST_REGEX.containsMatchIn(text) ||
                 ALBUM_REGEX.containsMatchIn(text)
-
-        private fun decodeHtml(text: String): String =
-            android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim()
-
-        private fun metaContent(html: String, property: String): String? {
-            val propertyFirst = Regex("""<meta[^>]*property=["']$property["'][^>]*content=["']([^"']*)["']""", RegexOption.IGNORE_CASE)
-            val contentFirst = Regex("""<meta[^>]*content=["']([^"']*)["'][^>]*property=["']$property["']""", RegexOption.IGNORE_CASE)
-            val raw = propertyFirst.find(html)?.groupValues?.get(1) ?: contentFirst.find(html)?.groupValues?.get(1)
-            return raw?.let(::decodeHtml)?.takeIf { it.isNotBlank() }
-        }
-
-        // og:description looks like "Artist · Album · Song · 2017" (older pages: "Listen to X on Spotify. Artist · Song · 2017.")
-        private fun artistFromDescription(description: String?, title: String): String? {
-            if (description == null) return null
-            val cleaned = description.replace(Regex("^Listen to .* on Spotify\\.?\\s*", RegexOption.IGNORE_CASE), "")
-            return cleaned
-                .split("·")
-                .map { it.trim().trimEnd('.') }
-                .firstOrNull {
-                    it.isNotEmpty() &&
-                        !it.equals("Song", ignoreCase = true) &&
-                        !it.equals(title, ignoreCase = true) &&
-                        !it.matches(Regex("\\d{4}"))
-                }
-        }
     }
 
     suspend fun resolve(url: String): SpotifyResult {
         TRACK_REGEX.find(url)?.let { return SpotifyResult.Track(getTrack(it.groupValues[1])) }
-        PLAYLIST_REGEX.find(url)?.let { return SpotifyResult.Tracks(getPlaylistTracks(it.groupValues[1])) }
-        ALBUM_REGEX.find(url)?.let { return SpotifyResult.Tracks(getAlbumTracks(it.groupValues[1])) }
+        PLAYLIST_REGEX.find(url)?.let { return getCollection("playlist", it.groupValues[1]) }
+        ALBUM_REGEX.find(url)?.let { return getCollection("album", it.groupValues[1]) }
         throw SpotifyException("Unsupported or invalid Spotify URL: $url")
     }
 
     suspend fun getTrack(trackId: String): SpotifyTrack {
-        val spotifyUrl = "https://open.spotify.com/track/$trackId"
-        var title: String? = null
-        var artist: String? = null
+        val entity = fetchEntity("track", trackId)
+            ?: throw SpotifyException("Couldn't read this Spotify track")
+        val title = entity.string("title") ?: entity.string("name")
+            ?: throw SpotifyException("Couldn't read this Spotify track")
+        val artist = (entity["artists"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.string("name") }
+            ?.joinToString(", ")
+            .orEmpty()
+        return buildTrack(title, artist, entity.long("duration"), "https://open.spotify.com/track/$trackId")
+    }
 
-        try {
-            val response = client.get("$OEMBED_URL?url=$spotifyUrl") { header("User-Agent", USER_AGENT) }
-            if (response.status.value == 200) {
-                val obj = json.parseToJsonElement(response.bodyAsText()).jsonObject
-                title = obj["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-                artist = obj["author_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    suspend fun getPlaylistTracks(playlistId: String): List<SpotifyTrack> =
+        (getCollection("playlist", playlistId) as SpotifyResult.Tracks).tracks
+
+    suspend fun getAlbumTracks(albumId: String): List<SpotifyTrack> =
+        (getCollection("album", albumId) as SpotifyResult.Tracks).tracks
+
+    private suspend fun getCollection(kind: String, id: String): SpotifyResult.Tracks {
+        val entity = fetchEntity(kind, id)
+            ?: throw SpotifyException("Couldn't read this Spotify $kind. Make sure it's public.")
+        val title = entity.string("title") ?: entity.string("name") ?: kind.replaceFirstChar { it.uppercase() }
+        val tracks = (entity["trackList"] as? JsonArray)
+            ?.mapNotNull { item ->
+                val obj = item as? JsonObject ?: return@mapNotNull null
+                val trackTitle = obj.string("title") ?: return@mapNotNull null
+                val artist = obj.string("subtitle").orEmpty()
+                val uri = obj.string("uri")?.substringAfterLast(':')
+                buildTrack(trackTitle, artist, obj.long("duration"), uri?.let { "https://open.spotify.com/track/$it" })
+            }
+            .orEmpty()
+        if (tracks.isEmpty()) throw SpotifyException("This Spotify $kind has no readable tracks")
+        return SpotifyResult.Tracks(title, tracks)
+    }
+
+    private fun buildTrack(title: String, artist: String, durationMs: Long?, url: String?): SpotifyTrack {
+        val cleanArtist = artist.replace('\u00a0', ' ').trim()
+        return SpotifyTrack(
+            title = title.trim(),
+            artist = cleanArtist,
+            query = if (cleanArtist.isEmpty()) title.trim() else "$cleanArtist - ${title.trim()}",
+            durationSeconds = ((durationMs ?: 0L) / 1000).toInt(),
+            url = url,
+        )
+    }
+
+    private suspend fun fetchEntity(kind: String, id: String): JsonObject? {
+        val response = try {
+            client.get("https://open.spotify.com/embed/$kind/$id") {
+                header("User-Agent", USER_AGENT)
+                header("Accept-Language", "en")
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            throw SpotifyException("Couldn't reach Spotify", e)
         }
-
-        // oEmbed often has no artist, so fall back to the public page's Open Graph tags
-        if (title == null || artist == null) {
-            try {
-                val html = fetchHtml(spotifyUrl)
-                title = title ?: metaContent(html, "og:title")
-                artist = artist ?: artistFromDescription(metaContent(html, "og:description"), title.orEmpty())
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            }
-        }
-
-        if (title.isNullOrBlank()) throw SpotifyException("Couldn't read this Spotify track")
-        return SpotifyTrack(
-            title = title,
-            artist = artist.orEmpty(),
-            query = if (artist.isNullOrBlank()) title else "$artist - $title",
-            durationSeconds = 0,
-            url = spotifyUrl,
-        )
-    }
-
-    suspend fun getPlaylistTracks(playlistId: String): List<SpotifyTrack> =
-        listOf(collectionAsTrack("https://open.spotify.com/playlist/$playlistId", "Playlist"))
-
-    suspend fun getAlbumTracks(albumId: String): List<SpotifyTrack> =
-        listOf(collectionAsTrack("https://open.spotify.com/album/$albumId", "Album"))
-
-    // Without the Web API there is no track list, so a playlist/album becomes one searchable entry (its title).
-    private suspend fun collectionAsTrack(spotifyUrl: String, kind: String): SpotifyTrack {
-        val title = metaContent(fetchHtml(spotifyUrl), "og:title")
-            ?: throw SpotifyException("Couldn't read this Spotify ${kind.lowercase()}")
-        return SpotifyTrack(title = title, artist = kind, query = title, durationSeconds = 0, url = spotifyUrl)
-    }
-
-    private suspend fun fetchHtml(url: String): String {
-        val response = client.get(url) { header("User-Agent", USER_AGENT) }
         if (response.status.value != 200) throw SpotifyException("Spotify returned ${response.status.value}")
-        return response.bodyAsText()
+        val data = NEXT_DATA_REGEX.find(response.bodyAsText())?.groupValues?.get(1) ?: return null
+        val root = try {
+            json.parseToJsonElement(data)
+        } catch (e: Exception) {
+            return null
+        }
+        return findEntity(root)
     }
+
+    private fun findEntity(element: JsonElement): JsonObject? {
+        when (element) {
+            is JsonObject -> {
+                (element["entity"] as? JsonObject)
+                    ?.takeIf { it.containsKey("title") || it.containsKey("name") }
+                    ?.let { return it }
+                for (value in element.values) findEntity(value)?.let { return it }
+            }
+            is JsonArray -> for (value in element) findEntity(value)?.let { return it }
+            else -> {}
+        }
+        return null
+    }
+
+    private fun JsonObject.string(key: String): String? =
+        (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+
+    private fun JsonObject.long(key: String): Long? =
+        (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull
 }

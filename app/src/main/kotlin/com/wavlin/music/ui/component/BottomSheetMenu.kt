@@ -6,6 +6,7 @@
 package com.wavlin.music.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -142,7 +144,8 @@ fun BottomSheetMenu(
     // Tall content (the share card) skips the half-height stop and opens fully; the state is keyed on it.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = state.expandFully)
     val pinkLily = LocalPinkLilyTheme.current
-    // The share sheet wraps its content (opens exactly as tall as the card + buttons); other menus fill the height.
+    // The share sheet is only as tall as its card + buttons: the sheet itself stays full height (so its size never
+    // depends on late-measured content) and the content sits at the bottom of it.
     val wrapContent = state.expandFully
     val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else 28.dp, topEnd = if (pinkLily) 30.dp else 28.dp)
 
@@ -157,12 +160,12 @@ fun BottomSheetMenu(
         shape = sheetShape,
         // Secret Pink: the frosted lily sheet art is the container (drawn ~92% opaque below, so the screen
         // beneath only faintly glows through) and a rose-tinted scrim replaces the default grey.
-        containerColor = if (pinkLily) Color.Transparent else background,
+        containerColor = if (pinkLily || wrapContent) Color.Transparent else background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         scrimColor = if (pinkLily) PinkInk.copy(alpha = 0.32f) else BottomSheetDefaults.ScrimColor,
         dragHandle = {
             // Secret Pink draws its own handle inside the sheet art (below).
-            if (!pinkLily) {
+            if (!pinkLily && !wrapContent) {
                 Box(
                     modifier = Modifier
                         .padding(vertical = 12.dp)
@@ -177,13 +180,22 @@ fun BottomSheetMenu(
         } else {
             { BottomSheetDefaults.modalWindowInsets }
         },
-        modifier = if (pinkLily) {
-            if (wrapContent) modifier else modifier.fillMaxHeight()
+        modifier = if (pinkLily || wrapContent) {
+            modifier.fillMaxHeight()
         } else {
-            (if (wrapContent) modifier else modifier.fillMaxHeight())
+            modifier
+                .fillMaxHeight()
                 .border(1.dp, glassStrokeBrush(), sheetShape)
         }
     ) {
+        if (wrapContent) {
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(Unit) { detectTapGestures { state.isVisible = false } },
+            )
+        }
         if (pinkLily) {
             // The sheet art is drawn here, inside the sheet's own (offset) coordinates, so its top edge
             // sits exactly where the sheet starts instead of at the top of the screen.
@@ -216,11 +228,32 @@ fun BottomSheetMenu(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .then(
+                        if (wrapContent) {
+                            Modifier
+                                .clip(sheetShape)
+                                .background(background)
+                                .border(1.dp, glassStrokeBrush(), sheetShape)
+                        } else {
+                            Modifier
+                        },
+                    ),
             ) {
-                state.content(this)
+                if (wrapContent) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 12.dp)
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
+                    )
+                }
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                    state.content(this)
+                }
+                if (wrapContent) Spacer(Modifier.navigationBarsPadding())
             }
-            if (wrapContent) Spacer(Modifier.navigationBarsPadding())
         }
     }
 }

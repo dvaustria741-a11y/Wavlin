@@ -26,12 +26,13 @@ jobs:
           fi
           echo "::add-mask::$TOKEN"
           echo "Auth OK"
-          TRACK=$(curl -sS -H "Authorization: Bearer $TOKEN" https://api.spotify.com/v1/tracks/11dFghVXANMlKmJXsNCbNl)
-          NAME=$(echo "$TRACK" | jq -r '.name // empty')
-          if [ -z "$NAME" ]; then
-            echo "::error::Track lookup failed: $(echo "$TRACK" | jq -c '.error // .')"
+          TRACK_CODE=$(curl -sS -o track.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" https://api.spotify.com/v1/tracks/11dFghVXANMlKmJXsNCbNl)
+          echo "Track endpoint HTTP status: $TRACK_CODE"
+          if [ "$TRACK_CODE" != "200" ]; then
+            echo "::error::Track lookup failed. Response start: $(head -c 300 track.json | tr '\n' ' ')"
             exit 1
           fi
-          echo "Track lookup OK: $(echo "$TRACK" | jq -r '[.artists[].name] | join(", ")') - $NAME"
-          PL=$(curl -sS -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.spotify.com/v1/playlists/37i9dQZF1DXcBWIGoYBM5M/tracks?limit=1")
+          echo "Track lookup OK: $(jq -r '[.artists[].name] | join(", ")' track.json) - $(jq -r '.name' track.json)"
+          PL=$(curl -sS -o playlist.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.spotify.com/v1/playlists/37i9dQZF1DXcBWIGoYBM5M/tracks?limit=1")
           echo "Playlist endpoint HTTP status: $PL"
+          if [ "$PL" != "200" ]; then echo "Playlist response start: $(head -c 300 playlist.json | tr '\n' ' ')"; fi

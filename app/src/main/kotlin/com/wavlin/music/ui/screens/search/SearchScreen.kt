@@ -75,11 +75,17 @@ import com.wavlin.music.constants.SearchSourceKey
 import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.HideOnScrollFAB
+import com.wavlin.music.spotify.SpotifyProvider
+import com.wavlin.music.spotify.SpotifyResult
 import com.wavlin.music.utils.SearchRoutes
 import com.wavlin.music.utils.rememberEnumPreference
 import com.wavlin.music.utils.rememberPreference
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +97,8 @@ fun SearchScreen(
     val pinkLily = LocalPinkLilyTheme.current
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val spotifyProvider = remember { SpotifyProvider() }
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -147,6 +155,30 @@ fun SearchScreen(
         }
 
         focusManager.clearFocus()
+
+        if (SpotifyProvider.isSpotifyUrl(searchQuery)) {
+            coroutineScope.launch {
+                try {
+                    when (val result = withContext(Dispatchers.IO) { spotifyProvider.resolve(searchQuery) }) {
+                        is SpotifyResult.Track ->
+                            navController.navigate(SearchRoutes.resultRoute(result.track.query))
+
+                        is SpotifyResult.Tracks ->
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Found ${result.tracks.size} tracks. Playlist and album import isn't supported yet.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Toast.makeText(context, e.message ?: "Couldn't read Spotify link", Toast.LENGTH_LONG).show()
+                }
+            }
+            return
+        }
 
         when (val parsedUrl = YouTubeUrlParser.parse(searchQuery)) {
             is YouTubeUrlParser.ParsedUrl.Video -> {

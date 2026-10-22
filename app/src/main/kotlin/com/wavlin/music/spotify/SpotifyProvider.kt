@@ -163,6 +163,11 @@ class SpotifyProvider(
         private val PLAYLIST_REGEX = Regex("""spotify\.com/(?:intl-[a-z]+/)?playlist/([a-zA-Z0-9]+)""")
         private val ALBUM_REGEX = Regex("""spotify\.com/(?:intl-[a-z]+/)?album/([a-zA-Z0-9]+)""")
 
+        fun isSpotifyUrl(text: String): Boolean =
+            TRACK_REGEX.containsMatchIn(text) ||
+                PLAYLIST_REGEX.containsMatchIn(text) ||
+                ALBUM_REGEX.containsMatchIn(text)
+
         private fun defaultClient() =
             HttpClient(CIO) {
                 install(HttpTimeout) {

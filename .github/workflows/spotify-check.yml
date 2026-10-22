@@ -10,7 +10,10 @@ jobs:
       - name: Probe public Spotify pages
         run: |
           python3 - <<'PY'
-          import re, json, urllib.request, urllib.error
+          import re, json, sys, io, urllib.request, urllib.error
+          buf = io.StringIO()
+          real_stdout = sys.stdout
+          sys.stdout = buf
           UA_DESK = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           UA_BOT = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
           TRACK = "11dFghVXANMlKmJXsNCbNl"
@@ -82,4 +85,8 @@ jobs:
                           print(f"{key}: not found")
               else:
                   print(h[:300].replace("\n", " "))
+          sys.stdout = real_stdout
+          msg = buf.getvalue()
+          print(msg)
+          print("::notice title=probe::" + msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))
           PY

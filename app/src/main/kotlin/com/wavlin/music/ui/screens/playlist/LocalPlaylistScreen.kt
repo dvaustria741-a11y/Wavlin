@@ -1557,7 +1557,7 @@ fun LocalPlaylistHeader(
                 // Menu Button
                 Surface(
                     onClick = {
-                        menuState.show {
+                        menuState.show(expandFully = true) {
                             LocalPlaylistMenu(
                                 playlist = playlist,
                                 songs = songs,

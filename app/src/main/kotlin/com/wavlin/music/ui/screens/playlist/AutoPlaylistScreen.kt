@@ -1013,7 +1013,7 @@ private fun AutoPlaylistHeader(
             // Menu Button - Smaller secondary button
             Surface(
                 onClick = {
-                    menuState.show {
+                    menuState.show(expandFully = true) {
                         AutoPlaylistMenu(
                             downloadState = downloadState,
                             onQueue = {

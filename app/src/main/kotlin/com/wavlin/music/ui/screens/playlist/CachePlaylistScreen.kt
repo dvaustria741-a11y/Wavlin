@@ -596,7 +596,7 @@ private fun CachePlaylistHeader(
             // Menu Button - Smaller secondary button
             Surface(
                 onClick = {
-                    menuState.show {
+                    menuState.show(expandFully = true) {
                         CachePlaylistMenu(
                             downloadState = Download.STATE_STOPPED,
                             onQueue = {

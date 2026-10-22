@@ -663,7 +663,7 @@ private fun TopPlaylistHeader(
             // Menu Button - Smaller secondary button
             androidx.compose.material3.Surface(
                 onClick = {
-                    menuState.show {
+                    menuState.show(expandFully = true) {
                         TopPlaylistMenu(
                             downloadState = downloadState,
                             onQueue = {

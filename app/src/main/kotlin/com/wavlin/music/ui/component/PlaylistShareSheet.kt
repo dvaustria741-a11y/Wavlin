@@ -139,8 +139,11 @@ private suspend fun resolveShortShareLink(
     if (ids.isEmpty()) return Result.failure(IllegalStateException("no online tracks"))
 
     val prefs = context.getSharedPreferences(SHARE_LINKS_PREFS, Context.MODE_PRIVATE)
-    val cacheKey = "${playlist.id}:${(playlist.playlist.name + ids.joinToString(",")).hashCode()}"
-    prefs.getString(cacheKey, null)?.let { return Result.success("${SHARE_PAGE_URL}p/$it") }
+    val cacheKey = "v2:${playlist.id}:${(playlist.playlist.name + ids.joinToString(",")).hashCode()}"
+    prefs.getString(cacheKey, null)?.let { code ->
+        cardJpeg?.let { uploadShareCard(code, it) }
+        return Result.success("${SHARE_PAGE_URL}p/$code")
+    }
 
     return withContext(Dispatchers.IO) {
         runCatching {
@@ -172,7 +175,10 @@ private suspend fun resolveShortShareLink(
 /** Renders the captured card to a small JPEG for the link preview picture. */
 private suspend fun encodeCardJpeg(layer: GraphicsLayer): ByteArray? =
     runCatching {
-        val source = layer.toImageBitmap().asAndroidBitmap()
+        // The captured layer is a hardware bitmap, which cannot be drawn onto a software canvas: copy it first.
+        val source =
+            layer.toImageBitmap().asAndroidBitmap().copy(Bitmap.Config.ARGB_8888, false)
+                ?: error("could not copy the card bitmap")
         val scale = (CARD_IMAGE_WIDTH.toFloat() / source.width).coerceAtMost(1f)
         val width = (source.width * scale).toInt().coerceAtLeast(1)
         val height = (source.height * scale).toInt().coerceAtLeast(1)

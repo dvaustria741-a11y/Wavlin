@@ -1,4 +1,4 @@
-name: Spotify credentials check
+name: Spotify link check
 
 on:
   workflow_dispatch:
@@ -7,32 +7,16 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Spotify client credentials and metadata access
-        env:
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+      - name: Check public oEmbed and page metadata for a track
         run: |
-          if [ -z "$SPOTIFY_CLIENT_ID" ] || [ -z "$SPOTIFY_CLIENT_SECRET" ]; then
-            echo "::error::SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET repository secrets are not set"
-            exit 1
-          fi
-          TOKEN_JSON=$(curl -sS -X POST https://accounts.spotify.com/api/token \
-            -u "$SPOTIFY_CLIENT_ID:$SPOTIFY_CLIENT_SECRET" \
-            -d grant_type=client_credentials)
-          TOKEN=$(echo "$TOKEN_JSON" | jq -r '.access_token // empty')
-          if [ -z "$TOKEN" ]; then
-            echo "::error::Auth failed: $(echo "$TOKEN_JSON" | jq -r '.error_description // .error // "unknown error"')"
-            exit 1
-          fi
-          echo "::add-mask::$TOKEN"
-          echo "Auth OK"
-          TRACK_CODE=$(curl -sS -o track.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" https://api.spotify.com/v1/tracks/11dFghVXANMlKmJXsNCbNl)
-          echo "Track endpoint HTTP status: $TRACK_CODE"
-          if [ "$TRACK_CODE" != "200" ]; then
-            echo "::error::Track lookup failed. Response start: $(head -c 300 track.json | tr '\n' ' ')"
-            exit 1
-          fi
-          echo "Track lookup OK: $(jq -r '[.artists[].name] | join(", ")' track.json) - $(jq -r '.name' track.json)"
-          PL=$(curl -sS -o playlist.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "https://api.spotify.com/v1/playlists/37i9dQZF1DXcBWIGoYBM5M/tracks?limit=1")
-          echo "Playlist endpoint HTTP status: $PL"
-          if [ "$PL" != "200" ]; then echo "Playlist response start: $(head -c 300 playlist.json | tr '\n' ' ')"; fi
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          TRACK_URL="https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl"
+          echo "--- oEmbed ---"
+          CODE=$(curl -sS -A "$UA" -o oembed.json -w "%{http_code}" "https://open.spotify.com/oembed?url=$TRACK_URL")
+          echo "HTTP $CODE"
+          jq -c '{title, author_name}' oembed.json 2>/dev/null || head -c 300 oembed.json
+          echo
+          echo "--- Page Open Graph tags ---"
+          CODE=$(curl -sS -L -A "$UA" -o page.html -w "%{http_code}" "$TRACK_URL")
+          echo "HTTP $CODE"
+          grep -o '<meta[^>]*property="og:\(title\|description\)"[^>]*>' page.html | head -4 || echo "no og tags found"

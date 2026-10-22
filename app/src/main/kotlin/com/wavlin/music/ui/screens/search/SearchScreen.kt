@@ -164,12 +164,7 @@ fun SearchScreen(
                             navController.navigate(SearchRoutes.resultRoute(result.track.query))
 
                         is SpotifyResult.Tracks ->
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Found ${result.tracks.size} tracks. Playlist and album import isn't supported yet.",
-                                    Toast.LENGTH_LONG,
-                                ).show()
+                            navController.navigate(SearchRoutes.resultRoute(result.tracks.first().query))
                     }
                 } catch (e: CancellationException) {
                     throw e

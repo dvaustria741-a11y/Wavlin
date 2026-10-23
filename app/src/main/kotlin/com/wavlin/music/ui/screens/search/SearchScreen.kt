@@ -76,7 +76,9 @@ import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.spotify.SpotifyImporter
-import com.wavlin.music.ui.component.TextFieldDialog
+import com.wavlin.music.spotify.SpotifyMatcher
+import com.wavlin.innertube.models.SongItem
+import com.wavlin.music.spotify.SpotifyTrack
 import com.wavlin.music.spotify.SpotifyProvider
 import com.wavlin.music.spotify.SpotifyResult
 import com.wavlin.music.utils.SearchRoutes
@@ -103,6 +105,7 @@ fun SearchScreen(
     val spotifyProvider = remember { SpotifyProvider() }
     var spotifyCollection by remember { mutableStateOf<SpotifyResult.Tracks?>(null) }
     var showSpotifyImport by remember { mutableStateOf(false) }
+    var spotifyTrackMatch by remember { mutableStateOf<Pair<SpotifyTrack, SongItem>?>(null) }
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -163,9 +166,17 @@ fun SearchScreen(
         if (SpotifyProvider.isSpotifyUrl(searchQuery)) {
             coroutineScope.launch {
                 try {
+                    Toast.makeText(context, "Reading Spotify link...", Toast.LENGTH_SHORT).show()
                     when (val result = withContext(Dispatchers.IO) { spotifyProvider.resolve(searchQuery) }) {
-                        is SpotifyResult.Track ->
-                            navController.navigate(SearchRoutes.resultRoute(result.track.query))
+                        is SpotifyResult.Track -> {
+                            val match = withContext(Dispatchers.IO) { SpotifyMatcher.match(result.track) }
+                            if (match != null) {
+                                spotifyTrackMatch = result.track to match
+                            } else {
+                                Toast.makeText(context, "No exact match found, searching instead", Toast.LENGTH_SHORT).show()
+                                navController.navigate(SearchRoutes.resultRoute(result.track.query))
+                            }
+                        }
 
                         is SpotifyResult.Tracks -> {
                             spotifyCollection = result
@@ -218,15 +229,24 @@ fun SearchScreen(
 
     val pendingSpotify = spotifyCollection
     if (showSpotifyImport && pendingSpotify != null) {
-        TextFieldDialog(
-            icon = { Icon(painter = painterResource(R.drawable.add), contentDescription = null) },
-            title = { Text(text = stringResource(R.string.import_playlist)) },
-            initialTextFieldValue = TextFieldValue(text = pendingSpotify.title),
-            autoFocus = false,
+        SpotifyPlaylistPreviewDialog(
+            collection = pendingSpotify,
             onDismiss = { showSpotifyImport = false },
-            onDone = { finalName ->
+            onImport = { finalName ->
                 SpotifyImporter.start(context, database, finalName, pendingSpotify.tracks)
             },
+        )
+    }
+
+    spotifyTrackMatch?.let { (spotifyTrack, matched) ->
+        SpotifyTrackDialog(
+            track = spotifyTrack,
+            match = matched,
+            onPlay = {
+                playerConnection?.playQueue(YouTubeQueue(WatchEndpoint(videoId = matched.id)))
+            },
+            onSearch = { navController.navigate(SearchRoutes.resultRoute(spotifyTrack.query)) },
+            onDismiss = { spotifyTrackMatch = null },
         )
     }
 

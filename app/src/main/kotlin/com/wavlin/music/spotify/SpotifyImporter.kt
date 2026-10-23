@@ -4,8 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import com.wavlin.innertube.YouTube
-import com.wavlin.innertube.models.SongItem
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.models.toMediaMetadata
@@ -49,21 +47,30 @@ object SpotifyImporter {
 
                 val semaphore = Semaphore(5)
                 var imported = 0
+                val missing = mutableListOf<String>()
                 // Chunked so songs show up in the playlist as they match, in the original order.
                 for (chunk in tracks.chunked(CHUNK_SIZE)) {
-                    val ids =
+                    val results =
                         coroutineScope {
                             chunk
-                                .map { track -> async { semaphore.withPermit { matchTrack(database, track) } } }
+                                .map { track -> async { semaphore.withPermit { track to matchTrack(database, track) } } }
                                 .awaitAll()
-                        }.filterNotNull()
+                        }
+                    val ids = results.mapNotNull { it.second }
+                    missing += results.filter { it.second == null }.map { it.first.query }
                     if (ids.isNotEmpty()) {
                         val current = database.playlist(entity.id).first() ?: playlist
                         database.addSongsToPlaylist(current, ids.map { it to null })
                         imported += ids.size
                     }
                 }
-                toast(appContext, "Imported $imported of ${tracks.size} tracks into \"$name\"")
+                val notFound =
+                    if (missing.isEmpty()) {
+                        ""
+                    } else {
+                        ". Not found: " + missing.take(3).joinToString("; ") + if (missing.size > 3) " (+${missing.size - 3} more)" else ""
+                    }
+                toast(appContext, "Imported $imported of ${tracks.size} tracks into \"$name\"$notFound")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -72,25 +79,12 @@ object SpotifyImporter {
         }
     }
 
-    // Best YouTube song for the track: first result within 5s of Spotify's length, else the top result.
     private suspend fun matchTrack(
         database: MusicDatabase,
         track: SpotifyTrack,
     ): String? =
         try {
-            val items =
-                YouTube
-                    .search(track.query, YouTube.SearchFilter.FILTER_SONG)
-                    .getOrNull()
-                    ?.items
-                    ?.filterIsInstance<SongItem>()
-                    .orEmpty()
-            val best =
-                items.firstOrNull { song ->
-                    val seconds = song.duration
-                    track.durationSeconds > 0 && seconds != null && kotlin.math.abs(seconds - track.durationSeconds) <= 5
-                } ?: items.firstOrNull()
-            best?.let {
+            SpotifyMatcher.match(track)?.let {
                 database.insert(it.toMediaMetadata())
                 it.id
             }

@@ -78,6 +78,29 @@ import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.spotify.SpotifyImporter
 import com.wavlin.music.spotify.SpotifyMatcher
+import com.wavlin.music.local.LocalSongs
+import com.wavlin.music.models.MediaMetadata
+import com.wavlin.music.playback.queues.ListQueue
+import com.wavlin.music.ui.menu.AddToPlaylistDialog
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.readBytes
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import java.io.File
+import android.net.Uri
 import com.wavlin.innertube.models.SongItem
 import com.wavlin.music.spotify.SpotifyTrack
 import com.wavlin.music.spotify.SpotifyProvider
@@ -113,6 +136,7 @@ fun SearchScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val playerConnection = LocalPlayerConnection.current
     var isDownloadingSpotify by remember { mutableStateOf(false) }
+    var downloadedMetadata by remember { mutableStateOf<MediaMetadata?>(null) }
     val isPlayerExpanded = LocalIsPlayerExpanded.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lazyListState = rememberLazyListState()
@@ -277,37 +301,117 @@ fun SearchScreen(
                 isDownloadingSpotify = true
                 coroutineScope.launch(Dispatchers.IO) {
                     try {
-                        // spotdl/yt-dlp fallback: search YouTube Music without strict score
-                        // filtering — take the first result and play it directly.
-                        val songResult = com.wavlin.innertube.YouTube
-                            .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG)
-                            .getOrNull()
-                            ?.items
-                            ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
-                            ?.firstOrNull()
-
-                        val videoResult = if (songResult == null) {
+                        // Step 1: YouTube Music loose match (no score gate)
+                        val ytmMatch =
                             com.wavlin.innertube.YouTube
-                                .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_VIDEO)
+                                .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG)
                                 .getOrNull()
                                 ?.items
                                 ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
                                 ?.firstOrNull()
-                        } else null
+                                ?: com.wavlin.innertube.YouTube
+                                    .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_VIDEO)
+                                    .getOrNull()
+                                    ?.items
+                                    ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
+                                    ?.firstOrNull()
 
-                        val match = songResult ?: videoResult
-
-                        withContext(Dispatchers.Main) {
-                            if (match != null) {
+                        if (ytmMatch != null) {
+                            withContext(Dispatchers.Main) {
                                 playerConnection?.playQueue(
                                     com.wavlin.music.playback.queues.YouTubeQueue(
-                                        com.wavlin.innertube.models.WatchEndpoint(videoId = match.id),
+                                        com.wavlin.innertube.models.WatchEndpoint(videoId = ytmMatch.id),
                                     ),
                                 )
-                                Toast.makeText(context, "Playing: ${match.title}", Toast.LENGTH_SHORT).show()
+                                spotifyUnmatched = null
+                                isDownloadingSpotify = false
+                            }
+                            return@launch
+                        }
+
+                        // Step 2: spotdl fallback - YouTube web search + Cobalt audio download
+                        val httpClient = HttpClient(CIO) {
+                            install(HttpTimeout) {
+                                requestTimeoutMillis = 30_000
+                                connectTimeoutMillis = 10_000
+                            }
+                            install(ContentNegotiation) {
+                                json(Json { ignoreUnknownKeys = true })
+                            }
+                        }
+
+                        // 2a. Search regular YouTube for a video ID
+                        val searchQuery = java.net.URLEncoder.encode(
+                            "${track.artist} ${track.title}", "UTF-8",
+                        )
+                        val searchHtml = httpClient.get(
+                            "https://www.youtube.com/results?search_query=$searchQuery&sp=EgIQAQ%3D%3D",
+                        ) {
+                            header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
+                        }.bodyAsText()
+
+                        val videoId = Regex('"videoId":"([a-zA-Z0-9_-]{11})"')
+                            .find(searchHtml)?.groupValues?.get(1)
+
+                        if (videoId == null) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "\"${track.title}\" not found anywhere", Toast.LENGTH_LONG).show()
+                                isDownloadingSpotify = false
+                            }
+                            httpClient.close()
+                            return@launch
+                        }
+
+                        // 2b. Cobalt API: audio download URL
+                        val cobaltRaw = httpClient.post("https://api.cobalt.tools/") {
+                            contentType(ContentType.Application.Json)
+                            header("Accept", "application/json")
+                            setBody(
+                                """{"url":"https://www.youtube.com/watch?v=$videoId","downloadMode":"audio","audioFormat":"best","filenameStyle":"basic"}""",
+                            )
+                        }.bodyAsText()
+
+                        val cobaltObj = Json { ignoreUnknownKeys = true }.parseToJsonElement(cobaltRaw).jsonObject
+                        val cobaltStatus = cobaltObj["status"]?.jsonPrimitive?.contentOrNull
+                        val cobaltUrl   = cobaltObj["url"]?.jsonPrimitive?.contentOrNull
+
+                        if (cobaltUrl == null || cobaltStatus !in listOf("stream", "redirect", "tunnel")) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Download unavailable for \"${track.title}\"", Toast.LENGTH_LONG).show()
+                                isDownloadingSpotify = false
+                            }
+                            httpClient.close()
+                            return@launch
+                        }
+
+                        // 2c. Download audio bytes
+                        val audioBytes = httpClient.get(cobaltUrl) {
+                            header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
+                        }.readBytes()
+                        httpClient.close()
+
+                        // 2d. Save and register as local song
+                        val safeName = "${track.artist} - ${track.title}"
+                            .replace(Regex("""[/\\:*?"<>|]"""), "_")
+                        val musicDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)
+                            ?: context.filesDir
+                        val audioFile = File(musicDir, "$safeName.opus")
+                        audioFile.writeBytes(audioBytes)
+
+                        val added = LocalSongs.add(
+                            context, database, Uri.fromFile(audioFile),
+                            track.title, track.artist, track.coverUrl,
+                        )
+
+                        withContext(Dispatchers.Main) {
+                            if (added != null) {
+                                playerConnection?.playQueue(
+                                    ListQueue(title = added.title, items = listOf(added.toMediaItem())),
+                                )
+                                downloadedMetadata = added
                                 spotifyUnmatched = null
                             } else {
-                                Toast.makeText(context, "Couldn't find \"${track.title}\" anywhere", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Saved but couldn't read the file", Toast.LENGTH_SHORT).show()
                             }
                             isDownloadingSpotify = false
                         }
@@ -327,6 +431,17 @@ fun SearchScreen(
                 spotifyUnmatched = null
                 isDownloadingSpotify = false
             },
+        )
+    }
+
+    // Playlist picker shown after a successful spotdl/Cobalt download
+    downloadedMetadata?.let { meta ->
+        AddToPlaylistDialog(
+            isVisible = true,
+            allowSyncing = false,
+            onGetSong = { _ -> listOf(meta.id) },
+            onGetSongIds = { listOf(meta.id) },
+            onDismiss = { downloadedMetadata = null },
         )
     }
 

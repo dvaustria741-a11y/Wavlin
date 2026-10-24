@@ -312,7 +312,7 @@ fun SearchScreen(
                         }
                         val cobaltJson = Json { ignoreUnknownKeys = true }
 
-                        // Helper: Cobalt API → direct audio URL or null
+                        // Helper: Cobalt API -> direct audio URL or null
                         suspend fun cobaltAudioUrl(sourceUrl: String): String? {
                             val raw = httpClient.post("https://api.cobalt.tools/") {
                                 contentType(ContentType.Application.Json)
@@ -328,12 +328,10 @@ fun SearchScreen(
 
                         var audioUrl: String? = null
 
-                        // ── Step 1: spotifydown.com ──────────────────────────────────────────
-                        // Extract track ID from the Spotify URL the user originally pasted,
-                        // e.g. "https://open.spotify.com/track/4vk2ZSTEmOMoF8ZDXDhUFw?si=..."
-                        val spotifyTrackId = track.url
-                            ?.let { Regex("spotify\.com/track/([A-Za-z0-9]+)").find(it)?.groupValues?.get(1) }
-
+                        // Step 1: spotifydown.com — use the track ID from the user's Spotify URL
+                        val spotifyTrackId = track.url?.let {
+                            Regex("spotify\\.com/track/([A-Za-z0-9]+)").find(it)?.groupValues?.getOrNull(1)
+                        }
                         if (spotifyTrackId != null) {
                             audioUrl = runCatching {
                                 val resp = httpClient.get(
@@ -341,37 +339,26 @@ fun SearchScreen(
                                 ) {
                                     header("Origin", "https://spotifydown.com")
                                     header("Referer", "https://spotifydown.com/")
-                                    header(
-                                        "User-Agent",
-                                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                                    )
+                                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                                 }.bodyAsText()
                                 val j = cobaltJson.parseToJsonElement(resp).jsonObject
-                                if (j["success"]?.jsonPrimitive?.booleanOrNull == true)
-                                    j["link"]?.jsonPrimitive?.contentOrNull
-                                else null
+                                val success = j["success"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                                if (success == true) j["link"]?.jsonPrimitive?.contentOrNull else null
                             }.getOrNull()
                         }
 
-                        // ── Step 2: YouTube InnerTube search + Cobalt ────────────────────────
-                        // Use YouTube's own InnerTube API (returns structured JSON, no HTML
-                        // scraping) so special chars in artist/title don't break parsing.
+                        // Step 2: YouTube InnerTube search + Cobalt
                         if (audioUrl == null) {
-                            val cleanQuery = "${track.title} ${track.artist}"
-                                .replace(Regex("[!,]"), "").trim()
+                            val cleanQuery = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
+                            val ytBody = """{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"$cleanQuery"}"""
                             val ytRaw = httpClient.post(
-                                "https://www.youtube.com/youtubei/v1/search" +
-                                    "?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
+                                "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
                             ) {
                                 contentType(ContentType.Application.Json)
-                                setBody(
-                                    """{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"${cleanQuery.replace(""", "\"")}"}""",
-                                )
+                                setBody(ytBody)
                             }.bodyAsText()
-
-                            val videoId = Regex(""videoId":"([a-zA-Z0-9_-]{11})"")
-                                .find(ytRaw)?.groupValues?.get(1)
-
+                            val videoId = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
+                                .find(ytRaw)?.groupValues?.getOrNull(1)
                             if (videoId != null) {
                                 audioUrl = runCatching {
                                     cobaltAudioUrl("https://www.youtube.com/watch?v=$videoId")
@@ -400,7 +387,7 @@ fun SearchScreen(
 
                         // Save to disk and register as local song with Spotify metadata
                         val safeName = "${track.artist} - ${track.title}"
-                            .replace(Regex("""[/\\:*?"<>|]"""), "_")
+                            .replace(Regex("[/\\\\:*?\"<>|]"), "_")
                         val musicDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)
                             ?: context.filesDir
                         val audioFile = File(musicDir, "$safeName.opus")
@@ -416,7 +403,7 @@ fun SearchScreen(
                                 playerConnection?.playQueue(
                                     ListQueue(title = added.title, items = listOf(added.toMediaItem())),
                                 )
-                                downloadedMetadata = added   // triggers AddToPlaylistDialog
+                                downloadedMetadata = added
                                 spotifyUnmatched = null
                             } else {
                                 Toast.makeText(context, "Saved but couldn't read the file", Toast.LENGTH_SHORT).show()
@@ -434,6 +421,7 @@ fun SearchScreen(
                     }
                 }
             },
+
             isDownloading = isDownloadingSpotify,
             onDismiss = {
                 spotifyUnmatched = null
@@ -446,7 +434,6 @@ fun SearchScreen(
     downloadedMetadata?.let { meta ->
         AddToPlaylistDialog(
             isVisible = true,
-            allowSyncing = false,
             onGetSong = { _ -> listOf(meta.id) },
             onGetSongIds = { listOf(meta.id) },
             onDismiss = { downloadedMetadata = null },

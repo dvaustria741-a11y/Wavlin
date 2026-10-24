@@ -310,57 +310,80 @@ fun SearchScreen(
                                 json(Json { ignoreUnknownKeys = true })
                             }
                         }
+                        val cobaltJson = Json { ignoreUnknownKeys = true }
 
-                        // Helper: call Cobalt with any URL, returns a downloadable URL or null
+                        // Helper: Cobalt API → direct audio URL or null
                         suspend fun cobaltAudioUrl(sourceUrl: String): String? {
                             val raw = httpClient.post("https://api.cobalt.tools/") {
                                 contentType(ContentType.Application.Json)
                                 header("Accept", "application/json")
-                                setBody(
-                                    """{"url":"$sourceUrl","downloadMode":"audio","audioFormat":"best","filenameStyle":"basic"}""",
-                                )
+                                setBody("""{"url":"$sourceUrl","downloadMode":"audio","audioFormat":"best","filenameStyle":"basic"}""")
                             }.bodyAsText()
-                            val obj = Json { ignoreUnknownKeys = true }.parseToJsonElement(raw).jsonObject
+                            val obj = cobaltJson.parseToJsonElement(raw).jsonObject
                             val status = obj["status"]?.jsonPrimitive?.contentOrNull
                             return if (status in listOf("stream", "redirect", "tunnel"))
                                 obj["url"]?.jsonPrimitive?.contentOrNull
                             else null
                         }
 
-                        // Step 1: Try the user's Spotify URL directly with Cobalt.
-                        // Cobalt may resolve it via an internal spotdl/yt-dlp flow.
-                        val spotifyUrl = track.url
-                        var cobaltUrl: String? = if (spotifyUrl != null) {
-                            runCatching { cobaltAudioUrl(spotifyUrl) }.getOrNull()
-                        } else null
+                        var audioUrl: String? = null
 
-                        // Step 2: Cobalt couldn't handle the Spotify URL directly —
-                        // fall back to a YouTube web search then Cobalt with the video URL.
-                        if (cobaltUrl == null) {
-                            val searchQuery = java.net.URLEncoder.encode(
-                                "\"${track.title}\" \"${track.artist}\"", "UTF-8",
-                            )
-                            val searchHtml = httpClient.get(
-                                "https://www.youtube.com/results?search_query=$searchQuery",
+                        // ── Step 1: spotifydown.com ──────────────────────────────────────────
+                        // Extract track ID from the Spotify URL the user originally pasted,
+                        // e.g. "https://open.spotify.com/track/4vk2ZSTEmOMoF8ZDXDhUFw?si=..."
+                        val spotifyTrackId = track.url
+                            ?.let { Regex("spotify\.com/track/([A-Za-z0-9]+)").find(it)?.groupValues?.get(1) }
+
+                        if (spotifyTrackId != null) {
+                            audioUrl = runCatching {
+                                val resp = httpClient.get(
+                                    "https://spotifydown.com/api/download?trackId=$spotifyTrackId",
+                                ) {
+                                    header("Origin", "https://spotifydown.com")
+                                    header("Referer", "https://spotifydown.com/")
+                                    header(
+                                        "User-Agent",
+                                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                    )
+                                }.bodyAsText()
+                                val j = cobaltJson.parseToJsonElement(resp).jsonObject
+                                if (j["success"]?.jsonPrimitive?.booleanOrNull == true)
+                                    j["link"]?.jsonPrimitive?.contentOrNull
+                                else null
+                            }.getOrNull()
+                        }
+
+                        // ── Step 2: YouTube InnerTube search + Cobalt ────────────────────────
+                        // Use YouTube's own InnerTube API (returns structured JSON, no HTML
+                        // scraping) so special chars in artist/title don't break parsing.
+                        if (audioUrl == null) {
+                            val cleanQuery = "${track.title} ${track.artist}"
+                                .replace(Regex("[!,]"), "").trim()
+                            val ytRaw = httpClient.post(
+                                "https://www.youtube.com/youtubei/v1/search" +
+                                    "?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
                             ) {
-                                header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
+                                contentType(ContentType.Application.Json)
+                                setBody(
+                                    """{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"${cleanQuery.replace(""", "\"")}"}""",
+                                )
                             }.bodyAsText()
 
-                            val videoId = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
-                                .find(searchHtml)?.groupValues?.get(1)
+                            val videoId = Regex(""videoId":"([a-zA-Z0-9_-]{11})"")
+                                .find(ytRaw)?.groupValues?.get(1)
 
                             if (videoId != null) {
-                                cobaltUrl = runCatching {
+                                audioUrl = runCatching {
                                     cobaltAudioUrl("https://www.youtube.com/watch?v=$videoId")
                                 }.getOrNull()
                             }
                         }
 
-                        if (cobaltUrl == null) {
+                        if (audioUrl == null) {
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     context,
-                                    "Could not download \"${track.title}\" — not available via Spotify link or YouTube",
+                                    "Could not download \"${track.title}\" — try searching manually",
                                     Toast.LENGTH_LONG,
                                 ).show()
                                 isDownloadingSpotify = false
@@ -369,8 +392,8 @@ fun SearchScreen(
                             return@launch
                         }
 
-                        // Download audio bytes from whichever URL worked
-                        val audioBytes = httpClient.get(cobaltUrl) {
+                        // Download audio bytes from whichever source worked
+                        val audioBytes = httpClient.get(audioUrl) {
                             header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
                         }.readBytes()
                         httpClient.close()

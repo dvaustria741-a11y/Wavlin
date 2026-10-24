@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.wavlin.innertube.YouTube
 import com.wavlin.innertube.models.SongItem
 import com.wavlin.music.R
 import com.wavlin.music.constants.ListThumbnailSize
@@ -70,6 +71,8 @@ import kotlinx.coroutines.withContext
 
 private sealed interface MatchState {
     data class Found(val song: SongItem) : MatchState
+
+    data class FallbackFound(val videoId: String) : MatchState
 
     data object Missing : MatchState
 }
@@ -103,14 +106,27 @@ fun SpotifyPlaylistPreviewDialog(
                         } catch (e: Exception) {
                             null
                         }
-                    matches[index] = if (song != null) MatchState.Found(song) else MatchState.Missing
+                    if (song != null) {
+                        matches[index] = MatchState.Found(song)
+                    } else {
+                        val query = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
+                        val videoId =
+                            try {
+                                withContext(Dispatchers.IO) { YouTube.searchFirstVideoId(query).getOrNull() }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                null
+                            }
+                        matches[index] = if (videoId != null) MatchState.FallbackFound(videoId) else MatchState.Missing
+                    }
                 }
             }
         }
     }
 
     val done = matches.size
-    val found = matches.values.count { it is MatchState.Found }
+    val found = matches.values.count { it is MatchState.Found || it is MatchState.FallbackFound }
     val covers = (0 until total).mapNotNull { (matches[it] as? MatchState.Found)?.song?.thumbnail }
 
     Dialog(
@@ -293,7 +309,7 @@ private fun TrackRow(track: SpotifyTrack, state: MatchState?, onMissingClick: ()
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                    MatchState.Missing ->
+                    is MatchState.FallbackFound, MatchState.Missing ->
                         Icon(
                             painter = painterResource(R.drawable.music_note),
                             contentDescription = null,
@@ -305,7 +321,7 @@ private fun TrackRow(track: SpotifyTrack, state: MatchState?, onMissingClick: ()
             }
         },
         trailingContent = {
-            if (state is MatchState.Found) {
+            if (state is MatchState.Found || state is MatchState.FallbackFound) {
                 Icon(
                     painter = painterResource(R.drawable.check),
                     contentDescription = null,

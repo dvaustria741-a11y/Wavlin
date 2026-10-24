@@ -350,7 +350,7 @@ fun SearchScreen(
                             header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
                         }.bodyAsText()
 
-                        val videoId = Regex('"videoId":"([a-zA-Z0-9_-]{11})"')
+                        val videoId = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
                             .find(searchHtml)?.groupValues?.get(1)
 
                         if (videoId == null) {

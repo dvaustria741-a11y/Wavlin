@@ -112,32 +112,7 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val playerConnection = LocalPlayerConnection.current
-    var localPickTarget by remember { mutableStateOf<SpotifyTrack?>(null) }
-    val pickLocalFile =
-        androidx.activity.compose.rememberLauncherForActivityResult(
-            androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
-        ) { uri ->
-            val target = localPickTarget
-            localPickTarget = null
-            if (uri != null && target != null) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    val added = com.wavlin.music.local.LocalSongs.add(context, database, uri, target.title, target.artist, target.coverUrl)
-                    withContext(Dispatchers.Main) {
-                        if (added != null) {
-                            Toast.makeText(context, "Added \"${added.title}\" to your library", Toast.LENGTH_SHORT).show()
-                            playerConnection?.playQueue(
-                                com.wavlin.music.playback.queues.ListQueue(
-                                    title = added.title,
-                                    items = listOf(added.toMediaItem()),
-                                ),
-                            )
-                        } else {
-                            Toast.makeText(context, "Couldn't read that file", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-        }
+    var isDownloadingSpotify by remember { mutableStateOf(false) }
     val isPlayerExpanded = LocalIsPlayerExpanded.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lazyListState = rememberLazyListState()
@@ -297,11 +272,61 @@ fun SearchScreen(
                     }
                 }
             },
-            onPickFile = {
-                localPickTarget = track
-                pickLocalFile.launch(arrayOf("audio/*"))
+            onDownload = {
+                if (isDownloadingSpotify) return@SpotifyUnmatchedDialog
+                isDownloadingSpotify = true
+                coroutineScope.launch(Dispatchers.IO) {
+                    try {
+                        // spotdl/yt-dlp fallback: search YouTube Music without strict score
+                        // filtering — take the first result and play it directly.
+                        val songResult = com.wavlin.innertube.YouTube
+                            .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG)
+                            .getOrNull()
+                            ?.items
+                            ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
+                            ?.firstOrNull()
+
+                        val videoResult = if (songResult == null) {
+                            com.wavlin.innertube.YouTube
+                                .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_VIDEO)
+                                .getOrNull()
+                                ?.items
+                                ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
+                                ?.firstOrNull()
+                        } else null
+
+                        val match = songResult ?: videoResult
+
+                        withContext(Dispatchers.Main) {
+                            if (match != null) {
+                                playerConnection?.playQueue(
+                                    com.wavlin.music.playback.queues.YouTubeQueue(
+                                        com.wavlin.innertube.models.WatchEndpoint(videoId = match.id),
+                                    ),
+                                )
+                                Toast.makeText(context, "Playing: ${match.title}", Toast.LENGTH_SHORT).show()
+                                spotifyUnmatched = null
+                            } else {
+                                Toast.makeText(context, "Couldn't find \"${track.title}\" anywhere", Toast.LENGTH_LONG).show()
+                            }
+                            isDownloadingSpotify = false
+                        }
+                    } catch (e: CancellationException) {
+                        withContext(Dispatchers.Main) { isDownloadingSpotify = false }
+                        throw e
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            isDownloadingSpotify = false
+                        }
+                    }
+                }
             },
-            onDismiss = { spotifyUnmatched = null },
+            isDownloading = isDownloadingSpotify,
+            onDismiss = {
+                spotifyUnmatched = null
+                isDownloadingSpotify = false
+            },
         )
     }
 

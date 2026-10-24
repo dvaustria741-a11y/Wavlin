@@ -30,6 +30,7 @@ fun LibraryScreen() {
             ChipsRow(
                 chips = listOf(
                     LibraryFilter.PLAYLISTS to stringResource(R.string.filter_playlists),
+                    LibraryFilter.SPOTIFY to stringResource(R.string.filter_spotify),
                     LibraryFilter.SONGS to stringResource(R.string.filter_songs),
                     LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
                     LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
@@ -48,6 +49,7 @@ fun LibraryScreen() {
         when (filterType) {
             LibraryFilter.LIBRARY -> LibraryMixScreen(navController, filterContent)
             LibraryFilter.PLAYLISTS -> LibraryPlaylistsScreen(navController, filterContent)
+            LibraryFilter.SPOTIFY -> LibrarySpotifyScreen(navController, filterContent)
             LibraryFilter.SONGS -> LibrarySongsScreen(
                 navController,
                 { filterType = LibraryFilter.LIBRARY },

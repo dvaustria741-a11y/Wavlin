@@ -20,6 +20,7 @@ data class SpotifyTrack(
     val query: String,
     val durationSeconds: Int,
     val url: String?,
+    val coverUrl: String? = null,
 )
 
 sealed interface SpotifyResult {
@@ -76,7 +77,7 @@ class SpotifyProvider(
             ?.mapNotNull { (it as? JsonObject)?.string("name") }
             ?.joinToString(", ")
             .orEmpty()
-        return buildTrack(title, artist, entity.long("duration"), "https://open.spotify.com/track/$trackId")
+        return buildTrack(title, artist, entity.long("duration"), "https://open.spotify.com/track/$trackId", findCover(entity))
     }
 
     suspend fun getPlaylistTracks(playlistId: String): List<SpotifyTrack> =
@@ -95,14 +96,14 @@ class SpotifyProvider(
                 val trackTitle = obj.string("title") ?: return@mapNotNull null
                 val artist = obj.string("subtitle").orEmpty()
                 val uri = obj.string("uri")?.substringAfterLast(':')
-                buildTrack(trackTitle, artist, obj.long("duration"), uri?.let { "https://open.spotify.com/track/$it" })
+                buildTrack(trackTitle, artist, obj.long("duration"), uri?.let { "https://open.spotify.com/track/$it" }, findCover(obj))
             }
             .orEmpty()
         if (tracks.isEmpty()) throw SpotifyException("This Spotify $kind has no readable tracks")
         return SpotifyResult.Tracks(title, tracks)
     }
 
-    private fun buildTrack(title: String, artist: String, durationMs: Long?, url: String?): SpotifyTrack {
+    private fun buildTrack(title: String, artist: String, durationMs: Long?, url: String?, coverUrl: String? = null): SpotifyTrack {
         val cleanArtist = artist.replace('\u00a0', ' ').trim()
         return SpotifyTrack(
             title = title.trim(),
@@ -110,6 +111,7 @@ class SpotifyProvider(
             query = if (cleanArtist.isEmpty()) title.trim() else "$cleanArtist - ${title.trim()}",
             durationSeconds = ((durationMs ?: 0L) / 1000).toInt(),
             url = url,
+            coverUrl = coverUrl,
         )
     }
 
@@ -146,6 +148,17 @@ class SpotifyProvider(
             else -> {}
         }
         return null
+    }
+
+    /** Best-effort cover art lookup: first image url under coverArt / visualIdentity / images. */
+    private fun findCover(obj: JsonObject): String? {
+        fun firstUrl(element: JsonElement?): String? =
+            when (element) {
+                is JsonObject -> element.string("url") ?: element.values.firstNotNullOfOrNull { firstUrl(it) }
+                is JsonArray -> element.firstNotNullOfOrNull { firstUrl(it) }
+                else -> null
+            }
+        return listOf("coverArt", "visualIdentity", "images", "image").firstNotNullOfOrNull { firstUrl(obj[it]) }
     }
 
     private fun JsonObject.string(key: String): String? =

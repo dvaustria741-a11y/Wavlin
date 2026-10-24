@@ -1,6 +1,7 @@
 package com.wavlin.music.ui.screens.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,7 +82,8 @@ private sealed interface MatchState {
 fun SpotifyPlaylistPreviewDialog(
     collection: SpotifyResult.Tracks,
     onDismiss: () -> Unit,
-    onImport: (name: String, matches: Map<Int, SongItem>) -> Unit,
+    onImport: (name: String, matches: Map<Int, SongItem>, download: Boolean) -> Unit,
+    onMissingClick: (SpotifyTrack) -> Unit = {},
 ) {
     val pinkLily = LocalPinkLilyTheme.current
     var name by remember(collection) { mutableStateOf(collection.title) }
@@ -174,7 +177,7 @@ fun SpotifyPlaylistPreviewDialog(
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     itemsIndexed(collection.tracks) { index, track ->
-                        TrackRow(track = track, state = matches[index])
+                        TrackRow(track = track, state = matches[index], onMissingClick = { onMissingClick(track) })
                     }
                 }
 
@@ -185,17 +188,24 @@ fun SpotifyPlaylistPreviewDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(4.dp))
+                    val doImport = { download: Boolean ->
+                        onImport(
+                            name.trim(),
+                            matches.mapNotNull { (index, state) -> (state as? MatchState.Found)?.let { index to it.song } }.toMap(),
+                            download,
+                        )
+                        onDismiss()
+                    }
+                    OutlinedButton(
+                        enabled = name.isNotBlank(),
+                        onClick = { doImport(false) },
+                    ) { Text(if (done < total) "Import ($found)" else "Import", maxLines = 1) }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         enabled = name.isNotBlank(),
-                        onClick = {
-                            onImport(
-                                name.trim(),
-                                matches.mapNotNull { (index, state) -> (state as? MatchState.Found)?.let { index to it.song } }.toMap(),
-                            )
-                            onDismiss()
-                        },
-                    ) { Text(if (done < total) "Import ($found so far)" else "Import $found songs") }
+                        onClick = { doImport(true) },
+                    ) { Text("Import & download", maxLines = 1) }
                 }
             }
         }
@@ -256,12 +266,15 @@ private fun CoverTile(url: String) {
 }
 
 @Composable
-private fun TrackRow(track: SpotifyTrack, state: MatchState?) {
+private fun TrackRow(track: SpotifyTrack, state: MatchState?, onMissingClick: () -> Unit) {
     val missing = state is MatchState.Missing
     ListItem(
         title = track.title,
         subtitle = if (missing) "Not found on YouTube" else track.artist,
-        modifier = Modifier.alpha(if (missing) 0.55f else 1f),
+        modifier =
+            Modifier
+                .alpha(if (missing) 0.55f else 1f)
+                .let { if (missing) it.clickable(onClick = onMissingClick) else it },
         thumbnailContent = {
             Box(
                 modifier =
@@ -350,6 +363,85 @@ fun SpotifyTrackDialog(
             color = MaterialTheme.colorScheme.secondary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Shown for a Spotify track that has no YouTube match. The track is still displayed from the link's
+ * own metadata (cover, title, artist) so it isn't a dead end; the person can try a manual search or
+ * open it in Spotify.
+ */
+@Composable
+fun SpotifyUnmatchedDialog(
+    track: SpotifyTrack,
+    onSearch: () -> Unit,
+    onOpenSpotify: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DefaultDialog(
+        onDismiss = onDismiss,
+        buttons = {
+            if (track.url != null) {
+                TextButton(
+                    onClick = {
+                        onOpenSpotify()
+                        onDismiss()
+                    },
+                ) { Text("Open in Spotify") }
+            }
+            TextButton(
+                onClick = {
+                    onSearch()
+                    onDismiss()
+                },
+            ) { Text("Search YouTube") }
+        },
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(220.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (track.coverUrl != null) {
+                AsyncImage(
+                    model = track.coverUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.music_note),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(64.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = track.title,
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = track.artist,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Not found on YouTube Music",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

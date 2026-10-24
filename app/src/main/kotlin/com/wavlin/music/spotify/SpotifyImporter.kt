@@ -4,7 +4,11 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.core.net.toUri
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import com.wavlin.innertube.models.SongItem
+import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.models.toMediaMetadata
@@ -35,6 +39,7 @@ object SpotifyImporter {
         name: String,
         tracks: List<SpotifyTrack>,
         preMatched: Map<Int, SongItem> = emptyMap(),
+        download: Boolean = false,
     ) {
         val appContext = context.applicationContext
         scope.launch {
@@ -74,6 +79,7 @@ object SpotifyImporter {
                         val current = database.playlist(entity.id).first() ?: playlist
                         database.addSongsToPlaylist(current, ids.map { it to null })
                         imported += ids.size
+                        if (download) ids.forEach { id -> queueDownload(appContext, database, id) }
                     }
                 }
                 val notFound =
@@ -82,12 +88,31 @@ object SpotifyImporter {
                     } else {
                         ". Not found: " + missing.take(3).joinToString("; ") + if (missing.size > 3) " (+${missing.size - 3} more)" else ""
                     }
-                toast(appContext, "Imported $imported of ${tracks.size} tracks into \"$name\"$notFound")
+                val downloading = if (download && imported > 0) " and downloading" else ""
+                toast(appContext, "Imported$downloading $imported of ${tracks.size} tracks into \"$name\"$notFound")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 toast(appContext, "Import failed: ${e.message ?: "unknown error"}")
             }
+        }
+    }
+
+    /** Same request the song menu's Download action sends, so it lands in the Downloaded library. */
+    private suspend fun queueDownload(context: Context, database: MusicDatabase, songId: String) {
+        try {
+            val title = database.song(songId).first()?.song?.title ?: songId
+            val request =
+                DownloadRequest
+                    .Builder(songId, songId.toUri())
+                    .setCustomCacheKey(songId)
+                    .setData(title.toByteArray())
+                    .build()
+            DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // skip this song, keep importing the rest
         }
     }
 

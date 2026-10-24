@@ -106,6 +106,7 @@ fun SearchScreen(
     var spotifyCollection by remember { mutableStateOf<SpotifyResult.Tracks?>(null) }
     var showSpotifyImport by remember { mutableStateOf(false) }
     var spotifyTrackMatch by remember { mutableStateOf<Pair<SpotifyTrack, SongItem>?>(null) }
+    var spotifyUnmatched by remember { mutableStateOf<SpotifyTrack?>(null) }
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -173,8 +174,7 @@ fun SearchScreen(
                             if (match != null) {
                                 spotifyTrackMatch = result.track to match
                             } else {
-                                Toast.makeText(context, "No exact match found, searching instead", Toast.LENGTH_SHORT).show()
-                                navController.navigate(SearchRoutes.resultRoute(result.track.query))
+                                spotifyUnmatched = result.track
                             }
                         }
 
@@ -232,9 +232,10 @@ fun SearchScreen(
         SpotifyPlaylistPreviewDialog(
             collection = pendingSpotify,
             onDismiss = { showSpotifyImport = false },
-            onImport = { finalName, matched ->
-                SpotifyImporter.start(context, database, finalName, pendingSpotify.tracks, matched)
+            onImport = { finalName, matched, download ->
+                SpotifyImporter.start(context, database, finalName, pendingSpotify.tracks, matched, download)
             },
+            onMissingClick = { spotifyUnmatched = it },
         )
     }
 
@@ -247,6 +248,29 @@ fun SearchScreen(
             },
             onSearch = { navController.navigate(SearchRoutes.resultRoute(spotifyTrack.query)) },
             onDismiss = { spotifyTrackMatch = null },
+        )
+    }
+
+    spotifyUnmatched?.let { track ->
+        SpotifyUnmatchedDialog(
+            track = track,
+            onSearch = {
+                showSpotifyImport = false
+                navController.navigate(SearchRoutes.resultRoute(track.query))
+            },
+            onOpenSpotify = {
+                track.url?.let { link ->
+                    try {
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "No app to open the link", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { spotifyUnmatched = null },
         )
     }
 

@@ -83,6 +83,9 @@ import com.wavlin.music.local.LocalSongs
 import com.wavlin.music.models.MediaMetadata
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.menu.AddToPlaylistDialog
+import com.wavlin.music.ui.menu.DownloadDestinationDialog
+import com.wavlin.music.db.entities.Song
+import kotlinx.coroutines.flow.first
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -132,6 +135,7 @@ fun SearchScreen(
     val playerConnection = LocalPlayerConnection.current
     var isDownloadingSpotify by remember { mutableStateOf(false) }
     var downloadedMetadata by remember { mutableStateOf<MediaMetadata?>(null) }
+    var pendingDownloadSongs by remember { mutableStateOf<List<Song>?>(null) }
     val isPlayerExpanded = LocalIsPlayerExpanded.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lazyListState = rememberLazyListState()
@@ -401,22 +405,11 @@ fun SearchScreen(
                                 thumbnailUrl = track.coverUrl,
                             ),
                         )
-                        // Queue via ExoPlayer — resolves the YouTube stream the same
-                        // way any other song download does (cipher + PoToken + cache)
-                        val dlRequest = androidx.media3.exoplayer.offline.DownloadRequest
-                            .Builder(videoId, android.net.Uri.parse(videoId))
-                            .setCustomCacheKey(videoId)
-                            .setData(track.title.toByteArray())
-                            .build()
-                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                            context, ExoDownloadService::class.java, dlRequest, false,
-                        )
+                        val song = database.song(videoId).first()
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context,
-                                "\"${track.title}\" queued for download",
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                            if (song != null) {
+                                pendingDownloadSongs = listOf(song)
+                            }
                             spotifyUnmatched = null
                             isDownloadingSpotify = false
                         }
@@ -447,6 +440,14 @@ fun SearchScreen(
             onGetSong = { _ -> listOf(meta.id) },
             onGetSongIds = { listOf(meta.id) },
             onDismiss = { downloadedMetadata = null },
+        )
+    }
+
+    pendingDownloadSongs?.let { songs ->
+        DownloadDestinationDialog(
+            isVisible = true,
+            songs = songs,
+            onDismiss = { pendingDownloadSongs = null },
         )
     }
 

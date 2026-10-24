@@ -7,7 +7,9 @@ import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
+import com.wavlin.innertube.YouTube
 import com.wavlin.innertube.models.SongItem
+import com.wavlin.music.models.MediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.PlaylistEntity
@@ -67,7 +69,9 @@ object SpotifyImporter {
                                     val index = chunkStart + offset
                                     async {
                                         semaphore.withPermit {
-                                            track to (preMatched[index]?.let { saveSong(database, it) } ?: matchTrack(database, track))
+                                            track to (preMatched[index]?.let { saveSong(database, it) }
+                                                ?: matchTrack(database, track)
+                                                ?: ytFallbackMatch(database, track))
                                         }
                                     }
                                 }.awaitAll()
@@ -135,6 +139,26 @@ object SpotifyImporter {
                 database.insert(it.toMediaMetadata())
                 it.id
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+
+    private suspend fun ytFallbackMatch(database: MusicDatabase, track: SpotifyTrack): String? =
+        try {
+            val query = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
+            val videoId = YouTube.searchFirstVideoId(query).getOrNull() ?: return null
+            database.insert(
+                MediaMetadata(
+                    id = videoId,
+                    title = track.title,
+                    artists = track.artist.split(",").map { MediaMetadata.Artist(id = null, name = it.trim()) },
+                    duration = track.durationSeconds,
+                    thumbnailUrl = track.coverUrl,
+                ),
+            )
+            videoId
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

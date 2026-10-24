@@ -75,6 +75,7 @@ import com.wavlin.music.constants.SearchSourceKey
 import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.HideOnScrollFAB
+import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.spotify.SpotifyImporter
 import com.wavlin.music.spotify.SpotifyMatcher
 import com.wavlin.innertube.models.SongItem
@@ -111,6 +112,32 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val playerConnection = LocalPlayerConnection.current
+    var localPickTarget by remember { mutableStateOf<SpotifyTrack?>(null) }
+    val pickLocalFile =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+        ) { uri ->
+            val target = localPickTarget
+            localPickTarget = null
+            if (uri != null && target != null) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    val added = com.wavlin.music.local.LocalSongs.add(context, database, uri, target.title, target.artist, target.coverUrl)
+                    withContext(Dispatchers.Main) {
+                        if (added != null) {
+                            Toast.makeText(context, "Added \"${added.title}\" to your library", Toast.LENGTH_SHORT).show()
+                            playerConnection?.playQueue(
+                                com.wavlin.music.playback.queues.ListQueue(
+                                    title = added.title,
+                                    items = listOf(added.toMediaItem()),
+                                ),
+                            )
+                        } else {
+                            Toast.makeText(context, "Couldn't read that file", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
     val isPlayerExpanded = LocalIsPlayerExpanded.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lazyListState = rememberLazyListState()
@@ -269,6 +296,10 @@ fun SearchScreen(
                         Toast.makeText(context, "No app to open the link", Toast.LENGTH_SHORT).show()
                     }
                 }
+            },
+            onPickFile = {
+                localPickTarget = track
+                pickLocalFile.launch(arrayOf("audio/*"))
             },
             onDismiss = { spotifyUnmatched = null },
         )

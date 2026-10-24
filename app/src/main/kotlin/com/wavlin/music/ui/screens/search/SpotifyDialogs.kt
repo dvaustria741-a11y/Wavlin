@@ -377,6 +377,7 @@ fun SpotifyUnmatchedDialog(
     track: SpotifyTrack,
     onSearch: () -> Unit,
     onOpenSpotify: () -> Unit,
+    onPickFile: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     DefaultDialog(
@@ -388,14 +389,20 @@ fun SpotifyUnmatchedDialog(
                         onOpenSpotify()
                         onDismiss()
                     },
-                ) { Text("Open in Spotify") }
+                ) { Text("Spotify") }
             }
+            TextButton(
+                onClick = {
+                    onPickFile()
+                    onDismiss()
+                },
+            ) { Text("Local file") }
             TextButton(
                 onClick = {
                     onSearch()
                     onDismiss()
                 },
-            ) { Text("Search YouTube") }
+            ) { Text("Search") }
         },
     ) {
         Box(

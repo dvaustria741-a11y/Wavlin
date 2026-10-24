@@ -78,9 +78,14 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
+import androidx.media3.extractor.flac.FlacExtractor
 import androidx.media3.extractor.mkv.MatroskaExtractor
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
 import androidx.media3.extractor.mp4.Mp4Extractor
+import androidx.media3.extractor.ogg.OggExtractor
+import androidx.media3.extractor.ts.AdtsExtractor
+import androidx.media3.extractor.wav.WavExtractor
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
@@ -191,6 +196,7 @@ import com.wavlin.music.extensions.toEnum
 import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.extensions.toPersistQueue
 import com.wavlin.music.extensions.toQueue
+import com.wavlin.music.local.LocalRoutingDataSource
 import com.wavlin.music.lyrics.LyricsHelper
 import com.wavlin.music.models.PersistPlayerState
 import com.wavlin.music.models.PersistQueue
@@ -3695,6 +3701,12 @@ class MusicService :
     }
 
     private fun createDataSourceFactory(): DataSource.Factory {
+        val remote = createStreamDataSourceFactory()
+        val local = DefaultDataSource.Factory(this)
+        return DataSource.Factory { LocalRoutingDataSource(remote.createDataSource(), local.createDataSource()) }
+    }
+
+    private fun createStreamDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
@@ -3834,7 +3846,16 @@ class MusicService :
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
             ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
+                arrayOf(
+                    MatroskaExtractor(),
+                    FragmentedMp4Extractor(),
+                    Mp4Extractor(),
+                    Mp3Extractor(),
+                    FlacExtractor(),
+                    OggExtractor(),
+                    WavExtractor(),
+                    AdtsExtractor(),
+                )
             },
         )
 

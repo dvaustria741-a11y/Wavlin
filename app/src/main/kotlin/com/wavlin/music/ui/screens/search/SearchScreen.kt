@@ -232,8 +232,8 @@ fun SearchScreen(
         SpotifyPlaylistPreviewDialog(
             collection = pendingSpotify,
             onDismiss = { showSpotifyImport = false },
-            onImport = { finalName ->
-                SpotifyImporter.start(context, database, finalName, pendingSpotify.tracks)
+            onImport = { finalName, matched ->
+                SpotifyImporter.start(context, database, finalName, pendingSpotify.tracks, matched)
             },
         )
     }

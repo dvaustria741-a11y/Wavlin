@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import com.wavlin.innertube.models.SongItem
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.models.toMediaMetadata
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.time.LocalDateTime
 
 /**
  * Turns a resolved Spotify playlist/album into a local playlist. Runs in an app-lifetime scope so
@@ -32,12 +34,14 @@ object SpotifyImporter {
         database: MusicDatabase,
         name: String,
         tracks: List<SpotifyTrack>,
+        preMatched: Map<Int, SongItem> = emptyMap(),
     ) {
         val appContext = context.applicationContext
         scope.launch {
             try {
                 toast(appContext, "Importing ${tracks.size} tracks...")
-                val entity = PlaylistEntity(name = name)
+                // bookmarkedAt is what makes a playlist show up in the Library (same as the Create playlist dialog)
+                val entity = PlaylistEntity(name = name, bookmarkedAt = LocalDateTime.now(), isEditable = true)
                 database.withTransaction { insert(entity) }
                 val playlist = database.playlist(entity.id).first()
                 if (playlist == null) {
@@ -47,15 +51,23 @@ object SpotifyImporter {
 
                 val semaphore = Semaphore(5)
                 var imported = 0
+                var chunkStart = 0
                 val missing = mutableListOf<String>()
                 // Chunked so songs show up in the playlist as they match, in the original order.
                 for (chunk in tracks.chunked(CHUNK_SIZE)) {
                     val results =
                         coroutineScope {
                             chunk
-                                .map { track -> async { semaphore.withPermit { track to matchTrack(database, track) } } }
-                                .awaitAll()
+                                .mapIndexed { offset, track ->
+                                    val index = chunkStart + offset
+                                    async {
+                                        semaphore.withPermit {
+                                            track to (preMatched[index]?.let { saveSong(database, it) } ?: matchTrack(database, track))
+                                        }
+                                    }
+                                }.awaitAll()
                         }
+                    chunkStart += chunk.size
                     val ids = results.mapNotNull { it.second }
                     missing += results.filter { it.second == null }.map { it.first.query }
                     if (ids.isNotEmpty()) {
@@ -78,6 +90,16 @@ object SpotifyImporter {
             }
         }
     }
+
+    private fun saveSong(database: MusicDatabase, song: SongItem): String? =
+        try {
+            database.insert(song.toMediaMetadata())
+            song.id
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
 
     private suspend fun matchTrack(
         database: MusicDatabase,

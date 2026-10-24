@@ -1,99 +1,310 @@
 package com.wavlin.music.ui.screens.search
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.wavlin.innertube.models.SongItem
+import com.wavlin.music.R
+import com.wavlin.music.constants.ListThumbnailSize
+import com.wavlin.music.constants.ThumbnailCornerRadius
+import com.wavlin.music.spotify.SpotifyMatcher
 import com.wavlin.music.spotify.SpotifyResult
 import com.wavlin.music.spotify.SpotifyTrack
+import com.wavlin.music.ui.component.DefaultDialog
+import com.wavlin.music.ui.component.ListItem
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.lilyNinePatch
+import com.wavlin.music.ui.theme.PinkInk
+import com.wavlin.music.ui.theme.playball
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
-/** Shows what is inside a Spotify playlist/album before it is imported. */
+private sealed interface MatchState {
+    data class Found(val song: SongItem) : MatchState
+
+    data object Missing : MatchState
+}
+
+/**
+ * Full preview of a Spotify playlist/album: cover mosaic, editable name, and every track with its
+ * YouTube cover art as it is matched. Matching starts immediately; Import uses what has matched so far.
+ */
 @Composable
 fun SpotifyPlaylistPreviewDialog(
     collection: SpotifyResult.Tracks,
     onDismiss: () -> Unit,
-    onImport: (name: String) -> Unit,
+    onImport: (name: String, matches: Map<Int, SongItem>) -> Unit,
 ) {
+    val pinkLily = LocalPinkLilyTheme.current
     var name by remember(collection) { mutableStateOf(collection.title) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Import from Spotify") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    label = { Text("Playlist name") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = "${collection.tracks.size} tracks",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                LazyColumn(modifier = Modifier.heightIn(max = 340.dp)) {
-                    itemsIndexed(collection.tracks) { index, track ->
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                            Text(
-                                text = "${index + 1}. ${track.title}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (track.artist.isNotEmpty()) {
-                                Text(
-                                    text = track.artist,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+    val matches = remember(collection) { mutableStateMapOf<Int, MatchState>() }
+    val total = collection.tracks.size
+
+    LaunchedEffect(collection) {
+        val semaphore = Semaphore(5)
+        collection.tracks.forEachIndexed { index, track ->
+            launch {
+                semaphore.withPermit {
+                    val song =
+                        try {
+                            withContext(Dispatchers.IO) { SpotifyMatcher.match(track) }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            null
                         }
-                    }
+                    matches[index] = if (song != null) MatchState.Found(song) else MatchState.Missing
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank(),
-                onClick = {
-                    onImport(name.trim())
-                    onDismiss()
-                },
-            ) { Text("Import") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        }
+    }
+
+    val done = matches.size
+    val found = matches.values.count { it is MatchState.Found }
+    val covers = (0 until total).mapNotNull { (matches[it] as? MatchState.Found)?.song?.thumbnail }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+                    .padding(horizontal = 12.dp)
+                    .let { base ->
+                        if (pinkLily) base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp) else base
+                    },
+            shape = if (pinkLily) MaterialTheme.shapes.large else RoundedCornerShape(28.dp),
+            color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = if (pinkLily) 30.dp else 16.dp, vertical = if (pinkLily) 34.dp else 20.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CoverMosaic(covers = covers)
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        TextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            singleLine = true,
+                            textStyle =
+                                if (pinkLily) {
+                                    MaterialTheme.typography.titleLarge.copy(fontFamily = playball, color = PinkInk)
+                                } else {
+                                    MaterialTheme.typography.titleLarge
+                                },
+                            colors =
+                                TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            text = "$total tracks \u2022 $found matched",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
+                }
+
+                if (done < total) {
+                    LinearProgressIndicator(
+                        progress = { done.toFloat() / total },
+                        modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                    )
+                } else {
+                    Spacer(Modifier.height(18.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    itemsIndexed(collection.tracks) { index, track ->
+                        TrackRow(track = track, state = matches[index])
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        enabled = name.isNotBlank(),
+                        onClick = {
+                            onImport(
+                                name.trim(),
+                                matches.mapNotNull { (index, state) -> (state as? MatchState.Found)?.let { index to it.song } }.toMap(),
+                            )
+                            onDismiss()
+                        },
+                    ) { Text(if (done < total) "Import ($found so far)" else "Import $found songs") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverMosaic(covers: List<String>) {
+    val shape = RoundedCornerShape(14.dp)
+    Box(
+        modifier =
+            Modifier
+                .size(96.dp)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            covers.size >= 4 ->
+                Column {
+                    Row {
+                        CoverTile(covers[0])
+                        CoverTile(covers[1])
+                    }
+                    Row {
+                        CoverTile(covers[2])
+                        CoverTile(covers[3])
+                    }
+                }
+
+            covers.isNotEmpty() ->
+                AsyncImage(
+                    model = covers.first(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+            else ->
+                Icon(
+                    painter = painterResource(R.drawable.queue_music),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(40.dp),
+                )
+        }
+    }
+}
+
+@Composable
+private fun CoverTile(url: String) {
+    AsyncImage(
+        model = url,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.size(48.dp),
     )
 }
 
-/** Shows the exact YouTube match for a pasted Spotify track link. */
+@Composable
+private fun TrackRow(track: SpotifyTrack, state: MatchState?) {
+    val missing = state is MatchState.Missing
+    ListItem(
+        title = track.title,
+        subtitle = if (missing) "Not found on YouTube" else track.artist,
+        modifier = Modifier.alpha(if (missing) 0.55f else 1f),
+        thumbnailContent = {
+            Box(
+                modifier =
+                    Modifier
+                        .size(ListThumbnailSize)
+                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (state) {
+                    is MatchState.Found ->
+                        AsyncImage(
+                            model = state.song.thumbnail,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                    MatchState.Missing ->
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                    null -> CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                }
+            }
+        },
+        trailingContent = {
+            if (state is MatchState.Found) {
+                Icon(
+                    painter = painterResource(R.drawable.check),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        },
+    )
+}
+
+/** Shows the exact YouTube match for a pasted Spotify track link, art first. */
 @Composable
 fun SpotifyTrackDialog(
     track: SpotifyTrack,
@@ -102,36 +313,15 @@ fun SpotifyTrackDialog(
     onSearch: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Spotify song") },
-        text = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = match.thumbnail,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)),
-                )
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = match.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = match.artists.joinToString(", ") { it.name }.ifEmpty { track.artist },
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        },
-        confirmButton = {
+    DefaultDialog(
+        onDismiss = onDismiss,
+        buttons = {
+            TextButton(
+                onClick = {
+                    onSearch()
+                    onDismiss()
+                },
+            ) { Text("Search instead") }
             TextButton(
                 onClick = {
                     onPlay()
@@ -139,13 +329,27 @@ fun SpotifyTrackDialog(
                 },
             ) { Text("Play") }
         },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    onSearch()
-                    onDismiss()
-                },
-            ) { Text("Search instead") }
-        },
-    )
+    ) {
+        AsyncImage(
+            model = match.thumbnail,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = match.title,
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = match.artists.joinToString(", ") { it.name }.ifEmpty { track.artist },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }

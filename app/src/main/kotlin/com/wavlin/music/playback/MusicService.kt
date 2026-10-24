@@ -197,6 +197,7 @@ import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.extensions.toPersistQueue
 import com.wavlin.music.extensions.toQueue
 import com.wavlin.music.local.LocalRoutingDataSource
+import com.wavlin.music.local.LocalSongs
 import com.wavlin.music.lyrics.LyricsHelper
 import com.wavlin.music.models.PersistPlayerState
 import com.wavlin.music.models.PersistQueue
@@ -3703,7 +3704,23 @@ class MusicService :
     private fun createDataSourceFactory(): DataSource.Factory {
         val remote = createStreamDataSourceFactory()
         val local = DefaultDataSource.Factory(this)
-        return DataSource.Factory { LocalRoutingDataSource(remote.createDataSource(), local.createDataSource()) }
+        // Check 3: if YouTube stream fails, try to find a local file with matching title/artist.
+        val localFallback: (String) -> android.net.Uri? = { mediaId ->
+            runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val songWithArtists = database.song(mediaId).first() ?: return@runBlocking null
+                    val artistName = songWithArtists.artists.firstOrNull()?.name ?: ""
+                    val localId = LocalSongs.findLocalMatch(database, songWithArtists.song.title, artistName)
+                    localId?.let { LocalSongs.uriOf(it) }
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Local fallback lookup failed for $mediaId")
+                    null
+                }
+            }
+        }
+        return DataSource.Factory {
+            LocalRoutingDataSource(remote.createDataSource(), local.createDataSource(), localFallback)
+        }
     }
 
     private fun createStreamDataSourceFactory(): DataSource.Factory {

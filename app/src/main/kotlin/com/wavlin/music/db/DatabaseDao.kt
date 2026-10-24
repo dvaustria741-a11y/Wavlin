@@ -81,6 +81,21 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE id = :songId LIMIT 1")
     suspend fun songEntity(songId: String): SongEntity?
 
+    /**
+     * Finds a local song (isLocal = 1) whose title matches and whose artist name contains
+     * [artist]. Non-suspend: called from a blocking context inside the stream resolver.
+     */
+    @Query("""
+        SELECT song.* FROM song
+        LEFT JOIN song_artist_map sam ON sam.songId = song.id
+        LEFT JOIN artist a ON a.id = sam.artistId
+        WHERE song.isLocal = 1
+        AND song.title = :title
+        AND (:artist = '' OR a.name LIKE '%' || :artist || '%')
+        LIMIT 1
+    """)
+    fun findLocalSongByMetadata(title: String, artist: String): SongEntity?
+
     @Query("SELECT * FROM song WHERE liked ORDER BY title")
     suspend fun likedSongEntitiesByNameAsc(): List<SongEntity>
 

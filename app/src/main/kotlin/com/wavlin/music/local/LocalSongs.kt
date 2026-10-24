@@ -87,6 +87,13 @@ object LocalSongs {
         return metadata
     }
 
+    /**
+     * Searches the database for a local file that matches the provided title and artist.
+     * Used as a fallback when YouTube streams are unavailable or for spotdl-downloaded tracks.
+     */
+    fun findLocalMatch(database: com.wavlin.music.db.MusicDatabase, title: String, artist: String): String? =
+        database.findLocalSongByMetadata(title, artist)?.id
+
     private fun displayName(context: Context, uri: Uri): String? =
         try {
             context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
@@ -105,6 +112,11 @@ object LocalSongs {
 class LocalRoutingDataSource(
     private val remote: DataSource,
     private val local: DataSource,
+    /**
+     * Optional fallback called when the remote (YouTube) stream fails.
+     * Receives the mediaId; returns a local content URI to play instead, or null to re-throw.
+     */
+    private val localFallback: ((mediaId: String) -> android.net.Uri?)? = null,
 ) : DataSource {
     private var active: DataSource? = null
 
@@ -119,8 +131,18 @@ class LocalRoutingDataSource(
             active = local
             local.open(dataSpec.withUri(LocalSongs.uriOf(key!!)))
         } else {
-            active = remote
-            remote.open(dataSpec)
+            try {
+                active = remote
+                remote.open(dataSpec)
+            } catch (e: Exception) {
+                val fallbackUri = key?.let { localFallback?.invoke(it) }
+                if (fallbackUri != null) {
+                    active = local
+                    local.open(dataSpec.withUri(fallbackUri))
+                } else {
+                    throw e
+                }
+            }
         }
     }
 

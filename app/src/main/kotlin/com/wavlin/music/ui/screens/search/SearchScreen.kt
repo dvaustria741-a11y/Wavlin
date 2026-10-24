@@ -301,35 +301,9 @@ fun SearchScreen(
                 isDownloadingSpotify = true
                 coroutineScope.launch(Dispatchers.IO) {
                     try {
-                        // Step 1: YouTube Music loose match (no score gate)
-                        val ytmMatch =
-                            com.wavlin.innertube.YouTube
-                                .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG)
-                                .getOrNull()
-                                ?.items
-                                ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
-                                ?.firstOrNull()
-                                ?: com.wavlin.innertube.YouTube
-                                    .search(track.query, com.wavlin.innertube.YouTube.SearchFilter.FILTER_VIDEO)
-                                    .getOrNull()
-                                    ?.items
-                                    ?.filterIsInstance<com.wavlin.innertube.models.SongItem>()
-                                    ?.firstOrNull()
-
-                        if (ytmMatch != null) {
-                            withContext(Dispatchers.Main) {
-                                playerConnection?.playQueue(
-                                    com.wavlin.music.playback.queues.YouTubeQueue(
-                                        com.wavlin.innertube.models.WatchEndpoint(videoId = ytmMatch.id),
-                                    ),
-                                )
-                                spotifyUnmatched = null
-                                isDownloadingSpotify = false
-                            }
-                            return@launch
-                        }
-
-                        // Step 2: spotdl fallback - YouTube web search + Cobalt audio download
+                        // SpotifyMatcher already searched YTM with scoring and failed,
+                        // so skip straight to the spotdl/Cobalt download path.
+                        // Step 1: YouTube web search + Cobalt audio download
                         val httpClient = HttpClient(CIO) {
                             install(HttpTimeout) {
                                 requestTimeoutMillis = 30_000
@@ -340,12 +314,12 @@ fun SearchScreen(
                             }
                         }
 
-                        // 2a. Search regular YouTube for a video ID
+                        // 1a. Search YouTube for the exact title + artist (quoted for precision)
                         val searchQuery = java.net.URLEncoder.encode(
-                            "${track.artist} ${track.title}", "UTF-8",
+                            "\"${track.title}\" \"${track.artist}\"", "UTF-8",
                         )
                         val searchHtml = httpClient.get(
-                            "https://www.youtube.com/results?search_query=$searchQuery&sp=EgIQAQ%3D%3D",
+                            "https://www.youtube.com/results?search_query=$searchQuery",
                         ) {
                             header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
                         }.bodyAsText()
@@ -362,7 +336,7 @@ fun SearchScreen(
                             return@launch
                         }
 
-                        // 2b. Cobalt API: audio download URL
+                        // 1b. Cobalt API: get audio download URL for the found video
                         val cobaltRaw = httpClient.post("https://api.cobalt.tools/") {
                             contentType(ContentType.Application.Json)
                             header("Accept", "application/json")
@@ -384,13 +358,13 @@ fun SearchScreen(
                             return@launch
                         }
 
-                        // 2c. Download audio bytes
+                        // 1c. Download the audio bytes
                         val audioBytes = httpClient.get(cobaltUrl) {
                             header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
                         }.readBytes()
                         httpClient.close()
 
-                        // 2d. Save and register as local song
+                        // 1d. Save to disk and register as local song
                         val safeName = "${track.artist} - ${track.title}"
                             .replace(Regex("""[/\\:*?"<>|]"""), "_")
                         val musicDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)

@@ -65,6 +65,7 @@ import com.wavlin.music.LocalNavController
 import com.wavlin.innertube.models.WatchEndpoint
 import com.wavlin.innertube.utils.YouTubeUrlParser
 import com.wavlin.music.LocalDatabase
+import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.LocalIsPlayerExpanded
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
@@ -85,7 +86,6 @@ import com.wavlin.music.ui.menu.AddToPlaylistDialog
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -94,7 +94,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.readBytes
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -306,32 +305,14 @@ fun SearchScreen(
                                 requestTimeoutMillis = 30_000
                                 connectTimeoutMillis = 10_000
                             }
-                            install(ContentNegotiation) {
-                                json(Json { ignoreUnknownKeys = true })
-                            }
                         }
-                        val cobaltJson = Json { ignoreUnknownKeys = true }
+                        val jsonParser = Json { ignoreUnknownKeys = true }
 
-                        // Helper: Cobalt API -> direct audio URL or null
-                        suspend fun cobaltAudioUrl(sourceUrl: String): String? {
-                            val raw = httpClient.post("https://api.cobalt.tools/") {
-                                contentType(ContentType.Application.Json)
-                                header("Accept", "application/json")
-                                setBody("""{"url":"$sourceUrl","downloadMode":"audio","audioFormat":"best","filenameStyle":"basic"}""")
-                            }.bodyAsText()
-                            val obj = cobaltJson.parseToJsonElement(raw).jsonObject
-                            val status = obj["status"]?.jsonPrimitive?.contentOrNull
-                            return if (status in listOf("stream", "redirect", "tunnel"))
-                                obj["url"]?.jsonPrimitive?.contentOrNull
-                            else null
-                        }
-
-                        var audioUrl: String? = null
-
-                        // Step 1: spotifydown.com — use the track ID from the user's Spotify URL
+                        // ── Step 1: spotifydown.com ──────────────────────────
                         val spotifyTrackId = track.url?.let {
                             Regex("spotify\\.com/track/([A-Za-z0-9]+)").find(it)?.groupValues?.getOrNull(1)
                         }
+                        var audioUrl: String? = null
                         if (spotifyTrackId != null) {
                             audioUrl = runCatching {
                                 val resp = httpClient.get(
@@ -341,32 +322,64 @@ fun SearchScreen(
                                     header("Referer", "https://spotifydown.com/")
                                     header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                                 }.bodyAsText()
-                                val j = cobaltJson.parseToJsonElement(resp).jsonObject
-                                val success = j["success"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                                val j = jsonParser.parseToJsonElement(resp).jsonObject
+                                val success = j["success"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
                                 if (success == true) j["link"]?.jsonPrimitive?.contentOrNull else null
                             }.getOrNull()
                         }
 
-                        // Step 2: YouTube InnerTube search + Cobalt
-                        if (audioUrl == null) {
-                            val cleanQuery = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
-                            val ytBody = """{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"$cleanQuery"}"""
-                            val ytRaw = httpClient.post(
+                        if (audioUrl != null) {
+                            // spotifydown gave a direct link — download bytes and save as local file
+                            val audioBytes = httpClient.get(audioUrl) {
+                                header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
+                            }.readBytes()
+                            httpClient.close()
+
+                            val safeName = "${track.artist} - ${track.title}"
+                                .replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                            val musicDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)
+                                ?: context.filesDir
+                            val audioFile = File(musicDir, "$safeName.opus")
+                            audioFile.writeBytes(audioBytes)
+
+                            val added = LocalSongs.add(
+                                context, database, Uri.fromFile(audioFile),
+                                track.title, track.artist, track.coverUrl,
+                            )
+                            withContext(Dispatchers.Main) {
+                                if (added != null) {
+                                    playerConnection?.playQueue(
+                                        ListQueue(title = added.title, items = listOf(added.toMediaItem())),
+                                    )
+                                    downloadedMetadata = added
+                                    spotifyUnmatched = null
+                                } else {
+                                    Toast.makeText(context, "Saved but couldn't read the file", Toast.LENGTH_SHORT).show()
+                                }
+                                isDownloadingSpotify = false
+                            }
+                            return@launch
+                        }
+
+                        // ── Step 2: YouTube search → ExoPlayer download ──────
+                        // Cobalt is replaced by the app's own stream resolver
+                        // (YTPlayerUtils handles cipher deobfuscation + PoToken).
+                        val cleanQuery = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
+                        val ytRaw = runCatching {
+                            httpClient.post(
                                 "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
                             ) {
                                 contentType(ContentType.Application.Json)
-                                setBody(ytBody)
+                                setBody("""{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"$cleanQuery"}""")
                             }.bodyAsText()
-                            val videoId = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
-                                .find(ytRaw)?.groupValues?.getOrNull(1)
-                            if (videoId != null) {
-                                audioUrl = runCatching {
-                                    cobaltAudioUrl("https://www.youtube.com/watch?v=$videoId")
-                                }.getOrNull()
-                            }
+                        }.getOrNull()
+                        httpClient.close()
+
+                        val videoId = ytRaw?.let {
+                            Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(it)?.groupValues?.getOrNull(1)
                         }
 
-                        if (audioUrl == null) {
+                        if (videoId == null) {
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     context,
@@ -375,39 +388,38 @@ fun SearchScreen(
                                 ).show()
                                 isDownloadingSpotify = false
                             }
-                            httpClient.close()
                             return@launch
                         }
 
-                        // Download audio bytes from whichever source worked
-                        val audioBytes = httpClient.get(audioUrl) {
-                            header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
-                        }.readBytes()
-                        httpClient.close()
-
-                        // Save to disk and register as local song with Spotify metadata
-                        val safeName = "${track.artist} - ${track.title}"
-                            .replace(Regex("[/\\\\:*?\"<>|]"), "_")
-                        val musicDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)
-                            ?: context.filesDir
-                        val audioFile = File(musicDir, "$safeName.opus")
-                        audioFile.writeBytes(audioBytes)
-
-                        val added = LocalSongs.add(
-                            context, database, Uri.fromFile(audioFile),
-                            track.title, track.artist, track.coverUrl,
+                        // Register the song so DownloadUtil can resolve its stream
+                        database.insert(
+                            MediaMetadata(
+                                id = videoId,
+                                title = track.title,
+                                artists = track.artist.split(",").map {
+                                    MediaMetadata.Artist(id = null, name = it.trim())
+                                },
+                                duration = track.durationSeconds,
+                                thumbnailUrl = track.coverUrl,
+                            ),
                         )
-
+                        // Queue via ExoPlayer — resolves the YouTube stream the same
+                        // way any other song download does (cipher + PoToken + cache)
+                        val dlRequest = androidx.media3.exoplayer.offline.DownloadRequest
+                            .Builder(videoId, android.net.Uri.parse(videoId))
+                            .setCustomCacheKey(videoId)
+                            .setData(track.title.toByteArray())
+                            .build()
+                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                            context, ExoDownloadService::class.java, dlRequest, false,
+                        )
                         withContext(Dispatchers.Main) {
-                            if (added != null) {
-                                playerConnection?.playQueue(
-                                    ListQueue(title = added.title, items = listOf(added.toMediaItem())),
-                                )
-                                downloadedMetadata = added
-                                spotifyUnmatched = null
-                            } else {
-                                Toast.makeText(context, "Saved but couldn't read the file", Toast.LENGTH_SHORT).show()
-                            }
+                            Toast.makeText(
+                                context,
+                                "\"${track.title}\" queued for download",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                            spotifyUnmatched = null
                             isDownloadingSpotify = false
                         }
                     } catch (e: CancellationException) {

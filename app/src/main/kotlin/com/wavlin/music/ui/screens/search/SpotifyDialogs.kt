@@ -377,7 +377,8 @@ fun SpotifyUnmatchedDialog(
     track: SpotifyTrack,
     onSearch: () -> Unit,
     onOpenSpotify: () -> Unit,
-    onPickFile: () -> Unit,
+    onDownload: () -> Unit,
+    isDownloading: Boolean = false,
     onDismiss: () -> Unit,
 ) {
     DefaultDialog(
@@ -392,11 +393,18 @@ fun SpotifyUnmatchedDialog(
                 ) { Text("Spotify") }
             }
             TextButton(
-                onClick = {
-                    onPickFile()
-                    onDismiss()
-                },
-            ) { Text("Local file") }
+                enabled = !isDownloading,
+                onClick = { onDownload() },
+            ) {
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = androidx.compose.ui.Modifier.size(16.dp),
+                    )
+                } else {
+                    Text("Download")
+                }
+            }
             TextButton(
                 onClick = {
                     onSearch()

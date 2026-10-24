@@ -3705,4 +3705,17 @@ object YouTube {
             }.awaitAll().filterNotNull().toMap()
         }
     }
+
+    /**
+     * Searches all of YouTube (WEB client, not YouTube Music / WEB_REMIX) and returns the first
+     * video ID found in the response.  Used as a fallback when a track is absent from YouTube
+     * Music so that a plain YouTube upload can still be queued for download.
+     */
+    suspend fun searchFirstVideoId(query: String): Result<String?> =
+        runCatching {
+            val raw = innerTube.search(WEB, query).bodyAsText()
+            // The WEB client response is a large JSON blob; a simple regex is sufficient because
+            // we only need the very first videoId that appears (top search result).
+            Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(raw)?.groupValues?.getOrNull(1)
+        }
 }

@@ -88,12 +88,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.readBytes
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -305,22 +301,32 @@ fun SearchScreen(
                                 requestTimeoutMillis = 30_000
                                 connectTimeoutMillis = 10_000
                             }
+                            // Don't throw on 4xx/5xx so getOrNull() can handle failures gracefully
+                            expectSuccess = false
                         }
                         val jsonParser = Json { ignoreUnknownKeys = true }
 
                         // ── Step 1: spotifydown.com ──────────────────────────
+                        // Fetch the main page first to establish a session/cookies, then call the API.
                         val spotifyTrackId = track.url?.let {
                             Regex("spotify\\.com/track/([A-Za-z0-9]+)").find(it)?.groupValues?.getOrNull(1)
                         }
                         var audioUrl: String? = null
                         if (spotifyTrackId != null) {
                             audioUrl = runCatching {
+                                // Prime the session so the API endpoint accepts the request
+                                httpClient.get("https://spotifydown.com/") {
+                                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+                                    header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                                }
                                 val resp = httpClient.get(
                                     "https://spotifydown.com/api/download?trackId=$spotifyTrackId",
                                 ) {
                                     header("Origin", "https://spotifydown.com")
                                     header("Referer", "https://spotifydown.com/")
-                                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+                                    header("Accept", "application/json, text/plain, */*")
+                                    header("Accept-Language", "en-US,en;q=0.9")
                                 }.bodyAsText()
                                 val j = jsonParser.parseToJsonElement(resp).jsonObject
                                 val success = j["success"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
@@ -361,29 +367,21 @@ fun SearchScreen(
                             return@launch
                         }
 
-                        // ── Step 2: YouTube search → ExoPlayer download ──────
-                        // Cobalt is replaced by the app's own stream resolver
-                        // (YTPlayerUtils handles cipher deobfuscation + PoToken).
-                        val cleanQuery = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
-                        val ytRaw = runCatching {
-                            httpClient.post(
-                                "https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
-                            ) {
-                                contentType(ContentType.Application.Json)
-                                setBody("""{"context":{"client":{"clientName":"WEB","clientVersion":"2.20231219.01.00","hl":"en"}},"query":"$cleanQuery"}""")
-                            }.bodyAsText()
-                        }.getOrNull()
                         httpClient.close()
 
-                        val videoId = ytRaw?.let {
-                            Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(it)?.groupValues?.getOrNull(1)
-                        }
+                        // ── Step 2: YouTube search → ExoPlayer download ──────
+                        // Use the app's own innertube WEB client (YouTube.searchFirstVideoId) instead
+                        // of a raw HTTP call with a stale API key.  The WEB client searches all of
+                        // YouTube — not just YouTube Music — so it can find tracks that are only
+                        // available as regular YouTube uploads.
+                        val cleanQuery = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
+                        val videoId = com.wavlin.innertube.YouTube.searchFirstVideoId(cleanQuery).getOrNull()
 
                         if (videoId == null) {
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     context,
-                                    "Could not download \"${track.title}\" — try searching manually",
+                                    "Could not find \"${track.title}\" on YouTube — try searching manually",
                                     Toast.LENGTH_LONG,
                                 ).show()
                                 isDownloadingSpotify = false

@@ -69,7 +69,7 @@ object SpotifyImporter {
                                     val index = chunkStart + offset
                                     async {
                                         semaphore.withPermit {
-                                            track to (preMatched[index]?.let { saveSong(database, it) }
+                                            track to (preMatched[index]?.let { saveSong(database, it, track.coverUrl) }
                                                 ?: matchTrack(database, track)
                                                 ?: ytFallbackMatch(database, track))
                                         }
@@ -120,9 +120,10 @@ object SpotifyImporter {
         }
     }
 
-    private fun saveSong(database: MusicDatabase, song: SongItem): String? =
+    private fun saveSong(database: MusicDatabase, song: SongItem, coverUrl: String? = null): String? =
         try {
-            database.insert(song.toMediaMetadata())
+            val meta = song.toMediaMetadata()
+            database.insert(if (coverUrl != null) meta.copy(thumbnailUrl = coverUrl) else meta)
             song.id
         } catch (e: CancellationException) {
             throw e
@@ -136,12 +137,16 @@ object SpotifyImporter {
     ): String? =
         try {
             SpotifyMatcher.match(track)?.let { matched ->
-                // Prefer Spotify's cover art over the YTM thumbnail so playlist imports
-                // show the correct artwork instead of the YouTube Music version.
                 val meta = matched.toMediaMetadata()
-                database.insert(
-                    if (track.coverUrl != null) meta.copy(thumbnailUrl = track.coverUrl) else meta,
-                )
+                val withCover = if (track.coverUrl != null) meta.copy(thumbnailUrl = track.coverUrl) else meta
+                database.insert(withCover)
+                // INSERT OR IGNORE silently skips existing songs — force-update the thumbnail
+                // so re-imports always replace YTM art with the Spotify cover.
+                if (track.coverUrl != null) {
+                    database.song(matched.id).first()?.let { sw ->
+                        database.query { update(sw.song.copy(thumbnailUrl = track.coverUrl)) }
+                    }
+                }
                 matched.id
             }
         } catch (e: CancellationException) {
@@ -154,15 +159,20 @@ object SpotifyImporter {
         try {
             val query = "${track.title} ${track.artist}".replace(Regex("[!,]"), "").trim()
             val videoId = YouTube.searchFirstVideoId(query).getOrNull() ?: return null
+            val coverUrl = track.coverUrl ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
             database.insert(
                 MediaMetadata(
                     id = videoId,
                     title = track.title,
                     artists = track.artist.split(",").map { MediaMetadata.Artist(id = null, name = it.trim()) },
                     duration = track.durationSeconds,
-                    thumbnailUrl = track.coverUrl ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                    thumbnailUrl = coverUrl,
                 ),
             )
+            // Force-update thumbnail for already-existing entries
+            database.song(videoId).first()?.let { sw ->
+                database.query { update(sw.song.copy(thumbnailUrl = coverUrl)) }
+            }
             videoId
         } catch (e: CancellationException) {
             throw e

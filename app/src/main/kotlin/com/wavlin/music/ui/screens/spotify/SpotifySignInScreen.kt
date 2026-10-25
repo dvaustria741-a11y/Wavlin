@@ -181,10 +181,17 @@ fun SpotifySignInScreen(
                         settings.domStorageEnabled = true
                         settings.setSupportMultipleWindows(true)
                         settings.javaScriptCanOpenWindowsAutomatically = true
-                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        settings.databaseEnabled = true
+                        settings.allowContentAccess = true
+                        settings.allowFileAccess = true
+                        settings.cacheMode = WebSettings.LOAD_DEFAULT
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                        settings.mediaPlaybackRequiresUserGesture = false
                         // Match the desktop Chrome UA that SpotifyAuth uses for token calls;
                         // the mobile UA triggers Spotify's bot-detection and returns a blank page.
-                        settings.userAgentString = SpotifyAuth.USER_AGENT
+                        settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
 
                         fun captureCookies(url: String?) {
                             if (submitted) return
@@ -254,6 +261,14 @@ fun SpotifySignInScreen(
                                     return !(target.startsWith("http://") || target.startsWith("https://"))
                                 }
 
+                                override fun onPageStarted(
+                                    view: WebView?,
+                                    url: String?,
+                                    favicon: android.graphics.Bitmap?,
+                                ) {
+                                    captureCookies(url)
+                                }
+
                                 override fun onPageFinished(
                                     view: WebView?,
                                     url: String?,
@@ -269,6 +284,8 @@ fun SpotifySignInScreen(
                                     captureCookies(url)
                                 }
                             }
+
+                        setBackgroundColor(android.graphics.Color.parseColor("#121212"))
 
                         webView = this
                         loadUrl(SpotifyAuth.LOGIN_URL)

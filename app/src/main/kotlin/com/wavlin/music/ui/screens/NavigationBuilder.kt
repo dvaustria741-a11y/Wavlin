@@ -63,6 +63,9 @@ import com.wavlin.music.ui.screens.settings.integrations.DiscordSettings
 import com.wavlin.music.ui.screens.settings.integrations.IntegrationScreen
 import com.wavlin.music.ui.screens.settings.integrations.LastFMSettings
 import com.wavlin.music.ui.screens.settings.integrations.ListenTogetherSettings
+import com.wavlin.music.ui.screens.settings.integrations.SpotifySettings
+import com.wavlin.music.ui.screens.spotify.SpotifyPlaylistScreen
+import com.wavlin.music.ui.screens.spotify.SpotifySignInScreen
 
 import com.wavlin.music.ui.screens.wrapped.WrappedScreen
 import com.wavlin.music.utils.rememberEnumPreference
@@ -409,6 +412,21 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/integrations/lastfm") {
         LastFMSettings(navController)
+    }
+
+    composable("settings/integrations/spotify") {
+        SpotifySettings(navController)
+    }
+
+    composable("spotify_signin") {
+        SpotifySignInScreen(navController)
+    }
+
+    composable(
+        route = "spotify_playlist/{playlistId}",
+        arguments = listOf(navArgument("playlistId") { type = NavType.StringType }),
+    ) {
+        SpotifyPlaylistScreen(navController)
     }
 
     composable(route = "settings/integrations/listen_together") {

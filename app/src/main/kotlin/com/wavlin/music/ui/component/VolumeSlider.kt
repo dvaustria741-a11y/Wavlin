@@ -65,7 +65,8 @@ fun VolumeSlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onValueChangeFinished: (() -> Unit)? = null,
-    accentColor: Color = MaterialTheme.colorScheme.primary
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    compact: Boolean = false,
 ) {
     if (LocalPinkLilyTheme.current) {
         PinkVolumeSlider(value, onValueChange, modifier, enabled, onValueChangeFinished)
@@ -95,6 +96,10 @@ fun VolumeSlider(
     
     val stopIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant
 
+    val trackHeight = if (compact) 28.dp else VolumeSliderDefaults.TrackHeight
+    val iconDp = if (compact) 18.dp else VolumeSliderDefaults.InsetIconSize
+    val iconPad = if (compact) 8.dp else VolumeSliderDefaults.IconPadding
+
     Slider(
         value = value,
         onValueChange = onValueChange,
@@ -104,15 +109,23 @@ fun VolumeSlider(
         onValueChangeFinished = onValueChangeFinished,
         colors = colors,
         interactionSource = interactionSource,
+        thumb = {
+            SliderDefaults.Thumb(
+                interactionSource = interactionSource,
+                colors = colors,
+                enabled = enabled,
+                thumbSize = if (compact) DpSize(4.dp, 36.dp) else DpSize(VolumeSliderDefaults.HandleWidth, VolumeSliderDefaults.HandleHeight),
+            )
+        },
         track = { sliderState ->
-            val iconSize = DpSize(VolumeSliderDefaults.InsetIconSize, VolumeSliderDefaults.InsetIconSize)
+            val iconSize = DpSize(iconDp, iconDp)
             val activeIconColor = colors.activeTickColor
             val inactiveIconColor = colors.inactiveTickColor
 
             SliderDefaults.Track(
                 sliderState = sliderState,
                 modifier = Modifier
-                    .height(VolumeSliderDefaults.TrackHeight)
+                    .height(trackHeight)
                     .drawWithContent {
                         drawContent()
                         val yOffset = size.height / 2 - iconSize.toSize().height / 2
@@ -126,7 +139,7 @@ fun VolumeSlider(
                         drawVolumeIcon(
                             icon = currentIcon,
                             iconSize = iconSize,
-                            iconPadding = VolumeSliderDefaults.IconPadding,
+                            iconPadding = iconPad,
                             yOffset = yOffset,
                             activeTrackWidth = activeTrackWidth,
                             inactiveTrackStart = inactiveTrackStart,

@@ -304,7 +304,7 @@ fun PlayerMenu(
                             PlayerQuickAction(
                                 iconRes = R.drawable.equalizer,
                                 label = stringResource(R.string.audio_eq),
-                                circleColor = colors.tertiaryContainer,
+                                circleColor = colors.primary.copy(alpha = 0.22f),
                                 onClick = {
                                     navController.navigate("equalizer")
                                     onDismiss()
@@ -313,19 +313,19 @@ fun PlayerMenu(
                             PlayerQuickAction(
                                 iconRes = R.drawable.playlist_add,
                                 label = stringResource(R.string.add_playlist),
-                                circleColor = colors.errorContainer,
+                                circleColor = colors.tertiary.copy(alpha = 0.22f),
                                 onClick = { showChoosePlaylistDialog = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.sleep_timer,
                                 label = stringResource(R.string.sleep_timer),
-                                circleColor = colors.secondaryContainer,
+                                circleColor = colors.secondary.copy(alpha = 0.22f),
                                 onClick = { showSleepTimerPickerDialog = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.info,
                                 label = stringResource(R.string.track_info),
-                                circleColor = colors.surfaceVariant,
+                                circleColor = colors.onSurface.copy(alpha = 0.12f),
                                 onClick = {
                                     onShowDetailsDialog()
                                     onDismiss()
@@ -359,20 +359,19 @@ fun PlayerMenu(
 
         item {
             val startingRadioText = stringResource(R.string.starting_radio)
-            NewActionGrid(
-                actions =
+            PlayerMenuListCard(
+                items =
                     listOfNotNull(
                         if (!isListenTogetherGuest) {
-                            NewAction(
+                            Material3MenuItemData(
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.radio),
                                         contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp),
                                     )
                                 },
-                                text = stringResource(R.string.start_radio),
+                                title = { Text(text = stringResource(R.string.start_radio)) },
                                 onClick = {
                                     Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
                                     playerConnection.startRadioSeamlessly()
@@ -382,16 +381,15 @@ fun PlayerMenu(
                         } else {
                             null
                         },
-                        NewAction(
+                        Material3MenuItemData(
                             icon = {
                                 Icon(
                                     painter = painterResource(R.drawable.link),
                                     contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp),
                                 )
                             },
-                            text = stringResource(R.string.copy_link),
+                            title = { Text(text = stringResource(R.string.copy_link)) },
                             onClick = {
                                 val clipboard =
                                     context.getSystemService(
@@ -410,8 +408,6 @@ fun PlayerMenu(
                             },
                         ),
                     ),
-                columns = if (isListenTogetherGuest) 1 else 2,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp),
             )
         }
 
@@ -419,7 +415,7 @@ fun PlayerMenu(
             // Check if this is a podcast episode (album ID doesn't start with MPREb_)
             val isPodcast = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
 
-            Material3MenuGroup(
+            PlayerMenuListCard(
                 items =
                     buildList {
                         if (mediaMetadata.album != null) {
@@ -521,7 +517,7 @@ fun PlayerMenu(
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
-            Material3MenuGroup(
+            PlayerMenuListCard(
                 items =
                     listOf(
                         when (download?.state) {
@@ -596,7 +592,7 @@ fun PlayerMenu(
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
-            Material3MenuGroup(
+            PlayerMenuListCard(
                 items =
                     buildList {
                         add(
@@ -657,7 +653,7 @@ fun PlayerMenu(
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
-            Material3MenuGroup(
+            PlayerMenuListCard(
                 items =
                     buildList {
                         if (isQueueTrigger != true) {

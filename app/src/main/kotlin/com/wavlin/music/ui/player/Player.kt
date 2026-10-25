@@ -2485,6 +2485,10 @@ private fun AudioQualityBadge(
             c.contains("flac") || m.contains("flac") -> "FLAC"
             c.contains("alac") || m.contains("alac") -> "ALAC"
             m.contains("raw") || m.contains("wav") || m.contains("pcm") -> "WAV"
+            // Dolby Atmos formats — check before generic AAC to avoid false matches
+            m.contains("eac3-joc") || m.contains("eac3_joc") -> "E-AC-3 JOC"
+            m.contains("ac4") -> "AC-4"
+            m.contains("eac3") || m.contains("e-ac-3") -> "E-AC-3"
             c.contains("opus") || m.contains("opus") -> "OPUS"
             c.contains("mp4a") || c.contains("aac") || m.contains("mp4a") || m.contains("aac") -> "AAC"
             c.contains("mp3") || m.contains("mpeg") -> "MP3"

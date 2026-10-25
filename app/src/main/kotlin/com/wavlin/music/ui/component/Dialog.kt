@@ -168,14 +168,14 @@ fun AccountSettingsDialog(
                             onTap = { onDismiss() }
                         )
                     },
-            contentAlignment = Alignment.TopCenter,
+            contentAlignment = Alignment.Center,
         ) {
             val pinkLily = LocalPinkLilyTheme.current
             Surface(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(top = 72.dp, start = 16.dp, end = 16.dp)
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
                         .let { base ->
                             if (pinkLily) {
                                 base.lilyNinePatch(res = com.wavlin.music.R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp)

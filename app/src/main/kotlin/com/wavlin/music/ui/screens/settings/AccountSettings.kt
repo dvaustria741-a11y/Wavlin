@@ -76,7 +76,9 @@ import com.wavlin.music.ui.component.TextFieldDialog
 import com.wavlin.music.utils.Updater
 import com.wavlin.music.utils.rememberPreference
 import com.wavlin.music.viewmodels.AccountSettingsViewModel
+import com.wavlin.music.spotify.account.SpotifyAuthState
 import com.wavlin.music.viewmodels.HomeViewModel
+import com.wavlin.music.viewmodels.SpotifyViewModel
 
 @Composable
 fun AccountSettings(
@@ -102,6 +104,10 @@ fun AccountSettings(
 
     val homeViewModel: HomeViewModel = hiltViewModel()
     val accountSettingsViewModel: AccountSettingsViewModel = hiltViewModel()
+    val spotifyViewModel: SpotifyViewModel = hiltViewModel()
+    val spotifyState by spotifyViewModel.authState.collectAsStateWithLifecycle()
+    val spotifyName by spotifyViewModel.accountName.collectAsStateWithLifecycle()
+    val spotifyConnected = spotifyState == SpotifyAuthState.CONNECTED
     val accountName by homeViewModel.accountName.collectAsStateWithLifecycle()
     val accountImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
 
@@ -199,10 +205,22 @@ fun AccountSettings(
                         icon = painterResource(R.drawable.ic_youtube_music),
                         tint = Color(0xFFFF0000),
                         name = "YouTube Music",
+                        connected = isLoggedIn,
+                        status =
+                            if (isLoggedIn) {
+                                listOf(stringResource(R.string.spotify_connected), accountName).filter { it.isNotBlank() }.joinToString(" · ")
+                            } else {
+                                stringResource(R.string.spotify_not_connected)
+                            },
+                        actionLabel = if (isLoggedIn) stringResource(R.string.action_logout) else null,
+                        onAction = {
+                            showLoginPicker = false
+                            showLogoutDialog = true
+                        },
                         onClick = {
                             showLoginPicker = false
                             onClose()
-                            navController.navigate("login")
+                            navController.navigate(if (isLoggedIn) "account" else "login")
                         }
                     )
                     Spacer(Modifier.height(8.dp))
@@ -210,10 +228,20 @@ fun AccountSettings(
                         icon = painterResource(R.drawable.ic_spotify_logo),
                         tint = Color(0xFF1DB954),
                         name = stringResource(R.string.spotify),
+                        connected = spotifyConnected,
+                        status =
+                            when {
+                                spotifyConnected ->
+                                    listOf(stringResource(R.string.spotify_connected), spotifyName).filter { it.isNotBlank() }.joinToString(" · ")
+                                spotifyState == SpotifyAuthState.LOADING -> stringResource(R.string.spotify_connecting)
+                                else -> stringResource(R.string.spotify_not_connected)
+                            },
+                        actionLabel = if (spotifyConnected) stringResource(R.string.action_logout) else null,
+                        onAction = { spotifyViewModel.logout() },
                         onClick = {
                             showLoginPicker = false
                             onClose()
-                            navController.navigate("spotify_signin")
+                            navController.navigate(if (spotifyConnected) "settings/integrations/spotify" else "spotify_signin")
                         }
                     )
                 },
@@ -312,30 +340,14 @@ fun AccountSettings(
                         }
                     },
                     icon = if (!isLoggedIn) painterResource(R.drawable.login) else null,
-                    trailingContent = {
-                        if (isLoggedIn) {
-                            OutlinedButton(
-                                onClick = {
-                                    Timber.d("[LOGOUT] User clicked logout button, showing dialog")
-                                    showLogoutDialog = true
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            ) {
-                                Text(stringResource(R.string.action_logout))
-                            }
+                    description = {
+                        val parts = buildList {
+                            if (isLoggedIn) add("YouTube Music")
+                            if (spotifyConnected) add(stringResource(R.string.spotify))
                         }
+                        if (parts.isNotEmpty()) Text(parts.joinToString(" · "))
                     },
-                    onClick = {
-                        if (isLoggedIn) {
-                            onClose()
-                            navController.navigate("account")
-                        } else {
-                            showLoginPicker = true
-                        }
-                    }
+                    onClick = { showLoginPicker = true }
                 )
             ),
             useLowContrast = true
@@ -486,6 +498,10 @@ private fun LoginServiceRow(
     icon: androidx.compose.ui.graphics.painter.Painter,
     tint: Color,
     name: String,
+    status: String,
+    connected: Boolean,
+    actionLabel: String?,
+    onAction: () -> Unit,
     onClick: () -> Unit,
 ) {
     Row(
@@ -494,7 +510,7 @@ private fun LoginServiceRow(
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -504,10 +520,22 @@ private fun LoginServiceRow(
             modifier = Modifier.size(28.dp)
         )
         Spacer(Modifier.width(16.dp))
-        Text(
-            text = name,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (connected) Color(0xFF2E9E5B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
+        if (actionLabel != null) {
+            TextButton(onClick = onAction) { Text(actionLabel) }
+        }
     }
 }

@@ -265,6 +265,8 @@ fun AboutScreen(
                     Image(
                         painter = painterResource(R.drawable.wavlin_logo),
                         contentDescription = stringResource(R.string.wavlin),
+                        // The oval behind it is black, so the logo is drawn white on top of it
+                        colorFilter = ColorFilter.tint(Color.White),
                         modifier = Modifier.size(52.dp)
                     )
                 }

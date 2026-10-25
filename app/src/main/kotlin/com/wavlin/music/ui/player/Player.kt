@@ -2366,33 +2366,55 @@ private fun AudioQualityBadge(
             baseLabel
         }
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(enabled = bitrateKbps > 0) { showKbps = !showKbps }
-            .background(contentColor.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center,
+    // Animate the whole badge in when it first becomes visible
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 2 }),
+        modifier = modifier,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(enabled = bitrateKbps > 0) { showKbps = !showKbps }
+                .background(contentColor.copy(alpha = 0.12f))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            if (isLossless) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lossless),
-                    contentDescription = null,
-                    tint = contentColor.copy(alpha = 0.75f),
-                    modifier = Modifier.size(14.dp),
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                // Animate the lossless icon in/out when quality tier changes
+                AnimatedVisibility(
+                    visible = isLossless,
+                    enter = fadeIn(tween(300)) + slideInVertically(tween(300), initialOffsetY = { -it }),
+                    exit = fadeOut(tween(200)) + slideOutVertically(tween(200), targetOffsetY = { -it }),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lossless),
+                        contentDescription = null,
+                        tint = contentColor.copy(alpha = 0.75f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                // Animate the label text when it changes (format detected, bitrate toggled)
+                AnimatedContent(
+                    targetState = badgeText,
+                    transitionSpec = {
+                        (fadeIn(tween(250)) + slideInVertically(tween(250), initialOffsetY = { -it }))
+                            .togetherWith(fadeOut(tween(200)) + slideOutVertically(tween(200), targetOffsetY = { it }))
+                    },
+                    label = "BadgeText",
+                ) { label ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contentColor.copy(alpha = 0.75f),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
             }
-            Text(
-                text = badgeText,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor.copy(alpha = 0.75f),
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
         }
     }
 }

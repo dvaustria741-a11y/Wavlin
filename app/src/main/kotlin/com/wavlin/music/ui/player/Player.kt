@@ -32,6 +32,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -1427,35 +1429,28 @@ fun BottomSheetPlayer(
 
             if (useNewPlayerDesign) {
                 val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = PlayerHorizontalPadding),
                 ) {
-                    val buttonSize = 42.dp
-                    val iconSize = 24.dp
-                    val queueShape = RoundedCornerShape(topStart = 50.dp, bottomStart = 50.dp, topEnd = 3.dp, bottomEnd = 3.dp)
-                    val middleShape = RoundedCornerShape(3.dp)
-                    val repeatShape = RoundedCornerShape(topStart = 3.dp, bottomStart = 3.dp, topEnd = 50.dp, bottomEnd = 50.dp)
-
-                    PlayerQueueButton(
+                    PlayerChip(
                         icon = R.drawable.queue_music,
+                        label = stringResource(R.string.queue),
                         onClick = { queueSheetState.expandSoft() },
                         isActive = false,
-                        shape = queueShape,
-                        modifier = Modifier.size(buttonSize),
                         textButtonColor = textButtonColor,
                         iconButtonColor = iconButtonColor,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
+                        textColor = TextBackgroundColor,
                     )
-
-                    PlayerQueueButton(
+                    PlayerChip(
                         icon = R.drawable.bedtime,
+                        label = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else stringResource(R.string.sleep_timer),
                         onClick = {
                             if (sleepTimerEnabled) {
                                 playerConnection.service.sleepTimer?.clear()
@@ -1465,65 +1460,41 @@ fun BottomSheetPlayer(
                         },
                         isActive = sleepTimerEnabled,
                         enabled = !isListenTogetherGuest,
-                        shape = middleShape,
-                        modifier = Modifier.size(buttonSize),
                         textButtonColor = textButtonColor,
                         iconButtonColor = iconButtonColor,
-                        text = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
+                        textColor = TextBackgroundColor,
                     )
-
-                    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
-                    PlayerQueueButton(
+                    PlayerChip(
                         icon = R.drawable.shuffle,
+                        label = stringResource(R.string.shuffle),
                         onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
                         isActive = shuffleModeEnabled,
                         enabled = !isListenTogetherGuest,
-                        shape = middleShape,
-                        modifier = Modifier.size(buttonSize),
                         textButtonColor = textButtonColor,
                         iconButtonColor = iconButtonColor,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
+                        textColor = TextBackgroundColor,
                     )
-
-                    PlayerQueueButton(
+                    PlayerChip(
                         icon = R.drawable.lyrics,
+                        label = stringResource(R.string.lyrics),
                         onClick = { showInlineLyrics = !showInlineLyrics },
                         isActive = showInlineLyrics,
-                        shape = middleShape,
-                        modifier = Modifier.size(buttonSize),
                         textButtonColor = textButtonColor,
                         iconButtonColor = iconButtonColor,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
+                        textColor = TextBackgroundColor,
                     )
-
-                    PlayerQueueButton(
-                        icon =
-                            when (repeatMode) {
-                                Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                else -> R.drawable.repeat
-                            },
+                    PlayerChip(
+                        icon = if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
+                        label = stringResource(R.string.repeat),
                         onClick = { playerConnection.player.toggleRepeatMode() },
                         isActive = repeatMode != Player.REPEAT_MODE_OFF,
                         enabled = !isListenTogetherGuest,
-                        shape = repeatShape,
-                        modifier = Modifier.size(buttonSize),
                         textButtonColor = textButtonColor,
                         iconButtonColor = iconButtonColor,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
+                        textColor = TextBackgroundColor,
                     )
-
-                    // Landscape has no "Now Playing" header, so the 3 dots stay at the end of this row there.
+                    // Landscape has no "Now Playing" header, so the 3 dots live at the end of the row there.
                     if (isLandscapeNow) {
-                        Spacer(modifier = Modifier.weight(1f))
                         PlayerMoreDotsButton(mediaMetadata = mediaMetadata, state = state, tint = TextBackgroundColor)
                     }
                 }
@@ -2368,6 +2339,45 @@ fun MoreActionsButton(
             painter = painterResource(R.drawable.more_horiz),
             contentDescription = null,
             colorFilter = ColorFilter.tint(iconButtonColor),
+        )
+    }
+}
+
+@Composable
+private fun PlayerChip(
+    icon: Int,
+    label: String,
+    onClick: () -> Unit,
+    isActive: Boolean,
+    textButtonColor: Color,
+    iconButtonColor: Color,
+    textColor: Color,
+    enabled: Boolean = true,
+) {
+    val contentColor = if (isActive) iconButtonColor else textColor
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .height(48.dp)
+                .alpha(if (enabled) 1f else 0.4f)
+                .clip(CircleShape)
+                .background(if (isActive) textButtonColor else textColor.copy(alpha = 0.12f))
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(horizontal = 18.dp),
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp),
+        )
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
         )
     }
 }

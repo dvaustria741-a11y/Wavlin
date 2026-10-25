@@ -301,6 +301,8 @@ class App :
             .Builder(this)
             .apply {
                 crossfade(true)
+                // Covers of downloaded songs are kept in app storage and win over the network/cache copy
+                components { add(com.wavlin.music.utils.OfflineArtworkInterceptor(applicationContext)) }
                 allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                 // Memory cache for fast image loading (prevents network requests on recomposition)
                 memoryCache {

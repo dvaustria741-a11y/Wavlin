@@ -79,7 +79,7 @@ object SpotifyPlayback {
             title = track.name,
             artists = track.artists.map { MediaMetadata.Artist(id = null, name = it.name) },
             duration = track.durationMs / 1000,
-            thumbnailUrl = track.thumbnailUrl(),
+            thumbnailUrl = track.thumbnailUrl() ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
         )
     }
 

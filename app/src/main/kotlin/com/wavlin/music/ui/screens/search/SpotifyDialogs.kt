@@ -127,7 +127,11 @@ fun SpotifyPlaylistPreviewDialog(
 
     val done = matches.size
     val found = matches.values.count { it is MatchState.Found || it is MatchState.FallbackFound }
-    val covers = (0 until total).mapNotNull { (matches[it] as? MatchState.Found)?.song?.thumbnail }
+    val covers =
+        (0 until total).mapNotNull {
+            (matches[it] as? MatchState.Found)?.song?.thumbnail
+                ?: collection.tracks.getOrNull(it)?.coverUrl
+        }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -309,12 +313,25 @@ private fun TrackRow(track: SpotifyTrack, state: MatchState?, onMissingClick: ()
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                    is MatchState.FallbackFound, MatchState.Missing ->
-                        Icon(
-                            painter = painterResource(R.drawable.music_note),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    is MatchState.FallbackFound, MatchState.Missing -> {
+                        val cover =
+                            track.coverUrl
+                                ?: (state as? MatchState.FallbackFound)?.let { "https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg" }
+                        if (cover != null) {
+                            AsyncImage(
+                                model = cover,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(R.drawable.music_note),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
 
                     null -> CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 }

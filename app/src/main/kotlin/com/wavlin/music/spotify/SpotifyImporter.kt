@@ -155,7 +155,7 @@ object SpotifyImporter {
                     title = track.title,
                     artists = track.artist.split(",").map { MediaMetadata.Artist(id = null, name = it.trim()) },
                     duration = track.durationSeconds,
-                    thumbnailUrl = track.coverUrl,
+                    thumbnailUrl = track.coverUrl ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                 ),
             )
             videoId

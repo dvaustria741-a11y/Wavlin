@@ -52,7 +52,7 @@ import javax.inject.Singleton
 class DownloadUtil
 @Inject
 constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     val database: MusicDatabase,
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: Cache,
@@ -225,6 +225,8 @@ constructor(
                                     } else {
                                         database.updateDownloadedInfo(songId, true, LocalDateTime.now())
                                     }
+                                    // Keep the cover too, so it still shows with no internet
+                                    com.wavlin.music.utils.ArtworkStore.saveForSong(context, database, songId)
                                 }
                                 Download.STATE_FAILED,
                                 Download.STATE_STOPPED,
@@ -274,6 +276,10 @@ constructor(
         }
 
     init {
+        // Songs downloaded before covers were kept offline get theirs saved the next time the app is online
+        scope.launch {
+            runCatching { com.wavlin.music.utils.ArtworkStore.backfillDownloaded(context, database) }
+        }
         val result = mutableMapOf<String, Download>()
         val cursor = downloadManager.downloadIndex.getDownloads()
         while (cursor.moveToNext()) {

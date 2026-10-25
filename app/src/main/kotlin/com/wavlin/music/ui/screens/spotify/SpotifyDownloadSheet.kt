@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.wavlin.music.R
 import com.wavlin.music.spotify.account.SpotifyWebTrack
+import com.wavlin.music.spotify.account.artistNames
 import com.wavlin.music.spotify.account.thumbnailUrl
 import com.wavlin.music.ui.component.IconButton
 

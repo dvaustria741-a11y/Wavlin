@@ -335,6 +335,7 @@ fun BottomSheetPlayer(
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
     val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
     val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue = null)
+    val liveAudioFormat by playerConnection.currentAudioFormat.collectAsStateWithLifecycle()
 
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
@@ -1585,6 +1586,7 @@ fun BottomSheetPlayer(
                 )
                 AudioQualityBadge(
                     format = currentFormat,
+                    liveFormat = liveAudioFormat,
                     contentColor = TextBackgroundColor,
                 )
                 Text(
@@ -2309,41 +2311,65 @@ private fun PlayerMoreMenuButton(
 @Composable
 private fun AudioQualityBadge(
     format: FormatEntity?,
+    liveFormat: androidx.media3.common.Format?,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    if (format == null) return
+    if (format == null && liveFormat == null) return
 
-    val codecLabel = remember(format) {
-        val c = format.codecs.lowercase()
-        val m = format.mimeType.lowercase()
+    // What the player is really decoding wins over what was stored for the song
+    val codecLabel = remember(format, liveFormat) {
+        val c = (liveFormat?.codecs ?: format?.codecs).orEmpty().lowercase()
+        val m = (liveFormat?.sampleMimeType ?: format?.mimeType).orEmpty().lowercase()
         when {
             c.contains("flac") || m.contains("flac") -> "FLAC"
-            c.contains("opus") -> "OPUS"
-            c.contains("mp4a") || c.contains("aac") -> "AAC"
+            c.contains("alac") || m.contains("alac") -> "ALAC"
+            m.contains("raw") || m.contains("wav") || m.contains("pcm") -> "WAV"
+            c.contains("opus") || m.contains("opus") -> "OPUS"
+            c.contains("mp4a") || c.contains("aac") || m.contains("mp4a") || m.contains("aac") -> "AAC"
             c.contains("mp3") || m.contains("mpeg") -> "MP3"
-            c.contains("vorbis") -> "OGG"
-            else -> format.codecs.uppercase().take(8).ifBlank { "AAC" }
+            c.contains("vorbis") || m.contains("vorbis") -> "OGG"
+            else -> c.uppercase().take(8).ifBlank { "AAC" }
         }
     }
 
-    val isLossless = codecLabel == "FLAC"
-    val bitrateKbps = remember(format) { if (format.bitrate > 0) format.bitrate / 1000 else 0 }
+    val isLossless = codecLabel == "FLAC" || codecLabel == "ALAC" || codecLabel == "WAV"
+    val bitrateKbps =
+        remember(format, liveFormat) {
+            val live = liveFormat?.let { if (it.averageBitrate > 0) it.averageBitrate else it.bitrate } ?: 0
+            val bits = if (live > 0) live else format?.bitrate ?: 0
+            if (bits > 0) bits / 1000 else 0
+        }
+    val sampleRate = liveFormat?.sampleRate?.takeIf { it > 0 } ?: format?.sampleRate ?: 0
+    val isHiRes = isLossless && (sampleRate > 48_000 || bitrateKbps >= 1_400)
 
-    val badgeText = remember(codecLabel, bitrateKbps, isLossless) {
+    val baseLabel =
         when {
-            isLossless && bitrateKbps >= 600 -> "HI-RES LOSSLESS"
+            isHiRes -> "HI-RES LOSSLESS"
             isLossless -> "LOSSLESS"
-            bitrateKbps > 0 -> "$codecLabel · $bitrateKbps kbps"
             else -> codecLabel
         }
+
+    // Tapping shows the bitrate for 5 seconds, then the badge goes back to just the format
+    var showKbps by remember(baseLabel, bitrateKbps) { mutableStateOf(false) }
+    LaunchedEffect(showKbps) {
+        if (showKbps) {
+            delay(5_000)
+            showKbps = false
+        }
     }
 
-    if (badgeText.isBlank()) return
+    val badgeText =
+        if (showKbps && bitrateKbps > 0) {
+            "$baseLabel · ${String.format(java.util.Locale.US, "%,d", bitrateKbps)} kbps"
+        } else {
+            baseLabel
+        }
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
+            .clickable(enabled = bitrateKbps > 0) { showKbps = !showKbps }
             .background(contentColor.copy(alpha = 0.12f))
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,

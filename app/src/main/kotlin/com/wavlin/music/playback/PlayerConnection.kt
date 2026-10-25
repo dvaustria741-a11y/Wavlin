@@ -14,7 +14,10 @@ import androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.STATE_ENDED
+import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.wavlin.music.constants.SleepTimerCustomDaysKey
 import com.wavlin.music.constants.SleepTimerDayTimesKey
@@ -174,6 +177,9 @@ class PlayerConnection(
             database.format(mediaMetadata?.id)
         }.stateIn(scope, SharingStarted.Lazily, null)
 
+    /** The audio format ExoPlayer is decoding right now, so the quality badge follows every song change. */
+    val currentAudioFormat = MutableStateFlow<Format?>(null)
+
     val queueTitle = MutableStateFlow<String?>(null)
     val queueGeneration = MutableStateFlow(0L)
     val queueWindows = MutableStateFlow<List<Timeline.Window>>(emptyList())
@@ -224,6 +230,7 @@ class PlayerConnection(
         attachedPlayer?.removeListener(this)
         attachedPlayer = newPlayer
         newPlayer.addListener(this)
+        refreshAudioFormat(newPlayer.currentTracks)
         // Refresh all state from new player
         playbackState.value = newPlayer.playbackState
         playWhenReady.value = newPlayer.playWhenReady
@@ -597,10 +604,25 @@ class PlayerConnection(
         }
     }
 
+    private fun refreshAudioFormat(tracks: Tracks) {
+        currentAudioFormat.value =
+            tracks.groups
+                .firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
+                ?.let { group ->
+                    (0 until group.length).firstOrNull { group.isTrackSelected(it) }?.let { group.getTrackFormat(it) }
+                }
+    }
+
+    override fun onTracksChanged(tracks: Tracks) {
+        refreshAudioFormat(tracks)
+    }
+
     override fun onMediaItemTransition(
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        // Drop the previous song's format until the new one's tracks are known
+        currentAudioFormat.value = null
         mediaMetadata.value = mediaItem?.metadata
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()

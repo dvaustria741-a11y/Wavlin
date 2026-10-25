@@ -1,6 +1,7 @@
 package com.wavlin.music.ui.menu
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,11 +41,24 @@ import com.wavlin.music.audio.dolby.DolbyAtmosManager
 import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
 import com.wavlin.music.models.MediaMetadata
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.VolumeSlider
+import com.wavlin.music.ui.theme.PinkSwoosh
 import com.wavlin.music.utils.rememberEnumPreference
 import kotlin.math.roundToInt
 
 private val CardShape = RoundedCornerShape(28.dp)
+
+/** Card surface: tonal container normally, frosted rose glass in the Secret Pink theme. */
+@Composable
+private fun Modifier.menuCard(): Modifier =
+    if (LocalPinkLilyTheme.current) {
+        this
+            .background(Color.White.copy(alpha = 0.42f), CardShape)
+            .border(1.dp, PinkSwoosh.copy(alpha = 0.6f), CardShape)
+    } else {
+        this.background(MaterialTheme.colorScheme.surfaceContainer)
+    }
 
 /** SpatialFlow-style "Now Playing" card: artwork, title/artist and the volume control. */
 @Composable
@@ -59,7 +73,7 @@ fun PlayerMenuNowPlayingCard(
             Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .menuCard()
                 .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -137,7 +151,7 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
             Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .menuCard()
                 .padding(8.dp),
     ) {
         actions.forEach { action ->
@@ -147,7 +161,7 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .background(if (LocalPinkLilyTheme.current) Color.White.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable(onClick = action.onClick)
                         .padding(vertical = 10.dp, horizontal = 2.dp),
             ) {
@@ -187,7 +201,7 @@ fun PlayerMenuRowCard(
             Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .menuCard()
                 .clickable(onClick = onClick)
                 .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
@@ -211,7 +225,7 @@ fun PlayerMenuSettingsCard() {
             Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .menuCard()
                 .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -241,7 +255,12 @@ fun PlayerMenuSettingsCard() {
                             .height(40.dp)
                             .clip(CircleShape)
                             .background(
-                                if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                when {
+                                    selected && LocalPinkLilyTheme.current -> PinkSwoosh.copy(alpha = 0.45f)
+                                    selected -> MaterialTheme.colorScheme.primaryContainer
+                                    LocalPinkLilyTheme.current -> Color.White.copy(alpha = 0.35f)
+                                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
                             ).clickable { onPlayerBackgroundChange(style) },
                 ) {
                     if (selected) {
@@ -309,16 +328,12 @@ private fun SettingSwitchRow(
 @Composable
 fun PlayerMenuListCard(items: List<com.wavlin.music.ui.component.Material3MenuItemData>) {
     if (items.isEmpty()) return
-    if (com.wavlin.music.ui.component.LocalPinkLilyTheme.current) {
-        com.wavlin.music.ui.component.Material3MenuGroup(items = items)
-        return
-    }
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(CardShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
+                .menuCard(),
     ) {
         items.forEachIndexed { index, item ->
             if (index > 0) {

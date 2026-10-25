@@ -69,7 +69,7 @@ fun VolumeSlider(
     compact: Boolean = false,
 ) {
     if (LocalPinkLilyTheme.current) {
-        PinkVolumeSlider(value, onValueChange, modifier, enabled, onValueChangeFinished)
+        PinkVolumeSlider(value, onValueChange, modifier, enabled, onValueChangeFinished, compact)
         return
     }
     val interactionSource = remember { MutableInteractionSource() }
@@ -205,6 +205,7 @@ private fun PinkVolumeSlider(
     modifier: Modifier,
     enabled: Boolean,
     onValueChangeFinished: (() -> Unit)?,
+    compact: Boolean = false,
 ) {
     val trackImg = ImageBitmap.imageResource(R.drawable.lily_vol_track)
     val icon = painterResource(
@@ -226,7 +227,7 @@ private fun PinkVolumeSlider(
             Image(
                 painter = painterResource(R.drawable.lily_vol_knob),
                 contentDescription = null,
-                modifier = Modifier.size(width = 46.dp, height = 52.dp),
+                modifier = if (compact) Modifier.size(width = 31.dp, height = 35.dp) else Modifier.size(width = 46.dp, height = 52.dp),
             )
         },
         track = { sliderState ->
@@ -235,7 +236,7 @@ private fun PinkVolumeSlider(
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(30.dp)
+                    .height(if (compact) 24.dp else 30.dp)
                     .drawWithContent {
                         drawLilySliced(trackImg, trackImg.height / 2, trackImg.height / 2)
                         val r = size.height / 2
@@ -247,8 +248,8 @@ private fun PinkVolumeSlider(
                                 cornerRadius = CornerRadius(r, r),
                             )
                         }
-                        val sz = 20.dp.toPx()
-                        translate(12.dp.toPx(), (size.height - sz) / 2) {
+                        val sz = (if (compact) 16.dp else 20.dp).toPx()
+                        translate((if (compact) 10.dp else 12.dp).toPx(), (size.height - sz) / 2) {
                             with(icon) {
                                 draw(androidx.compose.ui.geometry.Size(sz, sz), colorFilter = ColorFilter.tint(PinkInk))
                             }

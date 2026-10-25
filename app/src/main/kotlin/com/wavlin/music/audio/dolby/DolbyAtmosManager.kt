@@ -153,8 +153,11 @@ object DolbyAtmosManager {
             )
             _liveDiagnostics.value = updatedDiag
 
-            val canSpatialize = updatedDiag.capability == DolbyAtmosCapability.FULLY_SUPPORTED
-            val active = isPreferred && updatedDiag.capability != DolbyAtmosCapability.UNSUPPORTED
+            // isAtmosActive must only be true when the actual stream IS Dolby Atmos.
+            // Checking just capability would light up the badge for plain AAC streams.
+            val active = isPreferred && currentSongHasAtmos &&
+                updatedDiag.capability != DolbyAtmosCapability.UNSUPPORTED &&
+                updatedDiag.capability != DolbyAtmosCapability.DISABLED
             _isAtmosActive.value = active
             applyVirtualizerState(active)
         }
@@ -181,6 +184,11 @@ object DolbyAtmosManager {
         val isPreferred = _isAtmosEnabledByUser.value
         val active = isPreferred && currentDiag.capability != DolbyAtmosCapability.UNSUPPORTED
 
+        val canSpatialize = currentDiag.capability == DolbyAtmosCapability.FULLY_SUPPORTED
+        // Only mark active when there's a real Atmos stream — not just user preference.
+        val active = isPreferred && hasAtmosStream &&
+            currentDiag.capability != DolbyAtmosCapability.UNSUPPORTED &&
+            currentDiag.capability != DolbyAtmosCapability.DISABLED
         _isAtmosActive.value = active
         applyVirtualizerState(active)
         _liveDiagnostics.value = currentDiag.copy(
@@ -188,8 +196,8 @@ object DolbyAtmosManager {
             channelCount = channelCount,
             currentMode = when {
                 !isPreferred -> AtmosPlaybackMode.DISABLED
-                hasAtmosStream -> AtmosPlaybackMode.ACTIVE_ATMOS
-                active -> AtmosPlaybackMode.ACTIVE_ATMOS
+                hasAtmosStream && canSpatialize -> AtmosPlaybackMode.ACTIVE_ATMOS
+                hasAtmosStream -> AtmosPlaybackMode.STEREO_FALLBACK
                 else -> AtmosPlaybackMode.NOT_ATMOS
             }
         )

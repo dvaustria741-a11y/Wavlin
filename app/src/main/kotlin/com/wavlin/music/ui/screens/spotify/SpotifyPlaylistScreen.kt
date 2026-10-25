@@ -89,7 +89,7 @@ fun SpotifyPlaylistScreen(
     var showDownloadSheet by remember { mutableStateOf(false) }
 
     // Finds the YouTube Music match for each picked song, saves it and starts its download
-    fun startDownload(picked: List<com.wavlin.music.spotify.account.SpotifyWebTrack>) {
+    fun startDownload(picked: List<com.wavlin.music.spotify.account.SpotifyWebTrack>, format: SpotifyDownloadFormat = SpotifyDownloadFormat.OPUS) {
         if (picked.isEmpty()) return
         Toast.makeText(context, context.getString(R.string.spotify_download_preparing), Toast.LENGTH_SHORT).show()
         scope.launch {
@@ -98,11 +98,14 @@ fun SpotifyPlaylistScreen(
                 val matches = coroutineScope { chunk.map { async { SpotifyPlayback.resolve(it) } }.awaitAll() }
                 matches.filterNotNull().forEach { metadata ->
                     withContext(Dispatchers.IO) { database.query { insert(metadata) } }
+                    // Encode "<title>|<format>" so ExoDownloadService can honour the
+                    // chosen container format when transcoding support is added later.
+                    val requestData = "${metadata.title}|${format.name}".toByteArray()
                     val request =
                         DownloadRequest
                             .Builder(metadata.id, metadata.id.toUri())
                             .setCustomCacheKey(metadata.id)
-                            .setData(metadata.title.toByteArray())
+                            .setData(requestData)
                             .build()
                     DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
                     started++
@@ -240,9 +243,9 @@ fun SpotifyPlaylistScreen(
             coverUrl = playlist?.thumbnailUrl(),
             tracks = loadedForSheet.tracks,
             onDismiss = { showDownloadSheet = false },
-            onDownload = { picked ->
+            onDownload = { picked, format ->
                 showDownloadSheet = false
-                startDownload(picked)
+                startDownload(picked, format)
             },
         )
     }

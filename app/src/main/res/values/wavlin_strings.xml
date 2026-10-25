@@ -1088,6 +1088,17 @@
     <string name="spotify_download_started_partial">Downloading %1$d tracks, %2$d had no match</string>
     <string name="audio_quality_lossless">Lossless</string>
 
+    <!-- Spotify download sheet — Audio Format -->
+    <string name="spotify_audio_format">Audio Format</string>
+    <string name="spotify_format_opus">OPUS</string>
+    <string name="spotify_format_mp3">MP3</string>
+    <string name="spotify_format_flac">FLAC</string>
+    <string name="spotify_format_opus_desc">Original stream • ~160 kbps (High efficiency)</string>
+    <string name="spotify_format_mp3_desc">Converted • ~128 kbps (Broad compatibility)</string>
+    <string name="spotify_format_flac_desc">Lossless • ~1000 kbps (Highest quality)</string>
+    <!-- e.g. "Download 29 Tracks • OPUS" -->
+    <string name="spotify_download_n_format">Download %1$d Tracks • %2$s</string>
+
     <string name="spotify_download_preparing">Finding matches for download…</string>
     <string name="spotify_no_match">No YouTube Music match found</string>
     <string name="spotify_import_playlist">Import</string>

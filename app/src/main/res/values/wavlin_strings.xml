@@ -70,6 +70,16 @@
     <string name="short_link_failed">Couldn\'t make a short link (%1$s), sharing the long one</string>
     <string name="starting_radio">Starting radio…</string>
     <string name="now_playing">Now Playing</string>
+    <string name="player_theme">Player Theme</string>
+    <string name="dolby_atmos">Dolby Atmos</string>
+    <string name="dolby_atmos_active">Active for spatial &amp; multichannel streams</string>
+    <string name="dolby_atmos_off">Disabled</string>
+    <string name="dolby_atmos_unsupported">Unsupported on current device/route</string>
+    <string name="artwork_swipe_gestures">Artwork Swipe Gestures</string>
+    <string name="artwork_swipe_gestures_desc">Swipe artwork horizontally to change tracks</string>
+    <string name="track_info">Track Info</string>
+    <string name="add_playlist">Add Playlist</string>
+    <string name="audio_eq">Audio EQ</string>
 
     <string name="lyrics">Lyrics</string>
     <string name="close">Close</string>

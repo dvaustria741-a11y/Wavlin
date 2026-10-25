@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,8 +60,18 @@ class MenuState(
     var isVisible by mutableStateOf(isVisible)
     var content by mutableStateOf(content)
     var expandFully by mutableStateOf(false)
+    var heightFraction by mutableFloatStateOf(1f)
 
     fun show(content: @Composable ColumnScope.() -> Unit) = show(expandFully = false, content = content)
+
+    /** Opens a sheet that covers only [heightFraction] of the screen height, leaving the screen behind it visible. */
+    fun show(
+        heightFraction: Float,
+        content: @Composable ColumnScope.() -> Unit,
+    ) {
+        show(expandFully = false, content = content)
+        this.heightFraction = heightFraction
+    }
 
     /** [expandFully] opens tall content (e.g. the share card) fully instead of half-height. */
     fun show(
@@ -68,6 +79,7 @@ class MenuState(
         content: @Composable ColumnScope.() -> Unit,
     ) {
         this.expandFully = expandFully
+        this.heightFraction = 1f
         isVisible = true
         this.content = content
     }
@@ -181,10 +193,10 @@ fun BottomSheetMenu(
             { BottomSheetDefaults.modalWindowInsets }
         },
         modifier = if (pinkLily || wrapContent) {
-            modifier.fillMaxHeight()
+            modifier.fillMaxHeight(state.heightFraction)
         } else {
             modifier
-                .fillMaxHeight()
+                .fillMaxHeight(state.heightFraction)
                 .border(1.dp, glassStrokeBrush(), sheetShape)
         }
     ) {

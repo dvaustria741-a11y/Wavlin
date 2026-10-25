@@ -265,65 +265,6 @@ fun PlayerMenu(
         )
     }
 
-    if (isQueueTrigger != true) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 24.dp, bottom = 6.dp),
-        ) {
-            // Show Cast indicator when casting
-            if (isCasting && castDeviceName != null) {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.cast),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.casting_to, castDeviceName ?: ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                VolumeSlider(
-                    value = if (isCasting) castVolume else playerVolume.value,
-                    onValueChange = { volume ->
-                        if (isCasting) {
-                            castHandler?.setVolume(volume)
-                        } else {
-                            playerConnection.service.playerVolume.value = volume
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    accentColor = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-    }
-
-    Spacer(modifier = Modifier.height(20.dp))
-
-    HorizontalDivider()
-
-    Spacer(modifier = Modifier.height(12.dp))
-
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
@@ -336,6 +277,86 @@ fun PlayerMenu(
                 bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
             ),
     ) {
+        item {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            ) {
+                if (isQueueTrigger != true) {
+                    PlayerMenuNowPlayingCard(
+                        mediaMetadata = mediaMetadata,
+                        volume = if (isCasting) castVolume else playerVolume.value,
+                        onVolumeChange = { volume ->
+                            if (isCasting) {
+                                castHandler?.setVolume(volume)
+                            } else {
+                                playerConnection.service.playerVolume.value = volume
+                            }
+                        },
+                        castDeviceName = if (isCasting) castDeviceName else null,
+                    )
+                }
+
+                val colors = MaterialTheme.colorScheme
+                PlayerMenuQuickActions(
+                    actions =
+                        listOf(
+                            PlayerQuickAction(
+                                iconRes = R.drawable.equalizer,
+                                label = stringResource(R.string.audio_eq),
+                                circleColor = colors.tertiaryContainer,
+                                onClick = {
+                                    navController.navigate("equalizer")
+                                    onDismiss()
+                                },
+                            ),
+                            PlayerQuickAction(
+                                iconRes = R.drawable.playlist_add,
+                                label = stringResource(R.string.add_playlist),
+                                circleColor = colors.errorContainer,
+                                onClick = { showChoosePlaylistDialog = true },
+                            ),
+                            PlayerQuickAction(
+                                iconRes = R.drawable.sleep_timer,
+                                label = stringResource(R.string.sleep_timer),
+                                circleColor = colors.secondaryContainer,
+                                onClick = { showSleepTimerPickerDialog = true },
+                            ),
+                            PlayerQuickAction(
+                                iconRes = R.drawable.info,
+                                label = stringResource(R.string.track_info),
+                                circleColor = colors.surfaceVariant,
+                                onClick = {
+                                    onShowDetailsDialog()
+                                    onDismiss()
+                                },
+                            ),
+                        ),
+                )
+
+                val isPodcastTrack = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
+                if (artists.isNotEmpty() && !isPodcastTrack) {
+                    PlayerMenuRowCard(
+                        iconRes = R.drawable.artist,
+                        title = stringResource(R.string.view_artist),
+                        onClick = {
+                            if (mediaMetadata.artists.size == 1) {
+                                navController.navigate("artist/${mediaMetadata.artists[0].id}")
+                                playerBottomSheetState.collapseSoft()
+                                onDismiss()
+                            } else {
+                                showSelectArtistDialog = true
+                            }
+                        },
+                    )
+                }
+
+                PlayerMenuSettingsCard()
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(12.dp)) }
+
         item {
             val startingRadioText = stringResource(R.string.starting_radio)
             NewActionGrid(
@@ -364,18 +385,6 @@ fun PlayerMenu(
                         NewAction(
                             icon = {
                                 Icon(
-                                    painter = painterResource(R.drawable.playlist_add),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            text = stringResource(R.string.add_to_playlist),
-                            onClick = { showChoosePlaylistDialog = true },
-                        ),
-                        NewAction(
-                            icon = {
-                                Icon(
                                     painter = painterResource(R.drawable.link),
                                     contentDescription = null,
                                     modifier = Modifier.size(32.dp),
@@ -401,7 +410,7 @@ fun PlayerMenu(
                             },
                         ),
                     ),
-                columns = if (isListenTogetherGuest) 2 else 3,
+                columns = if (isListenTogetherGuest) 1 else 2,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp),
             )
         }
@@ -413,37 +422,6 @@ fun PlayerMenu(
             Material3MenuGroup(
                 items =
                     buildList {
-                        // Don't show "View Artist" for podcasts - only show "View Podcast"
-                        if (artists.isNotEmpty() && !isPodcast) {
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.view_artist)) },
-                                    description = {
-                                        Text(
-                                            text = mediaMetadata.artists.joinToString { it.name },
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.artist),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        if (mediaMetadata.artists.size == 1) {
-                                            navController.navigate("artist/${mediaMetadata.artists[0].id}")
-                                            playerBottomSheetState.collapseSoft()
-                                            onDismiss()
-                                        } else {
-                                            showSelectArtistDialog = true
-                                        }
-                                    },
-                                ),
-                            )
-                        }
                         if (mediaMetadata.album != null) {
                             add(
                                 Material3MenuItemData(
@@ -682,42 +660,7 @@ fun PlayerMenu(
             Material3MenuGroup(
                 items =
                     buildList {
-                        add(
-                            Material3MenuItemData(
-                                title = { Text(text = stringResource(R.string.details)) },
-                                description = { Text(text = stringResource(R.string.details_desc)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.info),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                },
-                                onClick = {
-                                    onShowDetailsDialog()
-                                    onDismiss()
-                                },
-                            ),
-                        )
-
                         if (isQueueTrigger != true) {
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.equalizer)) },
-                                    description = { Text(text = stringResource(R.string.equalizer_desc)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.equalizer),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        navController.navigate("equalizer")
-                                        onDismiss()
-                                    },
-                                ),
-                            )
                             add(
                                 Material3MenuItemData(
                                     title = { Text(text = stringResource(R.string.system_equalizer)) },
@@ -764,21 +707,6 @@ fun PlayerMenu(
                             )
                         }
 
-                        add(
-                            Material3MenuItemData(
-                                title = { Text(text = stringResource(R.string.sleep_timer)) },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.sleep_timer),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                },
-                                onClick = {
-                                    showSleepTimerPickerDialog = true
-                                },
-                            ),
-                        )
                     },
             )
         }

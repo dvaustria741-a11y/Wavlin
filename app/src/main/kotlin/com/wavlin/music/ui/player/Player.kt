@@ -2320,7 +2320,7 @@ fun MoreActionsButton(
                 .clip(RoundedCornerShape(24.dp))
                 .background(textButtonColor)
                 .clickable {
-                    menuState.show {
+                    menuState.show(heightFraction = 0.9f) {
                         PlayerMenu(
                             mediaMetadata = mediaMetadata,
                             playerBottomSheetState = state,
@@ -2400,7 +2400,7 @@ fun PlayerMoreDotsButton(
                 .size(40.dp)
                 .clip(CircleShape)
                 .clickable {
-                    menuState.show {
+                    menuState.show(heightFraction = 0.9f) {
                         PlayerMenu(
                             mediaMetadata = mediaMetadata,
                             playerBottomSheetState = state,
@@ -2444,7 +2444,7 @@ private fun PlayerMoreMenuButton(
                 .clip(RoundedCornerShape(24.dp))
                 .background(textButtonColor)
                 .clickable {
-                    menuState.show {
+                    menuState.show(heightFraction = 0.9f) {
                         PlayerMenu(
                             mediaMetadata = mediaMetadata,
                             playerBottomSheetState = state,
@@ -2544,6 +2544,15 @@ private fun AudioQualityBadge(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                val atmosActive by com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosActive.collectAsStateWithLifecycle()
+                if (atmosActive) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_dolby),
+                        contentDescription = null,
+                        tint = contentColor.copy(alpha = 0.75f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
                 // Animate the lossless icon in/out when quality tier changes
                 AnimatedVisibility(
                     visible = isLossless,

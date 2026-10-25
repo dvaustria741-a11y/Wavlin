@@ -35,9 +35,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import android.widget.Toast
-import com.wavlin.music.db.entities.Song
 import com.wavlin.music.spotify.account.SpotifyPlayback
-import com.wavlin.music.ui.menu.DownloadDestinationDialog
+import androidx.core.net.toUri
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
+import com.wavlin.music.playback.ExoDownloadService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,24 +86,35 @@ fun SpotifyPlaylistScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title = playlist?.name ?: stringResource(R.string.spotify)
 
-    var downloadSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var showDownloadDialog by remember { mutableStateOf(false) }
-    var preparingDownload by remember { mutableStateOf(false) }
+    var showDownloadSheet by remember { mutableStateOf(false) }
 
-    // Finds the YouTube Music match for every track, then lets the person pick where to save them
-    fun prepareDownload(tracks: List<com.wavlin.music.spotify.account.SpotifyWebTrack>) {
-        if (preparingDownload || tracks.isEmpty()) return
-        preparingDownload = true
+    // Finds the YouTube Music match for each picked song, saves it and starts its download
+    fun startDownload(picked: List<com.wavlin.music.spotify.account.SpotifyWebTrack>) {
+        if (picked.isEmpty()) return
         Toast.makeText(context, context.getString(R.string.spotify_download_preparing), Toast.LENGTH_SHORT).show()
         scope.launch {
-            val matched = tracks.mapNotNull { SpotifyPlayback.resolve(it)?.toSongEntity() }
-            preparingDownload = false
-            if (matched.isEmpty()) {
-                Toast.makeText(context, context.getString(R.string.spotify_no_match), Toast.LENGTH_SHORT).show()
-            } else {
-                downloadSongs = matched.map { Song(song = it, artists = emptyList()) }
-                showDownloadDialog = true
+            var started = 0
+            picked.chunked(5).forEach { chunk ->
+                val matches = coroutineScope { chunk.map { async { SpotifyPlayback.resolve(it) } }.awaitAll() }
+                matches.filterNotNull().forEach { metadata ->
+                    withContext(Dispatchers.IO) { database.query { insert(metadata) } }
+                    val request =
+                        DownloadRequest
+                            .Builder(metadata.id, metadata.id.toUri())
+                            .setCustomCacheKey(metadata.id)
+                            .setData(metadata.title.toByteArray())
+                            .build()
+                    DownloadService.sendAddDownload(context, ExoDownloadService::class.java, request, false)
+                    started++
+                }
             }
+            val message =
+                when {
+                    started == 0 -> context.getString(R.string.spotify_no_match)
+                    started < picked.size -> context.getString(R.string.spotify_download_started_partial, started, picked.size - started)
+                    else -> context.getString(R.string.spotify_download_started, started)
+                }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -205,9 +223,8 @@ fun SpotifyPlaylistScreen(
             val loaded = state as? SpotifyPlaylistState.Loaded
             if (loaded != null && loaded.tracks.isNotEmpty()) {
                 IconButton(
-                    onClick = { prepareDownload(loaded.tracks) },
+                    onClick = { showDownloadSheet = true },
                     onLongClick = {},
-                    enabled = !preparingDownload,
                 ) {
                     Icon(painterResource(R.drawable.download), contentDescription = stringResource(R.string.action_download))
                 }
@@ -215,9 +232,18 @@ fun SpotifyPlaylistScreen(
         },
     )
 
-    DownloadDestinationDialog(
-        isVisible = showDownloadDialog,
-        songs = downloadSongs,
-        onDismiss = { showDownloadDialog = false },
-    )
+    val loadedForSheet = state as? SpotifyPlaylistState.Loaded
+    if (showDownloadSheet && loadedForSheet != null) {
+        SpotifyDownloadSheet(
+            playlistTitle = title,
+            owner = playlist?.owner?.displayName,
+            coverUrl = playlist?.thumbnailUrl(),
+            tracks = loadedForSheet.tracks,
+            onDismiss = { showDownloadSheet = false },
+            onDownload = { picked ->
+                showDownloadSheet = false
+                startDownload(picked)
+            },
+        )
+    }
 }

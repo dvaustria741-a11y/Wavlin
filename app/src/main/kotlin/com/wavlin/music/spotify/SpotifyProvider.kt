@@ -132,24 +132,29 @@ class SpotifyProvider(
                 }.awaitAll()
         }
 
-    /** Album cover of one track: the public oEmbed endpoint first, the track's embed page as a fallback. */
+    /**
+     * Album cover of one track. Uses the same track embed page the single-track link uses (known to give the
+     * right album), with the public oEmbed endpoint as a fallback.
+     */
     private suspend fun fetchTrackCover(trackId: String): String? {
         try {
+            fetchEntity("track", trackId)?.let { findCover(it) }?.let { return it }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // fall through to oEmbed
+        }
+        return try {
             val response =
                 client.get("https://open.spotify.com/oembed") {
                     parameter("url", "https://open.spotify.com/track/$trackId")
                     header("User-Agent", USER_AGENT)
                 }
             if (response.status.value == 200) {
-                (json.parseToJsonElement(response.bodyAsText()) as? JsonObject)?.string("thumbnail_url")?.let { return it }
+                (json.parseToJsonElement(response.bodyAsText()) as? JsonObject)?.string("thumbnail_url")
+            } else {
+                null
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // fall through to the embed page
-        }
-        return try {
-            fetchEntity("track", trackId)?.let { findCover(it) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

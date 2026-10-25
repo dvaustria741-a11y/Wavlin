@@ -174,6 +174,7 @@ import com.wavlin.music.ui.component.BottomSheetState
 import com.wavlin.music.ui.component.LocalBottomSheetPageState
 import com.wavlin.music.ui.component.LocalMenuState
 import com.wavlin.music.ui.component.Lyrics
+import com.wavlin.music.db.entities.FormatEntity
 import com.wavlin.music.ui.component.PlayerSliderTrack
 import com.wavlin.music.ui.component.ResizableIconButton
 import com.wavlin.music.ui.component.SquigglySlider
@@ -333,6 +334,7 @@ fun BottomSheetPlayer(
 
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
     val squigglySlider by rememberPreference(SquigglySliderKey, defaultValue = false)
+    val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue = null)
 
     // Listen Together state (reactive)
     val listenTogetherManager = LocalListenTogetherManager.current
@@ -1566,13 +1568,12 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(4.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = makeTimeString(sliderPosition ?: effectivePosition),
@@ -1580,14 +1581,19 @@ fun BottomSheetPlayer(
                     color = TextBackgroundColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.CenterStart),
                 )
-
+                AudioQualityBadge(
+                    format = currentFormat,
+                    contentColor = TextBackgroundColor,
+                )
                 Text(
                     text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 )
             }
 
@@ -2297,5 +2303,70 @@ private fun PlayerMoreMenuButton(
             contentDescription = null,
             colorFilter = ColorFilter.tint(iconButtonColor),
         )
+    }
+}
+
+@Composable
+private fun AudioQualityBadge(
+    format: FormatEntity?,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (format == null) return
+
+    val codecLabel = remember(format) {
+        val c = format.codecs.lowercase()
+        val m = format.mimeType.lowercase()
+        when {
+            c.contains("flac") || m.contains("flac") -> "FLAC"
+            c.contains("opus") -> "OPUS"
+            c.contains("mp4a") || c.contains("aac") -> "AAC"
+            c.contains("mp3") || m.contains("mpeg") -> "MP3"
+            c.contains("vorbis") -> "OGG"
+            else -> format.codecs.uppercase().take(8).ifBlank { "AAC" }
+        }
+    }
+
+    val isLossless = codecLabel == "FLAC"
+    val bitrateKbps = remember(format) { if (format.bitrate > 0) format.bitrate / 1000 else 0 }
+
+    val badgeText = remember(codecLabel, bitrateKbps, isLossless) {
+        when {
+            isLossless && bitrateKbps >= 600 -> "HI-RES LOSSLESS"
+            isLossless -> "LOSSLESS"
+            bitrateKbps > 0 -> "$codecLabel · $bitrateKbps kbps"
+            else -> codecLabel
+        }
+    }
+
+    if (badgeText.isBlank()) return
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(contentColor.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (isLossless) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lossless),
+                    contentDescription = null,
+                    tint = contentColor.copy(alpha = 0.75f),
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Text(
+                text = badgeText,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.75f),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        }
     }
 }

@@ -38,6 +38,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -1180,8 +1181,6 @@ fun BottomSheetPlayer(
                             bottomEnd = 50.dp,
                         )
 
-                    val middleShape = RoundedCornerShape(3.dp)
-
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1233,23 +1232,6 @@ fun BottomSheetPlayer(
                                     )
                                 }
                             }
-                        }
-
-                        FilledIconButton(
-                            onClick = { showSleepTimerDialog = true },
-                            shape = middleShape,
-                            colors =
-                                IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = if (sleepTimerEnabled) MaterialTheme.colorScheme.primary else textButtonColor,
-                                    contentColor = if (sleepTimerEnabled) MaterialTheme.colorScheme.onPrimary else iconButtonColor,
-                                ),
-                            modifier = Modifier.size(42.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.bedtime),
-                                contentDescription = stringResource(R.string.sleep_timer),
-                                modifier = Modifier.size(24.dp),
-                            )
                         }
 
                         AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->
@@ -1443,7 +1425,111 @@ fun BottomSheetPlayer(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            if (useNewPlayerDesign) {
+                val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PlayerHorizontalPadding),
+                ) {
+                    val buttonSize = 42.dp
+                    val iconSize = 24.dp
+                    val queueShape = RoundedCornerShape(topStart = 50.dp, bottomStart = 50.dp, topEnd = 3.dp, bottomEnd = 3.dp)
+                    val middleShape = RoundedCornerShape(3.dp)
+                    val repeatShape = RoundedCornerShape(topStart = 3.dp, bottomStart = 3.dp, topEnd = 50.dp, bottomEnd = 50.dp)
+
+                    PlayerQueueButton(
+                        icon = R.drawable.queue_music,
+                        onClick = { queueSheetState.expandSoft() },
+                        isActive = false,
+                        shape = queueShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor,
+                        playerBackground = playerBackground,
+                    )
+
+                    PlayerQueueButton(
+                        icon = R.drawable.bedtime,
+                        onClick = {
+                            if (sleepTimerEnabled) {
+                                playerConnection.service.sleepTimer?.clear()
+                            } else {
+                                showSleepTimerDialog = true
+                            }
+                        },
+                        isActive = sleepTimerEnabled,
+                        enabled = !isListenTogetherGuest,
+                        shape = middleShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        text = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor,
+                        playerBackground = playerBackground,
+                    )
+
+                    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+                    PlayerQueueButton(
+                        icon = R.drawable.shuffle,
+                        onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                        isActive = shuffleModeEnabled,
+                        enabled = !isListenTogetherGuest,
+                        shape = middleShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor,
+                        playerBackground = playerBackground,
+                    )
+
+                    PlayerQueueButton(
+                        icon = R.drawable.lyrics,
+                        onClick = { showInlineLyrics = !showInlineLyrics },
+                        isActive = showInlineLyrics,
+                        shape = middleShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor,
+                        playerBackground = playerBackground,
+                    )
+
+                    PlayerQueueButton(
+                        icon =
+                            when (repeatMode) {
+                                Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
+                                else -> R.drawable.repeat
+                            },
+                        onClick = { playerConnection.player.toggleRepeatMode() },
+                        isActive = repeatMode != Player.REPEAT_MODE_OFF,
+                        enabled = !isListenTogetherGuest,
+                        shape = repeatShape,
+                        modifier = Modifier.size(buttonSize),
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        iconSize = iconSize,
+                        textBackgroundColor = TextBackgroundColor,
+                        playerBackground = playerBackground,
+                    )
+
+                    // Landscape has no "Now Playing" header, so the 3 dots stay at the end of this row there.
+                    if (isLandscapeNow) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        PlayerMoreDotsButton(mediaMetadata = mediaMetadata, state = state, tint = TextBackgroundColor)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
 
             when (if (LocalPinkNowPlaying.current) SliderStyle.SLIM else sliderStyle) {
                 SliderStyle.DEFAULT -> {
@@ -2010,7 +2096,17 @@ fun BottomSheetPlayer(
                 ) {
                     if (LocalPinkNowPlaying.current && !showInlineLyrics) {
                         val pinkQueueTitle by playerConnection.queueTitle.collectAsState()
-                        PinkNowPlayingHeader(queueTitle = pinkQueueTitle, modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)))
+                        Box(modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))) {
+                            PinkNowPlayingHeader(queueTitle = pinkQueueTitle)
+                            mediaMetadata?.let { md ->
+                                PlayerMoreDotsButton(
+                                    mediaMetadata = md,
+                                    state = state,
+                                    tint = com.wavlin.music.ui.theme.PinkInk,
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 8.dp),
+                                )
+                            }
+                        }
                     }
                     Box(
                         contentAlignment = Alignment.Center,
@@ -2037,6 +2133,17 @@ fun BottomSheetPlayer(
                                     modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    headerAction =
+                                        mediaMetadata?.let { md ->
+                                            {
+                                                PlayerMoreDotsButton(
+                                                    mediaMetadata = md,
+                                                    state = state,
+                                                    tint = TextBackgroundColor,
+                                                    modifier = Modifier.align(Alignment.CenterEnd),
+                                                )
+                                            }
+                                        },
                                 )
                             }
                         }
@@ -2261,6 +2368,48 @@ fun MoreActionsButton(
             painter = painterResource(R.drawable.more_horiz),
             contentDescription = null,
             colorFilter = ColorFilter.tint(iconButtonColor),
+        )
+    }
+}
+
+@Composable
+fun PlayerMoreDotsButton(
+    mediaMetadata: MediaMetadata?,
+    state: BottomSheetState,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val menuState = LocalMenuState.current
+    val bottomSheetPageState = LocalBottomSheetPageState.current
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .clickable {
+                    menuState.show {
+                        PlayerMenu(
+                            mediaMetadata = mediaMetadata,
+                            playerBottomSheetState = state,
+                            onShowDetailsDialog = {
+                                mediaMetadata?.id?.let {
+                                    bottomSheetPageState.show {
+                                        ShowMediaInfo(it)
+                                    }
+                                }
+                            },
+                            onDismiss = menuState::dismiss,
+                        )
+                    }
+                },
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.more_vert),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(24.dp),
         )
     }
 }

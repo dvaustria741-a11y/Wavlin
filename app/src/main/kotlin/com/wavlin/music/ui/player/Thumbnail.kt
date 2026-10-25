@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -202,6 +203,7 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    headerAction: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -338,7 +340,8 @@ fun Thumbnail(
                     ThumbnailHeader(
                         queueTitle = queueTitle,
                         albumTitle = mediaMetadata?.album?.title,
-                        textColor = textBackgroundColor
+                        textColor = textBackgroundColor,
+                        action = headerAction,
                     )
                 }
                 
@@ -438,7 +441,8 @@ private fun ThumbnailHeader(
     queueTitle: String?,
     albumTitle: String?,
     textColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    action: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     // Secret Pink draws its own "Now Playing" header above the player.
     if (com.wavlin.music.ui.component.LocalPinkNowPlaying.current) return
@@ -482,6 +486,7 @@ private fun ThumbnailHeader(
                 )
             }
         }
+        action?.invoke(this)
     }
 }
 

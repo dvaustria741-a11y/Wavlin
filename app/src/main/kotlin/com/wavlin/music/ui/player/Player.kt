@@ -818,7 +818,7 @@ fun BottomSheetPlayer(
         }
     }
 
-    val dismissedBound = QueuePeekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val dismissedBound = (if (useNewPlayerDesign) 20.dp else QueuePeekHeight) + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
     val queueSheetState =
         rememberBottomSheetState(
@@ -1194,8 +1194,8 @@ fun BottomSheetPlayer(
                                     shape = shareShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = TextBackgroundColor.copy(alpha = 0.12f),
+                                            contentColor = TextBackgroundColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1222,8 +1222,8 @@ fun BottomSheetPlayer(
                                     shape = shareShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = TextBackgroundColor.copy(alpha = 0.12f),
+                                            contentColor = TextBackgroundColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1260,8 +1260,8 @@ fun BottomSheetPlayer(
                                     shape = favShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = TextBackgroundColor.copy(alpha = 0.12f),
+                                            contentColor = TextBackgroundColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1280,8 +1280,8 @@ fun BottomSheetPlayer(
                                     shape = favShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = TextBackgroundColor.copy(alpha = 0.12f),
+                                            contentColor = TextBackgroundColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1428,6 +1428,7 @@ fun BottomSheetPlayer(
             }
 
             if (useNewPlayerDesign) {
+                Spacer(Modifier.height(12.dp))
                 val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
                 Row(
@@ -1500,7 +1501,7 @@ fun BottomSheetPlayer(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             when (if (LocalPinkNowPlaying.current) SliderStyle.SLIM else sliderStyle) {
                 SliderStyle.DEFAULT -> {
@@ -2360,23 +2361,23 @@ private fun PlayerChip(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier
-                .height(48.dp)
+                .height(36.dp)
                 .alpha(if (enabled) 1f else 0.4f)
                 .clip(CircleShape)
                 .background(if (isActive) textButtonColor else textColor.copy(alpha = 0.12f))
                 .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 18.dp),
+                .padding(horizontal = 14.dp),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(20.dp),
         )
         Text(
             text = label,
             color = contentColor,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
         )
     }

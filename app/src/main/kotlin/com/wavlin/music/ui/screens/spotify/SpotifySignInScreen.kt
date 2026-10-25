@@ -37,6 +37,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -109,8 +110,50 @@ fun SpotifySignInScreen(
     val busy = authState == SpotifyAuthState.LOADING && submitted
     val failed = authState == SpotifyAuthState.ERROR && submitted
 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                colors = pinkTopBarColors(),
+                title = {
+                    Column {
+                        Text(stringResource(R.string.spotify))
+                        Text(
+                            stringResource(R.string.spotify_sign_in_subtitle),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
+                        Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showManualSheet = true }, onLongClick = {}) {
+                        Icon(painterResource(R.drawable.key), contentDescription = stringResource(R.string.spotify_manual_title), tint = SpotifyGreen)
+                    }
+                    IconButton(onClick = {
+                        viewModel.dismissError()
+                        webView?.reload()
+                    }, onLongClick = {}) {
+                        Icon(painterResource(R.drawable.refresh), contentDescription = stringResource(R.string.spotify_reload_page))
+                    }
+                    IconButton(onClick = {
+                        submitted = false
+                        CookieManager.getInstance().removeAllCookies(null)
+                        webView?.loadUrl(SpotifyAuth.LOGIN_URL)
+                        Toast.makeText(context, context.getString(R.string.spotify_session_cleared), Toast.LENGTH_SHORT).show()
+                    }, onLongClick = {}) {
+                        Icon(painterResource(R.drawable.delete), contentDescription = stringResource(R.string.spotify_clear_session))
+                    }
+                },
+            )
+        },
+    ) { scaffoldPadding ->
     Column(
         Modifier
+            .padding(top = scaffoldPadding.calculateTopPadding())
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .fillMaxSize(),
     ) {
@@ -137,9 +180,10 @@ fun SpotifySignInScreen(
                         settings.domStorageEnabled = true
                         settings.setSupportMultipleWindows(true)
                         settings.javaScriptCanOpenWindowsAutomatically = true
-                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        settings.userAgentString =
-                            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                        // Match the desktop Chrome UA that SpotifyAuth uses for token calls;
+                        // the mobile UA triggers Spotify's bot-detection and returns a blank page.
+                        settings.userAgentString = SpotifyAuth.USER_AGENT
 
                         fun captureCookies(url: String?) {
                             if (submitted) return
@@ -328,43 +372,7 @@ fun SpotifySignInScreen(
         }
     }
 
-    TopAppBar(
-        colors = pinkTopBarColors(),
-        title = {
-            Column {
-                Text(stringResource(R.string.spotify))
-                Text(
-                    stringResource(R.string.spotify_sign_in_subtitle),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        navigationIcon = {
-            IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-            }
-        },
-        actions = {
-            IconButton(onClick = { showManualSheet = true }, onLongClick = {}) {
-                Icon(painterResource(R.drawable.key), contentDescription = stringResource(R.string.spotify_manual_title), tint = SpotifyGreen)
-            }
-            IconButton(onClick = {
-                viewModel.dismissError()
-                webView?.reload()
-            }, onLongClick = {}) {
-                Icon(painterResource(R.drawable.refresh), contentDescription = stringResource(R.string.spotify_reload_page))
-            }
-            IconButton(onClick = {
-                submitted = false
-                CookieManager.getInstance().removeAllCookies(null)
-                webView?.loadUrl(SpotifyAuth.LOGIN_URL)
-                Toast.makeText(context, context.getString(R.string.spotify_session_cleared), Toast.LENGTH_SHORT).show()
-            }, onLongClick = {}) {
-                Icon(painterResource(R.drawable.delete), contentDescription = stringResource(R.string.spotify_clear_session))
-            }
-        },
-    )
+    } // end Scaffold
 
     if (showManualSheet) {
         SpotifyManualTokenSheet(

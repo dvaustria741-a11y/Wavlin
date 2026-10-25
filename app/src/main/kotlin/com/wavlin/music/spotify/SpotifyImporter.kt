@@ -135,9 +135,14 @@ object SpotifyImporter {
         track: SpotifyTrack,
     ): String? =
         try {
-            SpotifyMatcher.match(track)?.let {
-                database.insert(it.toMediaMetadata())
-                it.id
+            SpotifyMatcher.match(track)?.let { matched ->
+                // Prefer Spotify's cover art over the YTM thumbnail so playlist imports
+                // show the correct artwork instead of the YouTube Music version.
+                val meta = matched.toMediaMetadata()
+                database.insert(
+                    if (track.coverUrl != null) meta.copy(thumbnailUrl = track.coverUrl) else meta,
+                )
+                matched.id
             }
         } catch (e: CancellationException) {
             throw e

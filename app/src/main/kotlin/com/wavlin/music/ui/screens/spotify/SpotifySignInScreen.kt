@@ -153,8 +153,9 @@ fun SpotifySignInScreen(
     ) { scaffoldPadding ->
     Column(
         Modifier
-            .padding(top = scaffoldPadding.calculateTopPadding())
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+            // Scaffold already includes status-bar height in scaffoldPadding;
+            // windowInsetsPadding(LocalPlayerAwareWindowInsets) was doubling it.
+            .padding(scaffoldPadding)
             .fillMaxSize(),
     ) {
         if (busy) {

@@ -379,15 +379,25 @@ object YTPlayerUtils {
                     else -> 0
                 }
 
-                if (audioQuality == AudioQuality.HIGH && format.audioQuality != "AUDIO_QUALITY_HIGH" && hasHighQuality) {
+                if ((audioQuality == AudioQuality.HIGH || audioQuality == AudioQuality.LOSSLESS) && format.audioQuality != "AUDIO_QUALITY_HIGH" && hasHighQuality) {
                     val isBetter = bestFallbackFormat == null ||
-                        compareValuesBy(
-                            format, bestFallbackFormat,
-                            { scoreFallbackQuality(it.audioQuality) },
-                            { it.audioChannels ?: 2 },
-                            { scoreFallbackCodec(it.mimeType) },
-                            { it.bitrate }
-                        ) > 0
+                        if (audioQuality == AudioQuality.LOSSLESS) {
+                            // For lossless, rank fallbacks by bitrate only — no codec preference
+                            compareValuesBy(
+                                format, bestFallbackFormat,
+                                { scoreFallbackQuality(it.audioQuality) },
+                                { it.bitrate },
+                                { it.audioChannels ?: 2 }
+                            ) > 0
+                        } else {
+                            compareValuesBy(
+                                format, bestFallbackFormat,
+                                { scoreFallbackQuality(it.audioQuality) },
+                                { it.audioChannels ?: 2 },
+                                { scoreFallbackCodec(it.mimeType) },
+                                { it.bitrate }
+                            ) > 0
+                        }
                     if (isBetter) {
                         Timber.tag(logTag).d("Saving fallback format: ${format.mimeType}, bitrate: ${format.bitrate}")
                         bestFallbackFormat = format
@@ -447,7 +457,7 @@ object YTPlayerUtils {
             }
         }
 
-        if (audioQuality == AudioQuality.HIGH && format?.audioQuality != "AUDIO_QUALITY_HIGH" && bestFallbackFormat != null) {
+        if ((audioQuality == AudioQuality.HIGH || audioQuality == AudioQuality.LOSSLESS) && format?.audioQuality != "AUDIO_QUALITY_HIGH" && bestFallbackFormat != null) {
             Timber.tag(logTag).d("Using best fallback format: ${bestFallbackFormat.mimeType}, bitrate: ${bestFallbackFormat.bitrate}")
             format = bestFallbackFormat
             streamUrl = bestFallbackUrl
@@ -566,6 +576,19 @@ object YTPlayerUtils {
                     }.thenBy { it.audioChannels ?: 2 }
                         .thenBy { scoreCodec(it.mimeType) }
                         .thenBy { it.bitrate }
+                )
+            }
+
+            AudioQuality.LOSSLESS -> {
+                // Premium subscribers may receive multiple AUDIO_QUALITY_HIGH streams at
+                // different bitrates (e.g. 256 kbps AAC-LC and 160 kbps Opus). Lossless mode
+                // ignores codec preference and selects purely by bitrate so the highest-fidelity
+                // stream is always chosen (e.g. itag 141 / 258 — YouTube Music's top-tier AAC).
+                val highFormats = audioCapableFormats.filter { it.audioQuality == "AUDIO_QUALITY_HIGH" }
+                val pool = if (highFormats.isNotEmpty()) highFormats else audioCapableFormats
+                pool.maxWithOrNull(
+                    compareBy<PlayerResponse.StreamingData.Format> { it.bitrate }
+                        .thenBy { it.audioChannels ?: 2 }
                 )
             }
 

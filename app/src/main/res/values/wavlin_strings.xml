@@ -1086,6 +1086,8 @@
     <string name="spotify_download_n">Download %1$d Tracks</string>
     <string name="spotify_download_started">Downloading %1$d tracks</string>
     <string name="spotify_download_started_partial">Downloading %1$d tracks, %2$d had no match</string>
+    <string name="audio_quality_lossless">Lossless</string>
+
     <string name="spotify_download_preparing">Finding matches for download…</string>
     <string name="spotify_no_match">No YouTube Music match found</string>
     <string name="spotify_import_playlist">Import</string>

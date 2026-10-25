@@ -45,6 +45,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.wavlin.music.audio.dolby.DolbyAtmosExtensions
+import com.wavlin.music.audio.dolby.DolbyAtmosManager
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalTime
@@ -605,12 +607,21 @@ class PlayerConnection(
     }
 
     private fun refreshAudioFormat(tracks: Tracks) {
-        currentAudioFormat.value =
-            tracks.groups
-                .firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
-                ?.let { group ->
-                    (0 until group.length).firstOrNull { group.isTrackSelected(it) }?.let { group.getTrackFormat(it) }
-                }
+        val format = tracks.groups
+            .firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
+            ?.let { group ->
+                (0 until group.length).firstOrNull { group.isTrackSelected(it) }?.let { group.getTrackFormat(it) }
+            }
+        currentAudioFormat.value = format
+        // Report the actual decoded codec to DolbyAtmosManager so the badge and
+        // isAtmosActive only fire when the content is genuinely Dolby Atmos.
+        with(DolbyAtmosExtensions) {
+            DolbyAtmosManager.updateCurrentTrackAtmosStatus(
+                hasAtmosStream = format.isDolbyAtmos(),
+                mimeType = format?.sampleMimeType ?: format?.containerMimeType,
+                channelCount = format?.channelCount ?: 2,
+            )
+        }
     }
 
     override fun onTracksChanged(tracks: Tracks) {

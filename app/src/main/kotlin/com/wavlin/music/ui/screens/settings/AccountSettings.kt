@@ -6,6 +6,7 @@
 package com.wavlin.music.ui.screens.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -107,6 +108,7 @@ fun AccountSettings(
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showLoginPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -183,6 +185,41 @@ fun AccountSettings(
                         }
                     ) {
                         Text(stringResource(R.string.logout_keep))
+                    }
+                }
+            )
+        }
+
+        if (showLoginPicker) {
+            DefaultDialog(
+                onDismiss = { showLoginPicker = false },
+                title = { Text(stringResource(R.string.login_choose_service)) },
+                content = {
+                    LoginServiceRow(
+                        icon = painterResource(R.drawable.ic_youtube_music),
+                        tint = Color(0xFFFF0000),
+                        name = "YouTube Music",
+                        onClick = {
+                            showLoginPicker = false
+                            onClose()
+                            navController.navigate("login")
+                        }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LoginServiceRow(
+                        icon = painterResource(R.drawable.ic_spotify_logo),
+                        tint = Color(0xFF1DB954),
+                        name = stringResource(R.string.spotify),
+                        onClick = {
+                            showLoginPicker = false
+                            onClose()
+                            navController.navigate("spotify_signin")
+                        }
+                    )
+                },
+                buttons = {
+                    TextButton(onClick = { showLoginPicker = false }) {
+                        Text(stringResource(android.R.string.cancel))
                     }
                 }
             )
@@ -292,11 +329,11 @@ fun AccountSettings(
                         }
                     },
                     onClick = {
-                        onClose()
                         if (isLoggedIn) {
+                            onClose()
                             navController.navigate("account")
                         } else {
-                            navController.navigate("login")
+                            showLoginPicker = true
                         }
                     }
                 )
@@ -307,8 +344,8 @@ fun AccountSettings(
         Spacer(Modifier.height(8.dp))
 
         Material3SettingsGroup(
-            items = listOf(
-                Material3SettingsItem(
+            items = listOfNotNull(
+                if (!isLoggedIn) null else Material3SettingsItem(
                     title = {
                         Text(
                             when {
@@ -441,5 +478,36 @@ fun AccountSettings(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LoginServiceRow(
+    icon: androidx.compose.ui.graphics.painter.Painter,
+    tint: Color,
+    name: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

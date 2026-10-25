@@ -182,8 +182,6 @@ object DolbyAtmosManager {
 
         val currentDiag = _liveDiagnostics.value
         val isPreferred = _isAtmosEnabledByUser.value
-        val active = isPreferred && currentDiag.capability != DolbyAtmosCapability.UNSUPPORTED
-
         val canSpatialize = currentDiag.capability == DolbyAtmosCapability.FULLY_SUPPORTED
         // Only mark active when there's a real Atmos stream — not just user preference.
         val active = isPreferred && hasAtmosStream &&

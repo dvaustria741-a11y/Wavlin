@@ -129,8 +129,8 @@ fun SpotifyPlaylistPreviewDialog(
     val found = matches.values.count { it is MatchState.Found || it is MatchState.FallbackFound }
     val covers =
         (0 until total).mapNotNull {
-            (matches[it] as? MatchState.Found)?.song?.thumbnail
-                ?: collection.tracks.getOrNull(it)?.coverUrl
+            collection.tracks.getOrNull(it)?.coverUrl
+                ?: (matches[it] as? MatchState.Found)?.song?.thumbnail
         }
 
     Dialog(
@@ -307,7 +307,8 @@ private fun TrackRow(track: SpotifyTrack, state: MatchState?, onMissingClick: ()
                 when (state) {
                     is MatchState.Found ->
                         AsyncImage(
-                            model = state.song.thumbnail,
+                            // Spotify's own cover wins; the matched video's art is only a fallback
+                            model = track.coverUrl ?: state.song.thumbnail,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),

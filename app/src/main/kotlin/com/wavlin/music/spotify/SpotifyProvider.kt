@@ -5,8 +5,14 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -100,7 +106,55 @@ class SpotifyProvider(
             }
             .orEmpty()
         if (tracks.isEmpty()) throw SpotifyException("This Spotify $kind has no readable tracks")
-        return SpotifyResult.Tracks(title, tracks)
+        // The embed's trackList has no per-track artwork for playlists, so without this every track
+        // ends up with the YouTube thumbnail of whatever video it matched.
+        val withCovers =
+            if (kind == "album") {
+                val albumCover = findCover(entity)
+                tracks.map { it.copy(coverUrl = albumCover ?: it.coverUrl) }
+            } else {
+                withTrackCovers(tracks)
+            }
+        return SpotifyResult.Tracks(title, withCovers)
+    }
+
+    /** Looks up each track's own album cover, a few at a time. A failed lookup keeps whatever the track had. */
+    private suspend fun withTrackCovers(tracks: List<SpotifyTrack>): List<SpotifyTrack> =
+        coroutineScope {
+            val gate = Semaphore(8)
+            tracks
+                .map { track ->
+                    async {
+                        val id = track.url?.let { TRACK_REGEX.find(it)?.groupValues?.get(1) }
+                        val cover = id?.let { gate.withPermit { fetchTrackCover(it) } }
+                        if (cover != null) track.copy(coverUrl = cover) else track
+                    }
+                }.awaitAll()
+        }
+
+    /** Album cover of one track: the public oEmbed endpoint first, the track's embed page as a fallback. */
+    private suspend fun fetchTrackCover(trackId: String): String? {
+        try {
+            val response =
+                client.get("https://open.spotify.com/oembed") {
+                    parameter("url", "https://open.spotify.com/track/$trackId")
+                    header("User-Agent", USER_AGENT)
+                }
+            if (response.status.value == 200) {
+                (json.parseToJsonElement(response.bodyAsText()) as? JsonObject)?.string("thumbnail_url")?.let { return it }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // fall through to the embed page
+        }
+        return try {
+            fetchEntity("track", trackId)?.let { findCover(it) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun buildTrack(title: String, artist: String, durationMs: Long?, url: String?, coverUrl: String? = null): SpotifyTrack {

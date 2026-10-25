@@ -91,6 +91,8 @@ fun SpotifySignInScreen(
     var loadProgress by remember { mutableIntStateOf(0) }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var showManualSheet by remember { mutableStateOf(false) }
+    // Last thing that went wrong while loading the login page, so a blank page isn't a silent failure
+    var diag by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -135,6 +137,7 @@ fun SpotifySignInScreen(
                     }
                     IconButton(onClick = {
                         viewModel.dismissError()
+                        diag = null
                         webView?.reload()
                     }, onLongClick = {}) {
                         Icon(painterResource(R.drawable.refresh), contentDescription = stringResource(R.string.spotify_reload_page))
@@ -173,6 +176,11 @@ fun SpotifySignInScreen(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     WebView(ctx).apply {
+                        layoutParams =
+                            android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
                         val cookies = CookieManager.getInstance()
                         cookies.setAcceptCookie(true)
                         cookies.setAcceptThirdPartyCookies(this, true)
@@ -219,6 +227,13 @@ fun SpotifySignInScreen(
                                     newProgress: Int,
                                 ) {
                                     loadProgress = newProgress
+                                }
+
+                                override fun onConsoleMessage(message: android.webkit.ConsoleMessage?): Boolean {
+                                    if (message?.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
+                                        timber.log.Timber.tag("SpotifySignIn").w("JS error: ${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                                    }
+                                    return true
                                 }
 
                                 // Social logins (Google, Facebook, Apple) open in a popup; load them in this view instead
@@ -274,6 +289,19 @@ fun SpotifySignInScreen(
                                     url: String?,
                                 ) {
                                     captureCookies(url)
+                                    // If the page "finished" but drew nothing, say so instead of leaving a black screen
+                                    view?.let { v ->
+                                        v.postDelayed({
+                                            if (submitted) return@postDelayed
+                                            v.evaluateJavascript("(function(){return document.body?document.body.innerText.length:-1})()") { len ->
+                                                if (len == "0" || len == "-1") {
+                                                    diag = diag ?: "The login page loaded but is empty (${url?.take(48)}). Try reload, or use Manual entry."
+                                                } else {
+                                                    diag = null
+                                                }
+                                            }
+                                        }, 3500)
+                                    }
                                 }
 
                                 override fun doUpdateVisitedHistory(
@@ -282,6 +310,47 @@ fun SpotifySignInScreen(
                                     isReload: Boolean,
                                 ) {
                                     captureCookies(url)
+                                }
+
+                                // A bad certificate is only tolerated for Spotify's asset/CDN hosts. The pages where
+                                // the password is typed (accounts / open.spotify.com) are never allowed through.
+                                override fun onReceivedSslError(
+                                    view: WebView?,
+                                    handler: android.webkit.SslErrorHandler?,
+                                    error: android.net.http.SslError?,
+                                ) {
+                                    val host = runCatching { android.net.Uri.parse(error?.url).host }.getOrNull().orEmpty()
+                                    val isAsset =
+                                        host.endsWith("scdn.co") || host.endsWith("spotifycdn.com") || host.endsWith("spotifycdn.net") ||
+                                            (host.endsWith("spotify.com") && host != "accounts.spotify.com" && host != "open.spotify.com")
+                                    timber.log.Timber.tag("SpotifySignIn").w("SSL error ${error?.primaryError} on $host (asset=$isAsset)")
+                                    if (isAsset) {
+                                        handler?.proceed()
+                                    } else {
+                                        handler?.cancel()
+                                        diag = "Certificate error on $host (code ${error?.primaryError}). Check your date/time, VPN, DNS or proxy."
+                                    }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: android.webkit.WebResourceError?,
+                                ) {
+                                    if (request?.isForMainFrame == true) {
+                                        diag = "Couldn't load the page: ${error?.description} (${error?.errorCode})"
+                                    }
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    errorResponse: android.webkit.WebResourceResponse?,
+                                ) {
+                                    val code = errorResponse?.statusCode ?: 0
+                                    if (request?.isForMainFrame == true && code >= 400) {
+                                        diag = "Spotify answered HTTP $code for the login page"
+                                    }
                                 }
                             }
 
@@ -346,6 +415,16 @@ fun SpotifySignInScreen(
                     }
                 }
             }
+        }
+
+        diag?.let { message ->
+            Text(
+                message,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                maxLines = 3,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
+            )
         }
 
         Surface(

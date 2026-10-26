@@ -1044,18 +1044,23 @@ fun LocalPlaylistHeader(
     // Spotify-style dynamic header background: extract a gradient from the cover art
     var headerGradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     // The DB preview only knows songs at positions 0..3, so big or reordered playlists lose their cover.
-    // Build the collage from the actual songs instead.
+    // Build the collage from the actual songs instead. A saved cover is only kept when it is a custom one
+    // that still loads; a stale or broken stored link (the black cover) falls back to the collage.
+    var coverFailed by remember(playlist.playlist.thumbnailUrl, overrideThumbnail.value) { mutableStateOf(false) }
     val coverThumbnails =
-        remember(playlist, songs) {
-            if (playlist.playlist.thumbnailUrl != null) {
-                playlist.thumbnails
-            } else {
-                val urls = songs.mapNotNull { it.song.song.thumbnailUrl }.distinct().take(4)
+        remember(playlist, songs, coverFailed, overrideThumbnail.value) {
+            val stored = overrideThumbnail.value ?: playlist.playlist.thumbnailUrl
+            val songUrls = songs.mapNotNull { it.song.song.thumbnailUrl }.distinct().take(4)
+            val collage =
                 when {
-                    urls.isEmpty() -> playlist.thumbnails
-                    urls.size in 2..3 -> List(4) { urls[it % urls.size] }
-                    else -> urls
+                    songUrls.size in 2..3 -> List(4) { songUrls[it % songUrls.size] }
+                    else -> songUrls
                 }
+            when {
+                stored != null && isCustomThumbnail && !coverFailed -> listOf(stored)
+                collage.isNotEmpty() -> collage
+                stored != null && !coverFailed -> listOf(stored)
+                else -> playlist.thumbnails
             }
         }
     val headerThumbnailUrl = overrideThumbnail.value ?: playlist.thumbnails.firstOrNull()
@@ -1307,9 +1312,10 @@ fun LocalPlaylistHeader(
                         shape = RoundedCornerShape(3.dp),
                     ) {
                         AsyncImage(
-                            model = overrideThumbnail.value ?: coverThumbnails[0],
+                            model = coverThumbnails[0],
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
+                            onError = { coverFailed = true },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -1556,7 +1562,7 @@ fun LocalPlaylistHeader(
                     },
                     shape = headerButtonShape(0),
                     color = Color.Transparent,
-                    modifier = headerButtonSize(0).glassPanel(shape = headerButtonShape(0)),
+                    modifier = headerButtonSize(0).headerGlass(0),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1649,7 +1655,7 @@ fun LocalPlaylistHeader(
                     },
                     shape = headerButtonShape(1),
                     color = Color.Transparent,
-                    modifier = headerButtonSize(1).glassPanel(shape = headerButtonShape(1)),
+                    modifier = headerButtonSize(1).headerGlass(1),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1681,7 +1687,7 @@ fun LocalPlaylistHeader(
                     },
                     shape = headerButtonShape(2),
                     color = Color.Transparent,
-                    modifier = headerButtonSize(2).glassPanel(shape = headerButtonShape(2)),
+                    modifier = headerButtonSize(2).headerGlass(2),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1707,7 +1713,7 @@ fun LocalPlaylistHeader(
                     },
                     color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
                     shape = headerButtonShape(3),
-                    modifier = headerButtonSize(3).glassPanel(shape = headerButtonShape(3)),
+                    modifier = headerButtonSize(3).headerGlass(3),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1729,33 +1735,34 @@ fun LocalPlaylistHeader(
 /** Playlist header buttons: a joined glass pair on the left, a rounded-square shuffle and a wide play pill. */
 @Composable
 private fun headerButtonShape(kind: Int): androidx.compose.ui.graphics.Shape =
-    if (LocalPinkLilyTheme.current) {
-        CircleShape
-    } else {
-        when (kind) {
-            0 -> RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp)
-            1 -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)
-            2 -> RoundedCornerShape(18.dp)
-            else -> RoundedCornerShape(24.dp)
-        }
+    when (kind) {
+        0 -> RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp)
+        1 -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)
+        2 -> RoundedCornerShape(18.dp)
+        else -> RoundedCornerShape(24.dp)
     }
+
+/** Glass for the header buttons; the Secret Pink theme gets frosted rose glass instead of the haze blur. */
+@Composable
+private fun Modifier.headerGlass(kind: Int): Modifier {
+    val shape = headerButtonShape(kind)
+    return if (LocalPinkLilyTheme.current) {
+        this
+            .clip(shape)
+            .background(
+                if (kind == 3) com.wavlin.music.ui.theme.PinkSwoosh.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.45f),
+            ).border(1.dp, com.wavlin.music.ui.theme.PinkSwoosh.copy(alpha = 0.65f), shape)
+    } else {
+        this.glassPanel(shape = shape)
+    }
+}
 
 @Composable
 private fun headerButtonSize(kind: Int): Modifier =
-    if (LocalPinkLilyTheme.current) {
-        Modifier.size(
-            when (kind) {
-                0, 1 -> 40.dp
-                2 -> 48.dp
-                else -> 64.dp
-            },
-        )
-    } else {
-        when (kind) {
-            0, 1 -> Modifier.size(width = 52.dp, height = 44.dp)
-            2 -> Modifier.size(52.dp)
-            else -> Modifier.size(width = 80.dp, height = 56.dp)
-        }
+    when (kind) {
+        0, 1 -> Modifier.size(width = 52.dp, height = 44.dp)
+        2 -> Modifier.size(52.dp)
+        else -> Modifier.size(width = 80.dp, height = 56.dp)
     }
 
 @Composable

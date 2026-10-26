@@ -1125,4 +1125,8 @@
     <string name="reverb_preset_stadium">Stadium</string>
     <string name="reverb_preset_plate">Plate</string>
     <string name="reverb_preset_spring">Spring</string>
+    <string name="categories">Categories</string>
+    <string name="new_releases">New Releases</string>
+    <string name="recent_searches">Recent Searches</string>
+    <string name="clear_all">Clear all</string>
 </resources>

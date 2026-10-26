@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +52,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,6 +74,7 @@ import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.LocalMenuState
+import com.wavlin.music.ui.component.CategoryCard
 import com.wavlin.music.ui.component.YouTubeListItem
 import com.wavlin.music.ui.menu.YouTubeAlbumMenu
 import com.wavlin.music.ui.menu.YouTubeArtistMenu
@@ -373,6 +377,115 @@ fun OnlineSearchScreen(
                             .padding(vertical = 8.dp)
                             .animateItem(),
                 )
+            }
+        }
+
+        if (query.isEmpty()) {
+            item(key = "search_categories") {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .animateItem(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.categories),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CategoryCard(
+                            title = stringResource(R.string.new_releases),
+                            iconRes = R.drawable.music_note,
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("new_release")
+                            },
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        CategoryCard(
+                            title = stringResource(R.string.charts),
+                            iconRes = R.drawable.trending_up,
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("charts_screen")
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CategoryCard(
+                            title = stringResource(R.string.mood_and_genres),
+                            iconRes = R.drawable.favorite,
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("mood_and_genres")
+                            },
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                            iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        CategoryCard(
+                            title = stringResource(R.string.filter_podcasts),
+                            iconRes = R.drawable.mic,
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("youtube_browse/FEmusic_non_music_audio")
+                            },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            iconContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            if (viewState.history.isNotEmpty()) {
+                item(key = "recent_searches_header") {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 8.dp, top = 8.dp)
+                                .animateItem(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.recent_searches),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(
+                            onClick = {
+                                database.query {
+                                    clearSearchHistory()
+                                }
+                            },
+                        ) {
+                            Text(stringResource(R.string.clear_all))
+                        }
+                    }
+                }
             }
         }
 

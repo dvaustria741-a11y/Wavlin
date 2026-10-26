@@ -136,7 +136,6 @@ import com.wavlin.music.playback.queues.YouTubeAlbumRadio
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.AlbumGridItem
 import com.wavlin.music.ui.component.ArtistGridItem
-import com.wavlin.music.ui.component.ChipsRow
 import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.ui.component.LocalBottomSheetPageState
 import com.wavlin.music.ui.component.LocalMenuState
@@ -1187,39 +1186,6 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
-                item {
-                    ChipsRow(
-                        chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                        currentValue = selectedChip,
-                        onValueUpdate = {
-                            viewModel.toggleChip(it)
-                        },
-                    )
-                }
-
-                if (isLoading && homePage?.chips.isNullOrEmpty()) {
-                    item(key = "chips_shimmer", contentType = "shimmer") {
-                        ShimmerHost(showGradient = false) {
-                            LazyRow(
-                                contentPadding =
-                                    WindowInsets.systemBars
-                                        .only(WindowInsetsSides.Horizontal)
-                                        .asPaddingValues(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                items(5) {
-                                    TextPlaceholder(
-                                        height = 30.dp,
-                                        shape = RoundedCornerShape(16.dp),
-                                        modifier = Modifier.width(72.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // Show podcast sections FIRST when podcast chip is selected (fixed at top)
                 if (selectedChip?.title?.contains("Podcast", ignoreCase = true) == true) {
                     // Show "Your Shows" section from official API

@@ -9,7 +9,7 @@ import android.content.Context
 import android.media.audiofx.EnvironmentalReverb
 import androidx.annotation.StringRes
 import androidx.media3.common.AuxEffectInfo
-import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.wavlin.music.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +42,7 @@ object ReverbManager {
         val reflectionsLevel: Short,
         val reflectionsDelay: Int,
         val reverbLevel: Short,
-        val reverbDelay: Short,
+        val reverbDelay: Int,
         val diffusion: Short,
         val density: Short,
     )
@@ -108,7 +108,7 @@ object ReverbManager {
 
     // ── Hardware effect (one per audio session) ──────────────────────────────────
     private var reverbEffect: EnvironmentalReverb? = null
-    private var attachedPlayer: Player? = null
+    private var attachedPlayer: ExoPlayer? = null
 
     // ── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -126,7 +126,7 @@ object ReverbManager {
      * Create [EnvironmentalReverb] for the given ExoPlayer audio session and wire it up.
      * Called from MusicService.openAudioEffectSession().
      */
-    fun attachSession(sessionId: Int, player: Player) {
+    fun attachSession(sessionId: Int, player: ExoPlayer) {
         releaseEffect()
         try {
             reverbEffect = EnvironmentalReverb(0, sessionId).also { applyCurrentStateToEffect(it) }
@@ -142,7 +142,7 @@ object ReverbManager {
      * Disconnect the reverb from the player and release the hardware effect.
      * Called from MusicService.closeAudioEffectSession().
      */
-    fun detachSession(player: Player? = null) {
+    fun detachSession(player: ExoPlayer? = null) {
         val p = player ?: attachedPlayer
         p?.setAuxEffectInfo(AuxEffectInfo(0, 0f))
         releaseEffect()
@@ -208,7 +208,7 @@ object ReverbManager {
      * Connect or disconnect the hardware effect from [player] via [AuxEffectInfo].
      * intensity is used as the send-level (0.0 = silent, 1.0 = full).
      */
-    private fun syncAuxEffectInfo(player: Player) {
+    private fun syncAuxEffectInfo(player: ExoPlayer) {
         val effect = reverbEffect
         if (effect != null && _isEnabled.value && activePreset() != null) {
             player.setAuxEffectInfo(AuxEffectInfo(effect.id, _intensity.value))

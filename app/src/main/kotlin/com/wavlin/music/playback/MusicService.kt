@@ -2458,6 +2458,7 @@ class MusicService :
         isAudioEffectSessionOpened = true
         openedAudioEffectSessionId = audioSessionId
         com.wavlin.music.audio.dolby.DolbyAtmosManager.attachSession(audioSessionId)
+        com.wavlin.music.audio.reverb.ReverbManager.attachSession(audioSessionId, player)
 
         sendBroadcast(
             Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
@@ -2482,7 +2483,7 @@ class MusicService :
                     sessionIdToClose == openedAudioEffectSessionId
 
         if (isClosingCurrentSession) {
-
+            com.wavlin.music.audio.reverb.ReverbManager.detachSession(player)
             isAudioEffectSessionOpened = false
             openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
         }

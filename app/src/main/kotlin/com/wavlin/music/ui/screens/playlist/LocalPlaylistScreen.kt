@@ -709,6 +709,7 @@ fun LocalPlaylistScreen(
                     val content: @Composable () -> Unit = {
                         SongListItem(
                             song = song.song,
+                            leadingNumber = index + 1,
                             isActive = song.song.id == mediaMetadata?.id && queueTitle == playlist?.playlist?.name,
                             isPlaying = isPlaying,
                             showInLibraryIcon = true,
@@ -1042,6 +1043,21 @@ fun LocalPlaylistHeader(
 
     // Spotify-style dynamic header background: extract a gradient from the cover art
     var headerGradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
+    // The DB preview only knows songs at positions 0..3, so big or reordered playlists lose their cover.
+    // Build the collage from the actual songs instead.
+    val coverThumbnails =
+        remember(playlist, songs) {
+            if (playlist.playlist.thumbnailUrl != null) {
+                playlist.thumbnails
+            } else {
+                val urls = songs.mapNotNull { it.song.song.thumbnailUrl }.distinct().take(4)
+                when {
+                    urls.isEmpty() -> playlist.thumbnails
+                    urls.size in 2..3 -> List(4) { urls[it % urls.size] }
+                    else -> urls
+                }
+            }
+        }
     val headerThumbnailUrl = overrideThumbnail.value ?: playlist.thumbnails.firstOrNull()
     LaunchedEffect(headerThumbnailUrl) {
         headerGradientColors = emptyList()
@@ -1235,7 +1251,7 @@ fun LocalPlaylistHeader(
         Box(
             modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
         ) {
-            when (playlist.thumbnails.size) {
+            when (coverThumbnails.size) {
                 0 -> if (LocalPinkLilyTheme.current) {
                     Box(modifier = Modifier.size(170.dp)) {
                         androidx.compose.foundation.Image(
@@ -1291,7 +1307,7 @@ fun LocalPlaylistHeader(
                         shape = RoundedCornerShape(3.dp),
                     ) {
                         AsyncImage(
-                            model = overrideThumbnail.value ?: playlist.thumbnails[0],
+                            model = overrideThumbnail.value ?: coverThumbnails[0],
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
@@ -1367,7 +1383,7 @@ fun LocalPlaylistHeader(
                                         repeat(2) { col ->
                                             val index = row * 2 + col
                                             AsyncImage(
-                                                model = playlist.thumbnails.getOrNull(index),
+                                                model = coverThumbnails.getOrNull(index),
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Crop,
                                                 modifier =
@@ -1540,7 +1556,7 @@ fun LocalPlaylistHeader(
                     },
                     shape = CircleShape,
                     color = Color.Transparent,
-                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape),
+                    modifier = Modifier.size(40.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1633,7 +1649,7 @@ fun LocalPlaylistHeader(
                     },
                     shape = CircleShape,
                     color = Color.Transparent,
-                    modifier = Modifier.size(40.dp).glassPanel(shape = CircleShape),
+                    modifier = Modifier.size(40.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1664,8 +1680,8 @@ fun LocalPlaylistHeader(
                         )
                     },
                     shape = CircleShape,
-                    color = Color.Transparent,
-                    modifier = Modifier.size(48.dp).glassPanel(shape = CircleShape),
+                    color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.size(48.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1689,9 +1705,9 @@ fun LocalPlaylistHeader(
                             ),
                         )
                     },
-                    color = Color.Transparent,
+                    color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.primary,
                     shape = CircleShape,
-                    modifier = Modifier.size(64.dp).glassPanel(shape = CircleShape),
+                    modifier = Modifier.size(60.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1700,7 +1716,7 @@ fun LocalPlaylistHeader(
                         Icon(
                             painter = painterResource(R.drawable.play),
                             contentDescription = stringResource(R.string.play),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = if (LocalPinkLilyTheme.current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(28.dp),
                         )
                     }

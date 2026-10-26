@@ -525,6 +525,7 @@ fun SongListItem(
     song: Song,
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
+    leadingNumber: Int? = null,
     showLikedIcon: Boolean = true,
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
@@ -580,6 +581,17 @@ fun SongListItem(
                  }
              },
              thumbnailContent = {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+                     if (leadingNumber != null) {
+                         Text(
+                             text = leadingNumber.toString(),
+                             style = MaterialTheme.typography.bodyMedium,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                             maxLines = 1,
+                             modifier = Modifier.width(36.dp),
+                         )
+                     }
                  ItemThumbnail(
                      thumbnailUrl = song.song.thumbnailUrl?.resize(200, 200),
                      albumIndex = albumIndex,
@@ -589,6 +601,7 @@ fun SongListItem(
                      shape = RoundedCornerShape(ThumbnailCornerRadius),
                      modifier = Modifier.size(ListThumbnailSize)
                  )
+                 }
              },
              trailingContent = trailingContent,
              modifier = modifier,

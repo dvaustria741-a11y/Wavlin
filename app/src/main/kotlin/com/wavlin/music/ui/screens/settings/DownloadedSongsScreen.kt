@@ -6,6 +6,7 @@
 package com.wavlin.music.ui.screens.settings
 
 import com.wavlin.music.ui.component.pinkTopBarColors
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -88,6 +89,7 @@ fun DownloadedSongsScreen(navController: NavController) {
         remember(downloadedSongs, extraSongs, spotifyOnly) {
             (downloadedSongs.asReversed() + extraSongs).filter { it.id !in spotifyOnly }
         }
+    val downloads by downloadUtil.downloads.collectAsState()
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection = rememberSaveable(
@@ -163,9 +165,14 @@ fun DownloadedSongsScreen(navController: NavController) {
                     }
                 }
 
+                // Bytes on disk for this download, falling back to the stream's known length
+                val sizeBytes = downloads[song.id]?.bytesDownloaded?.takeIf { it > 0 }
+                    ?: song.format?.contentLength?.takeIf { it > 0 }
+
                 SongListItem(
                     song = song,
                     showInLibraryIcon = true,
+                    sizeText = sizeBytes?.let { Formatter.formatShortFileSize(context, it) },
                     trailingContent = {
                         if (inSelectMode) {
                             Checkbox(

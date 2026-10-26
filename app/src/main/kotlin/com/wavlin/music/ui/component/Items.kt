@@ -530,6 +530,7 @@ fun SongListItem(
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
     subtitleOverride: String? = null,
+    sizeText: String? = null,
     badges: @Composable RowScope.() -> Unit = {
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
@@ -563,7 +564,8 @@ fun SongListItem(
                       Text(
                           text = joinByBullet(
                               song.orderedArtists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
-                              makeTimeString(song.song.duration * 1000L)
+                              makeTimeString(song.song.duration * 1000L),
+                              sizeText,
                           ),
                           style = MaterialTheme.typography.bodySmall,
                           color = MaterialTheme.colorScheme.secondary,

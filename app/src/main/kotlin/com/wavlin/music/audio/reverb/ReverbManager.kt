@@ -6,57 +6,41 @@
 package com.wavlin.music.audio.reverb
 
 import android.content.Context
-import android.media.audiofx.EnvironmentalReverb
 import androidx.annotation.StringRes
-import androidx.media3.common.AuxEffectInfo
-import androidx.media3.exoplayer.ExoPlayer
 import com.wavlin.music.R
+import com.wavlin.music.playback.audio.ReverbAudioProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import timber.log.Timber
 
 /**
- * Manages Android's [EnvironmentalReverb] hardware audio effect.
+ * Manages reverb state and pushes settings to [ReverbAudioProcessor] in ExoPlayer's
+ * audio pipeline.
  *
- * The effect is created as a session-bound INSERT effect tied to ExoPlayer's audio session.
- * Insert effects are applied automatically to all audio in that session — no [AuxEffectInfo]
- * needed.  Enabling the effect and setting its parameters is sufficient.
- *
- * Intensity is implemented by lerp-ing [EnvironmentalReverb.reverbLevel] and
- * [EnvironmentalReverb.reflectionsLevel] from −9000 mB (silent) to the preset's target value,
- * giving a true Subtle→Lush wet-level range without an auxiliary send path.
+ * Previously used Android's [android.media.audiofx.EnvironmentalReverb] hardware effect,
+ * which silently does nothing on most devices because the hardware DSP is not available or
+ * doesn't intercept ExoPlayer's audio session. The audio-processor approach works on
+ * all devices without any hardware dependency.
  *
  * Lifecycle:
- *  - [init]          : called once from MusicService.onCreate — loads persisted prefs.
- *  - [attachSession] : called from openAudioEffectSession() when ExoPlayer opens a session.
- *  - [detachSession] : called from closeAudioEffectSession() when the session closes.
+ *  - [init]         : called once from MusicService.onCreate — loads persisted prefs.
+ *  - [setProcessor] : called from MusicService.createExoPlayer — wires the processor.
+ *                     attachSession / detachSession are kept as no-ops for compatibility.
  */
-@Suppress("DEPRECATION")
 object ReverbManager {
 
     private const val TAG = "ReverbManager"
 
     /**
-     * EnvironmentalReverb parameters.
-     * Units: roomLevel/roomHFLevel/reflectionsLevel/reverbLevel in mB,
-     *        decayTime/reflectionsDelay/reverbDelay in ms,
-     *        decayHFRatio/diffusion/density in ‰.
+     * Internal preset parameters fed to [ReverbAudioProcessor].
+     *
+     * @param roomSize   0..1 — maps to comb-filter feedback (longer tail)
+     * @param damping    0..1 — HF absorption in the feedback path
+     * @param baseWet    base wet-mix level at 100 % intensity
      */
-    data class Preset(
-        val roomLevel: Short,
-        val roomHFLevel: Short,
-        val decayTime: Int,
-        val decayHFRatio: Short,
-        val reflectionsLevel: Short,
-        val reflectionsDelay: Int,
-        val reverbLevel: Short,
-        val reverbDelay: Int,
-        val diffusion: Short,
-        val density: Short,
-    )
+    private data class SoftPreset(val roomSize: Float, val damping: Float, val baseWet: Float)
 
-    /** String resource IDs for the preset dropdown — order matches [presets]. */
+    /** String resource IDs for the preset dropdown — order matches [softPresets]. */
     @StringRes
     val presetLabels: List<Int> = listOf(
         R.string.reverb_preset_none,
@@ -67,53 +51,17 @@ object ReverbManager {
         R.string.reverb_preset_spring,
     )
 
-    /**
-     * Index-aligned with [presetLabels].
-     * null at index 0 (None) = effect is bypassed.
-     *
-     * Parameter values are taken verbatim from SpatialFlow's setReverbPreset():
-     *   Small Room    → preset 1
-     *   Concert Hall  → preset 2  (Medium Room in SpatialFlow code)
-     *   Stadium       → preset 3  (Large Room)
-     *   Plate         → preset 4  (Medium Hall)
-     *   Spring        → preset 5  (Large Hall)
-     */
-    private val presets: List<Preset?> = listOf(
-        // 0 — None (bypass)
-        null,
-        // 1 — Small Room
-        Preset(
-            roomLevel = -1500, roomHFLevel = -100, decayTime = 4000,  decayHFRatio = 1200,
-            reflectionsLevel = 0,    reflectionsDelay = 50,  reverbLevel = 500,  reverbDelay = 40,
-            diffusion = 1000, density = 1000,
-        ),
-        // 2 — Concert Hall  (SpatialFlow "Medium Room" params)
-        Preset(
-            roomLevel = -1500, roomHFLevel = 0,    decayTime = 6000,  decayHFRatio = 1400,
-            reflectionsLevel = 200,  reflectionsDelay = 80,  reverbLevel = 700,  reverbDelay = 60,
-            diffusion = 1000, density = 1000,
-        ),
-        // 3 — Stadium  (SpatialFlow "Large Room" params)
-        Preset(
-            roomLevel = -1500, roomHFLevel = 0,    decayTime = 8000,  decayHFRatio = 1600,
-            reflectionsLevel = 400,  reflectionsDelay = 120, reverbLevel = 900,  reverbDelay = 80,
-            diffusion = 1000, density = 1000,
-        ),
-        // 4 — Plate  (SpatialFlow "Medium Hall" params)
-        Preset(
-            roomLevel = -1500, roomHFLevel = 0,    decayTime = 12000, decayHFRatio = 1800,
-            reflectionsLevel = 600,  reflectionsDelay = 160, reverbLevel = 1100, reverbDelay = 100,
-            diffusion = 1000, density = 1000,
-        ),
-        // 5 — Spring  (SpatialFlow "Large Hall" params)
-        Preset(
-            roomLevel = -1500, roomHFLevel = 0,    decayTime = 16000, decayHFRatio = 1900,
-            reflectionsLevel = 800,  reflectionsDelay = 220, reverbLevel = 1300, reverbDelay = 100,
-            diffusion = 1000, density = 1000,
-        ),
+    /** null at index 0 (None) = effect bypassed. */
+    private val softPresets: List<SoftPreset?> = listOf(
+        null,                                       // 0 — None
+        SoftPreset(0.30f, 0.55f, 0.25f),           // 1 — Small Room
+        SoftPreset(0.50f, 0.35f, 0.28f),           // 2 — Concert Hall
+        SoftPreset(0.65f, 0.22f, 0.32f),           // 3 — Stadium
+        SoftPreset(0.78f, 0.12f, 0.35f),           // 4 — Plate
+        SoftPreset(0.85f, 0.08f, 0.38f),           // 5 — Spring
     )
 
-    // ── Shared preferences ───────────────────────────────────────────────────────
+    // ── Shared preferences ────────────────────────────────────────────────────────
     private const val PREFS_NAME    = "wavlin_reverb"
     private const val KEY_ENABLED   = "enabled"
     private const val KEY_PRESET    = "preset"
@@ -122,7 +70,7 @@ object ReverbManager {
     private var appContext: Context? = null
     private val prefs get() = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ── StateFlows observed by the UI ────────────────────────────────────────────
+    // ── StateFlows observed by the UI ─────────────────────────────────────────────
     private val _isEnabled   = MutableStateFlow(false)
     val isEnabled: StateFlow<Boolean> = _isEnabled.asStateFlow()
 
@@ -132,11 +80,10 @@ object ReverbManager {
     private val _intensity   = MutableStateFlow(1.0f)
     val intensity: StateFlow<Float> = _intensity.asStateFlow()
 
-    // ── Hardware effect — one instance per ExoPlayer audio session ───────────────
-    private var reverbEffect: EnvironmentalReverb? = null
-    private var attachedPlayer: ExoPlayer? = null
+    // ── Audio processor reference ─────────────────────────────────────────────────
+    private var audioProcessor: ReverbAudioProcessor? = null
 
-    // ── Lifecycle ────────────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
     /** Load persisted settings.  Call once from MusicService.onCreate(). */
     fun init(context: Context) {
@@ -149,95 +96,61 @@ object ReverbManager {
     }
 
     /**
-     * Create [EnvironmentalReverb] tied to the new ExoPlayer audio session.
-     * This is a session-bound INSERT effect — it processes audio automatically once enabled.
-     * Called from MusicService.openAudioEffectSession().
+     * Register the [ReverbAudioProcessor] created in MusicService.createExoPlayer.
+     * Called once per ExoPlayer instance.  Immediately pushes the current state so
+     * reverb is active as soon as playback starts.
      */
-    fun attachSession(sessionId: Int, player: ExoPlayer) {
-        releaseEffect()
-        // Clear any stale AuxEffectInfo — insert effects don't use the aux path.
-        player.setAuxEffectInfo(AuxEffectInfo(0, 0f))
-        try {
-            reverbEffect = EnvironmentalReverb(0, sessionId).also { applyCurrentStateToEffect(it) }
-            attachedPlayer = player
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to create EnvironmentalReverb for session $sessionId")
-            reverbEffect = null
-        }
+    fun setProcessor(processor: ReverbAudioProcessor) {
+        audioProcessor = processor
+        pushToProcessor()
     }
 
     /**
-     * Disconnect the reverb from the player and release the hardware effect.
-     * Called from MusicService.closeAudioEffectSession().
+     * No-op — kept so MusicService.openAudioEffectSession() compiles unchanged.
+     * Software reverb doesn't need a hardware audio session.
      */
-    fun detachSession(player: ExoPlayer? = null) {
-        (player ?: attachedPlayer)?.setAuxEffectInfo(AuxEffectInfo(0, 0f))
-        releaseEffect()
-    }
+    fun attachSession(@Suppress("UNUSED_PARAMETER") sessionId: Int,
+                      @Suppress("UNUSED_PARAMETER") player: androidx.media3.exoplayer.ExoPlayer) = Unit
 
-    private fun releaseEffect() {
-        try { reverbEffect?.release() } catch (_: Exception) {}
-        reverbEffect   = null
-        attachedPlayer = null
-    }
+    /**
+     * No-op — kept so MusicService.closeAudioEffectSession() compiles unchanged.
+     */
+    fun detachSession(@Suppress("UNUSED_PARAMETER") player: androidx.media3.exoplayer.ExoPlayer? = null) = Unit
 
-    // ── Settings mutations ───────────────────────────────────────────────────────
+    // ── Settings mutations ────────────────────────────────────────────────────────
 
     fun setEnabled(enabled: Boolean) {
         _isEnabled.value = enabled
         prefs?.edit()?.putBoolean(KEY_ENABLED, enabled)?.apply()
-        reverbEffect?.let { applyCurrentStateToEffect(it) }
+        pushToProcessor()
     }
 
     fun setPreset(index: Int) {
         _presetIndex.value = index.coerceIn(0, presetLabels.lastIndex)
         prefs?.edit()?.putInt(KEY_PRESET, _presetIndex.value)?.apply()
-        reverbEffect?.let { applyCurrentStateToEffect(it) }
+        pushToProcessor()
     }
 
     fun setIntensity(value: Float) {
         _intensity.value = value.coerceIn(0f, 1f)
         prefs?.edit()?.putFloat(KEY_INTENSITY, _intensity.value)?.apply()
-        reverbEffect?.let { applyCurrentStateToEffect(it) }
+        pushToProcessor()
     }
 
-    // ── Internal helpers ─────────────────────────────────────────────────────────
+    // ── Internal ──────────────────────────────────────────────────────────────────
 
-    /**
-     * Push current enabled/preset/intensity state onto the [EnvironmentalReverb] instance.
-     *
-     * [reverbLevel] and [reflectionsLevel] are lerp'd from −9000 mB (silent) to the preset's
-     * target, so the Subtle (0 %) → Lush (100 %) slider scales the wet reverb output directly.
-     */
-    private fun applyCurrentStateToEffect(effect: EnvironmentalReverb) {
-        try {
-            val p = activePreset()
-            // Disable (bypass) when toggled off or preset is None.
-            effect.enabled = _isEnabled.value && p != null
-            if (p == null) {
-                effect.decayTime   = 100
-                effect.reverbLevel = -9000
-                return
-            }
-            val t = _intensity.value
-            effect.roomLevel        = p.roomLevel
-            effect.roomHFLevel      = p.roomHFLevel
-            effect.decayTime        = p.decayTime
-            effect.decayHFRatio     = p.decayHFRatio
-            effect.diffusion        = p.diffusion
-            effect.density          = p.density
-            effect.reflectionsDelay = p.reflectionsDelay
-            effect.reverbDelay      = p.reverbDelay
-            // Lerp wet levels by intensity: 0 % = silent (−90 dB), 100 % = preset target
-            effect.reflectionsLevel = ((-9000) + (p.reflectionsLevel.toInt() - (-9000)) * t)
-                .toInt().coerceIn(-9000, 1000).toShort()
-            effect.reverbLevel      = ((-9000) + (p.reverbLevel.toInt() - (-9000)) * t)
-                .toInt().coerceIn(-9000, 2000).toShort()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to apply preset to EnvironmentalReverb")
+    private fun pushToProcessor() {
+        val proc = audioProcessor ?: return
+        val p    = softPresets.getOrNull(_presetIndex.value)
+        if (!_isEnabled.value || p == null) {
+            proc.setReverbParams(enabled = false, roomSize = 0.5f, damping = 0.5f, wet = 0f)
+        } else {
+            proc.setReverbParams(
+                enabled  = true,
+                roomSize = p.roomSize,
+                damping  = p.damping,
+                wet      = p.baseWet * _intensity.value,
+            )
         }
     }
-
-    /** The preset currently active, or null when disabled / set to None. */
-    fun activePreset(): Preset? = if (_isEnabled.value) presets[_presetIndex.value] else null
 }

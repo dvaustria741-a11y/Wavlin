@@ -161,7 +161,6 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (LocalPinkLilyTheme.current) Color.White.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable(onClick = action.onClick)
                         .padding(vertical = 10.dp, horizontal = 2.dp),
             ) {

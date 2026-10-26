@@ -181,28 +181,15 @@ fun BottomSheetMenu(
         scrimColor = if (pinkLily) PinkInk.copy(alpha = 0.32f) else BottomSheetDefaults.ScrimColor,
         dragHandle = {
             // Secret Pink draws its own handle inside the sheet art (below).
-            if (!pinkLily && !wrapContent) {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 40.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                )
-            }
         },
         contentWindowInsets = if (wrapContent) {
             { WindowInsets(0, 0, 0, 0) }
         } else {
             { BottomSheetDefaults.modalWindowInsets }
         },
-        modifier = if (pinkLily || wrapContent) {
-            modifier.fillMaxHeight(state.heightFraction)
-        } else {
-            modifier
-                .fillMaxHeight(state.heightFraction)
-                .border(1.dp, glassStrokeBrush(), sheetShape)
-        }
+        // The glass edge and the height live on the sheet's own content below, so they move with the sheet
+        // when it is dragged (a border put on this modifier stayed behind at the top of the screen).
+        modifier = if (pinkLily || wrapContent) modifier.fillMaxHeight(state.heightFraction) else modifier,
     ) {
         if (wrapContent) {
             Spacer(
@@ -252,10 +239,12 @@ fun BottomSheetMenu(
                                 .border(1.dp, glassStrokeBrush(), sheetShape)
                         } else {
                             Modifier
+                                .fillMaxHeight(state.heightFraction)
+                                .border(1.dp, glassStrokeBrush(), sheetShape)
                         },
                     ),
             ) {
-                if (wrapContent) {
+                run {
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)

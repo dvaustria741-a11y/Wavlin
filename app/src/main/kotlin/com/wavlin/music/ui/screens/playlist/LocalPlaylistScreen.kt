@@ -1538,7 +1538,7 @@ fun LocalPlaylistHeader(
         ) {
             // Left group: Share + Menu
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Share Button
@@ -1554,9 +1554,9 @@ fun LocalPlaylistHeader(
                             )
                         }
                     },
-                    shape = CircleShape,
+                    shape = headerButtonShape(0),
                     color = Color.Transparent,
-                    modifier = Modifier.size(40.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
+                    modifier = headerButtonSize(0).glassPanel(shape = headerButtonShape(0)),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1647,9 +1647,9 @@ fun LocalPlaylistHeader(
                             )
                         }
                     },
-                    shape = CircleShape,
+                    shape = headerButtonShape(1),
                     color = Color.Transparent,
-                    modifier = Modifier.size(40.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
+                    modifier = headerButtonSize(1).glassPanel(shape = headerButtonShape(1)),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1679,9 +1679,9 @@ fun LocalPlaylistHeader(
                             ),
                         )
                     },
-                    shape = CircleShape,
-                    color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.size(48.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
+                    shape = headerButtonShape(2),
+                    color = Color.Transparent,
+                    modifier = headerButtonSize(2).glassPanel(shape = headerButtonShape(2)),
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1705,9 +1705,9 @@ fun LocalPlaylistHeader(
                             ),
                         )
                     },
-                    color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.primary,
-                    shape = CircleShape,
-                    modifier = Modifier.size(60.dp).let { if (LocalPinkLilyTheme.current) it.glassPanel(shape = CircleShape) else it },
+                    color = if (LocalPinkLilyTheme.current) Color.Transparent else MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
+                    shape = headerButtonShape(3),
+                    modifier = headerButtonSize(3).glassPanel(shape = headerButtonShape(3)),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1725,6 +1725,38 @@ fun LocalPlaylistHeader(
         }
     }
 }
+
+/** Playlist header buttons: a joined glass pair on the left, a rounded-square shuffle and a wide play pill. */
+@Composable
+private fun headerButtonShape(kind: Int): androidx.compose.ui.graphics.Shape =
+    if (LocalPinkLilyTheme.current) {
+        CircleShape
+    } else {
+        when (kind) {
+            0 -> RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp)
+            1 -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)
+            2 -> RoundedCornerShape(18.dp)
+            else -> RoundedCornerShape(24.dp)
+        }
+    }
+
+@Composable
+private fun headerButtonSize(kind: Int): Modifier =
+    if (LocalPinkLilyTheme.current) {
+        Modifier.size(
+            when (kind) {
+                0, 1 -> 40.dp
+                2 -> 48.dp
+                else -> 64.dp
+            },
+        )
+    } else {
+        when (kind) {
+            0, 1 -> Modifier.size(width = 52.dp, height = 44.dp)
+            2 -> Modifier.size(52.dp)
+            else -> Modifier.size(width = 80.dp, height = 56.dp)
+        }
+    }
 
 @Composable
 private fun MetadataChip(

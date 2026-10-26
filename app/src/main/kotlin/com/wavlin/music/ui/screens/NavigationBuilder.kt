@@ -37,7 +37,9 @@ import com.wavlin.music.ui.screens.playlist.CachePlaylistScreen
 import com.wavlin.music.ui.screens.playlist.LocalPlaylistScreen
 import com.wavlin.music.ui.screens.playlist.OnlinePlaylistScreen
 import com.wavlin.music.ui.screens.playlist.TopPlaylistScreen
+import com.wavlin.music.ui.screens.hub.CategoryHubScreen
 import com.wavlin.music.ui.screens.podcast.OnlinePodcastScreen
+import com.wavlin.music.viewmodels.HubKind
 import com.wavlin.music.ui.screens.recognition.RecognitionHistoryScreen
 import com.wavlin.music.ui.screens.recognition.RecognitionScreen
 import com.wavlin.music.ui.screens.search.OnlineSearchResult
@@ -132,11 +134,15 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("new_release") {
-        NewReleaseScreen(navController)
+        CategoryHubScreen(navController, HubKind.NEW_RELEASES)
     }
 
     composable("charts_screen") {
-        ChartsScreen(navController)
+        CategoryHubScreen(navController, HubKind.CHARTS)
+    }
+
+    composable("podcasts_hub") {
+        CategoryHubScreen(navController, HubKind.PODCASTS)
     }
 
     composable(

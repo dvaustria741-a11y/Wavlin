@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,11 +29,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,12 +43,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,27 +56,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import coil3.compose.AsyncImage
 import com.wavlin.innertube.pages.MoodAndGenres
 import com.wavlin.music.LocalPlayerAwareWindowInsets
-import com.wavlin.music.R
-import com.wavlin.music.ui.component.IconButton
+import com.wavlin.music.ui.component.HubArt
 import com.wavlin.music.ui.component.shimmer.ShimmerHost
 import com.wavlin.music.ui.component.shimmer.TextPlaceholder
-import com.wavlin.music.ui.utils.backToMain
+import com.wavlin.music.ui.screens.hub.HubBackButton
 import com.wavlin.music.viewmodels.MoodAndGenresViewModel
-
-private val MoodCardBorderColors =
-    listOf(
-        Color.White.copy(alpha = 0.15f),
-        Color.White.copy(alpha = 0.03f),
-    )
-
-private val MoodCardGlowColors =
-    listOf(
-        Color.White.copy(alpha = 0.10f),
-        Color.Transparent,
-    )
 
 @Composable
 fun MoodAndGenresScreen(
@@ -95,7 +82,8 @@ fun MoodAndGenresScreen(
         }
     val rows = remember(moods, columns) { moods?.chunked(columns) }
 
-    val insets = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -104,8 +92,8 @@ fun MoodAndGenresScreen(
                 PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = insets.calculateTopPadding() + 68.dp,
-                    bottom = insets.calculateBottomPadding() + 16.dp,
+                    top = statusTop + 60.dp,
+                    bottom = bottomInset + 16.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -115,8 +103,8 @@ fun MoodAndGenresScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             repeat(columns) {
                                 TextPlaceholder(
-                                    height = 110.dp,
-                                    shape = RoundedCornerShape(16.dp),
+                                    height = 100.dp,
+                                    shape = RoundedCornerShape(22.dp),
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -149,32 +137,20 @@ fun MoodAndGenresScreen(
             }
         }
 
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = 16.dp, top = insets.calculateTopPadding() + 8.dp)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        }
+        HubBackButton(
+            navController = navController,
+            modifier = Modifier.padding(start = 16.dp, top = statusTop + 6.dp),
+        )
     }
 }
 
 fun moodDetailRoute(mood: MoodAndGenres.Item): String =
     "mood_detail/${mood.endpoint.browseId}?params=${mood.endpoint.params}&title=${Uri.encode(mood.title)}"
 
+/**
+ * Mood tile: tinted gradient with the title at the bottom and a vinyl record of the mood's
+ * cover art spinning out of the top-right corner.
+ */
 @Composable
 fun MoodCard(
     title: String,
@@ -186,7 +162,7 @@ fun MoodCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
         label = "MoodCardPressScale",
     )
@@ -198,7 +174,7 @@ fun MoodCard(
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
         modifier =
             modifier
                 .aspectRatio(1.6f)
@@ -207,60 +183,76 @@ fun MoodCard(
                     scaleY = scale
                 },
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(gradientBrush),
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(gradientBrush)) {
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Brush.radialGradient(colors = MoodCardGlowColors, radius = 220f)),
+                        .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.14f), Color.Transparent))),
             )
 
             Text(
                 text = title,
                 style =
                     MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.5).sp,
-                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                        lineHeight = 20.sp,
                     ),
                 color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier =
                     Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 14.dp, top = 14.dp, end = 64.dp),
+                        .align(Alignment.BottomStart)
+                        .padding(start = 14.dp, end = 76.dp, bottom = 12.dp),
             )
 
-            Box(
+            VinylDisc(
+                imageUrl = imageUrl,
+                holeColor = gradientColors[0],
                 modifier =
                     Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 10.dp, y = 10.dp)
-                        .graphicsLayer {
-                            rotationZ = -14f
-                            shadowElevation = 12f
-                            shape = RoundedCornerShape(10.dp)
-                            clip = true
-                        }.size(68.dp)
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(MoodCardBorderColors),
-                            shape = RoundedCornerShape(10.dp),
-                        ).background(Color.Black.copy(alpha = 0.3f)),
-            ) {
-                if (imageUrl != null) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                        .align(Alignment.TopEnd)
+                        .offset(x = 18.dp, y = (-18).dp)
+                        .size(96.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun VinylDisc(
+    imageUrl: String?,
+    holeColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.35f))
+                .border(2.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                .drawWithContent {
+                    drawContent()
+                    val radius = size.minDimension / 2f
+                    listOf(0.86f, 0.72f, 0.58f).forEach { fraction ->
+                        drawCircle(
+                            color = Color.Black.copy(alpha = 0.10f),
+                            radius = radius * fraction,
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+                    drawCircle(color = holeColor, radius = radius * 0.13f)
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.35f),
+                        radius = radius * 0.13f,
+                        style = Stroke(width = 1.dp.toPx()),
                     )
-                }
-            }
+                },
+    ) {
+        if (imageUrl != null) {
+            HubArt(model = imageUrl, shape = CircleShape, modifier = Modifier.fillMaxSize())
         }
     }
 }

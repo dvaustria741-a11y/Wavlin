@@ -447,7 +447,7 @@ fun OnlineSearchScreen(
                             iconRes = R.drawable.mic,
                             onClick = {
                                 onDismiss()
-                                navController.navigate("youtube_browse/FEmusic_non_music_audio")
+                                navController.navigate("podcasts_hub")
                             },
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             iconContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,

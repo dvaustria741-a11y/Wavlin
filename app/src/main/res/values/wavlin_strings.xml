@@ -1129,5 +1129,15 @@
     <string name="new_releases">New Releases</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="clear_all">Clear all</string>
-    <string name="mood_hub_categories">Mood Hub • %1$d categories</string>
+    <string name="hub_collections">%1$d collections</string>
+    <string name="hub_empty">Nothing to show right now</string>
+    <string name="hub_trending_now">Trending now</string>
+    <string name="hub_chart_playlists">Chart playlists</string>
+    <string name="hub_albums_on_top">Albums on top</string>
+    <string name="hub_shows_to_follow">Shows to follow</string>
+    <string name="hub_fresh_episodes">Fresh episodes</string>
+    <string name="hub_podcast_playlists">Podcast playlists</string>
+    <string name="hub_fresh_singles">Fresh singles</string>
+    <string name="hub_new_albums">New albums</string>
+    <string name="hub_new_mixes">New music mixes</string>
 </resources>

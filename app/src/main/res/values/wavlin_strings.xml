@@ -1111,4 +1111,18 @@
     <string name="spotify_no_match">No YouTube Music match found</string>
     <string name="spotify_import_playlist">Import</string>
     <string name="spotify_import_and_download">Import &amp; download</string>
+    <string name="audio_effects">Audio Effects</string>
+    <string name="effects">Effects</string>
+    <string name="reverb">Reverb</string>
+    <string name="reverb_preset">Preset</string>
+    <string name="reverb_intensity">Intensity</string>
+    <string name="reverb_subtle">Subtle</string>
+    <string name="reverb_balanced">Balanced</string>
+    <string name="reverb_lush">Lush</string>
+    <string name="reverb_preset_none">None</string>
+    <string name="reverb_preset_small_room">Small Room</string>
+    <string name="reverb_preset_concert_hall">Concert Hall</string>
+    <string name="reverb_preset_stadium">Stadium</string>
+    <string name="reverb_preset_plate">Plate</string>
+    <string name="reverb_preset_spring">Spring</string>
 </resources>

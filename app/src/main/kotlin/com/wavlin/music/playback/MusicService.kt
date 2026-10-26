@@ -642,6 +642,7 @@ class MusicService :
         super.onCreate()
         isRunning = true
         com.wavlin.music.audio.dolby.DolbyAtmosManager.init(this)
+        com.wavlin.music.audio.reverb.ReverbManager.init(this)
         shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>()
 
         setListener(
@@ -2455,6 +2456,7 @@ class MusicService :
         isAudioEffectSessionOpened = true
         openedAudioEffectSessionId = audioSessionId
         com.wavlin.music.audio.dolby.DolbyAtmosManager.attachSession(audioSessionId)
+        com.wavlin.music.audio.reverb.ReverbManager.attachSession(audioSessionId, player)
 
         sendBroadcast(
             Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
@@ -4171,6 +4173,7 @@ class MusicService :
     override fun onDestroy() {
         isRunning = false
         com.wavlin.music.audio.dolby.DolbyAtmosManager.release()
+        com.wavlin.music.audio.reverb.ReverbManager.release()
 
         if (!::player.isInitialized) {
             try {

@@ -43,6 +43,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -92,6 +95,7 @@ import com.wavlin.music.models.MediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.db.entities.Song
 import com.wavlin.music.db.entities.SpeedDialItem
+import com.wavlin.music.ui.component.AudioEffectsSheet
 import com.wavlin.music.ui.component.BottomSheetState
 import com.wavlin.music.ui.component.ListDialog
 import com.wavlin.music.ui.component.Material3MenuGroup
@@ -106,6 +110,7 @@ import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.round
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerMenu(
     mediaMetadata: MediaMetadata?,
@@ -265,6 +270,19 @@ fun PlayerMenu(
         )
     }
 
+    var showEffectsSheet by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    if (showEffectsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showEffectsSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            AudioEffectsSheet()
+        }
+    }
+
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
@@ -309,6 +327,12 @@ fun PlayerMenu(
                                     navController.navigate("equalizer")
                                     onDismiss()
                                 },
+                            ),
+                            PlayerQuickAction(
+                                iconRes = R.drawable.graphic_eq,
+                                label = stringResource(R.string.effects),
+                                circleColor = colors.primary.copy(alpha = 0.22f),
+                                onClick = { showEffectsSheet = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.playlist_add,

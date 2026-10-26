@@ -38,9 +38,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wavlin.music.R
 import com.wavlin.music.audio.reverb.ReverbManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,13 +60,13 @@ fun AudioEffectsSheet() {
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         Text(
-            text = "Audio Effects",
+            text = stringResource(R.string.audio_effects),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 4.dp, top = 8.dp),
         )
         Text(
-            text = "Reverb",
+            text = stringResource(R.string.reverb),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,
@@ -76,7 +78,7 @@ fun AudioEffectsSheet() {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "Reverb",
+                text = stringResource(R.string.reverb),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -109,10 +111,10 @@ fun AudioEffectsSheet() {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedTextField(
-                        value = ReverbManager.presetNames[presetIndex],
+                        value = stringResource(ReverbManager.presetLabels[presetIndex]),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Preset") },
+                        label = { Text(stringResource(R.string.reverb_preset)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
@@ -121,9 +123,9 @@ fun AudioEffectsSheet() {
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
                     ) {
-                        ReverbManager.presetNames.forEachIndexed { i, name ->
+                        ReverbManager.presetLabels.forEachIndexed { i, labelRes ->
                             DropdownMenuItem(
-                                text = { Text(name) },
+                                text = { Text(stringResource(labelRes)) },
                                 onClick = {
                                     ReverbManager.setPreset(i)
                                     expanded = false
@@ -140,7 +142,7 @@ fun AudioEffectsSheet() {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
-                        text = "Intensity",
+                        text = stringResource(R.string.reverb_intensity),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.weight(1f),
                     )
@@ -161,9 +163,9 @@ fun AudioEffectsSheet() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Subtle", style = MaterialTheme.typography.labelSmall)
-                    Text("Balanced", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                    Text("Lush", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.reverb_subtle), style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.reverb_balanced), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    Text(stringResource(R.string.reverb_lush), style = MaterialTheme.typography.labelSmall)
                 }
                 Spacer(Modifier.height(32.dp))
             }

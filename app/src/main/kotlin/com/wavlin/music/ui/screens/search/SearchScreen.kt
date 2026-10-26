@@ -70,6 +70,7 @@ import com.wavlin.music.LocalIsPlayerExpanded
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
+import com.wavlin.music.constants.PauseListenHistoryKey
 import com.wavlin.music.constants.PauseSearchHistoryKey
 import com.wavlin.music.constants.SearchSource
 import com.wavlin.music.constants.SearchSourceKey
@@ -122,6 +123,12 @@ fun SearchScreen(
     val navController = LocalNavController.current
     val pinkLily = LocalPinkLilyTheme.current
     val database = LocalDatabase.current
+    val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
+    val eventCount by database.eventCount().collectAsStateWithLifecycle(initialValue = 0)
+    val showHistoryButton =
+        remember(pauseListenHistory, eventCount) {
+            !(pauseListenHistory && eventCount == 0)
+        }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val spotifyProvider = remember { SpotifyProvider() }
@@ -538,6 +545,17 @@ fun SearchScreen(
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
+                                }
+                            }
+                            if (showHistoryButton) {
+                                IconButton(onClick = { navController.navigate("history") }) {
+                                    LilyDiscBox(pinkLily) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.history),
+                                            contentDescription = stringResource(R.string.history),
+                                            tint = if (pinkLily) PinkInk else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                 }
                             }
                             IconButton(

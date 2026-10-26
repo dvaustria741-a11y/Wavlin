@@ -152,7 +152,6 @@ import com.wavlin.music.constants.MiniPlayerBottomSpacing
 import com.wavlin.music.constants.MiniPlayerHeight
 import com.wavlin.music.constants.NavigationBarAnimationSpec
 import com.wavlin.music.constants.NavigationBarHeight
-import com.wavlin.music.constants.PauseListenHistoryKey
 import com.wavlin.music.constants.PauseSearchHistoryKey
 import com.wavlin.music.constants.PreferredLyricsProvider
 import com.wavlin.music.constants.PreferredLyricsProviderKey
@@ -1008,13 +1007,6 @@ class MainActivity : ComponentActivity() {
 
                 var showAccountDialog by remember { mutableStateOf(false) }
 
-                val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
-                val eventCount by database.eventCount().collectAsStateWithLifecycle(initialValue = 0)
-                val showHistoryButton =
-                    remember(pauseListenHistory, eventCount) {
-                        !(pauseListenHistory && eventCount == 0)
-                    }
-
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 val hazeState = remember { HazeState() }
 
@@ -1089,16 +1081,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         actions = {
-                                            if (showHistoryButton) {
-                                                IconButton(onClick = { navController.navigate("history") }) {
-                                                    LilyDiscBox(pinkWallpaper) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.history),
-                                                            contentDescription = stringResource(R.string.history),
-                                                        )
-                                                    }
-                                                }
-                                            }
                                             IconButton(onClick = { navController.navigate("stats") }) {
                                                 LilyDiscBox(pinkWallpaper) {
                                                     Icon(

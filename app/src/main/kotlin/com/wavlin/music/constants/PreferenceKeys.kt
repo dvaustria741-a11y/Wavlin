@@ -111,6 +111,7 @@ val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val LastUpdateCheckTimeKey = longPreferencesKey("lastUpdateCheckTime")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
+val VideoCanvasEnabledKey = booleanPreferencesKey("videoCanvasEnabled")
 val LosslessStreamingEnabledKey = booleanPreferencesKey("losslessStreamingEnabled")
 
 enum class AudioQuality {

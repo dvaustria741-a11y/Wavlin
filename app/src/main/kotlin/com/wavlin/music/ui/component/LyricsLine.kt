@@ -197,15 +197,24 @@ internal fun LyricsLine(
         @Composable
         fun LyricContent() {
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = agentAlignment) {
-                val inactiveAlpha = if (item.isBackground) 0.12f else 0.45f
+                // On the Secret Pink (light) theme the background is pale pink, so inactive
+                // lyrics at default alpha become invisible. Bump them only for that theme.
+                val isPinkTheme = LocalPinkLilyTheme.current
+                val inactiveAlpha = if (item.isBackground) (if (isPinkTheme) 0.12f else 0.08f)
+                                   else (if (isPinkTheme) 0.45f else 0.2f)
                 val activeAlpha = 1f
-                val focusedAlpha = if (item.isBackground) 0.55f else 0.55f
+                val focusedAlpha = if (item.isBackground) (if (isPinkTheme) 0.55f else 0.5f)
+                                  else (if (isPinkTheme) 0.55f else 0.3f)
                 val targetAlpha = if (!isSynced || item.isBackground || isActiveLine) {
                     activeAlpha
                 } else if (isAutoScrollEnabled && displayedCurrentLineIndex >= 0) {
                     when (abs(index - displayedCurrentLineIndex)) {
                         0 -> focusedAlpha
-                        1 -> 0.48f; 2 -> 0.38f; 3 -> 0.28f; 4 -> 0.2f; else -> 0.15f
+                        1 -> if (isPinkTheme) 0.48f else 0.2f
+                        2 -> if (isPinkTheme) 0.38f else 0.2f
+                        3 -> if (isPinkTheme) 0.28f else 0.15f
+                        4 -> if (isPinkTheme) 0.2f else 0.1f
+                        else -> if (isPinkTheme) 0.15f else 0.08f
                     }
                 } else inactiveAlpha
                 

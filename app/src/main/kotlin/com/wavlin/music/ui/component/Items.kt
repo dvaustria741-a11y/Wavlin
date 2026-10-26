@@ -1798,7 +1798,7 @@ fun BoxScope.OverlayEditButton(
         exit = fadeOut(),
         modifier = Modifier
             .align(alignment)
-            .then(if (alignment == Alignment.BottomEnd) Modifier.padding(8.dp) else Modifier)
+            .then(if (alignment == Alignment.BottomEnd || alignment == Alignment.CenterEnd) Modifier.padding(8.dp) else Modifier)
     ) {
         Box(
             contentAlignment = Alignment.Center,

@@ -19,6 +19,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -46,6 +48,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -83,6 +86,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -554,10 +559,14 @@ fun LocalPlaylistScreen(
         label = "topBleedAlpha",
     )
 
+    // The cover runs full-bleed behind the status bar, so the list drops its own top padding while it shows
+    val heroVisible = !isSearching && playlist?.let { !(it.songCount == 0 && it.playlist.remoteSongCount == 0) } == true
+    val overlayTop = heroVisible && !showTopBarTitle && !inSelectMode
+
     Box(
         modifier = Modifier.fillMaxSize().background(screenBaseColor),
     ) {
-        val bleedColor = if (LocalPinkLilyTheme.current) null else topBleedColor
+        val bleedColor = if (LocalPinkLilyTheme.current || heroVisible) null else topBleedColor
         if (bleedColor != null) {
             Box(
                 modifier =
@@ -572,7 +581,17 @@ fun LocalPlaylistScreen(
 
         LazyColumn(
             state = lazyListState,
-            contentPadding = LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime).asPaddingValues(),
+            contentPadding =
+                run {
+                    val insets = LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime).asPaddingValues()
+                    val dir = LocalLayoutDirection.current
+                    PaddingValues(
+                        start = insets.calculateStartPadding(dir),
+                        end = insets.calculateEndPadding(dir),
+                        top = if (heroVisible) 0.dp else insets.calculateTopPadding(),
+                        bottom = insets.calculateBottomPadding(),
+                    )
+                },
         ) {
             playlist?.let { playlist ->
                 if (playlist.songCount == 0 && playlist.playlist.remoteSongCount == 0) {
@@ -829,8 +848,11 @@ fun LocalPlaylistScreen(
             headerItems = 2,
         )
 
+        val heroButtonModifier =
+            if (overlayTop) Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)) else Modifier
+        val heroIconTint = if (overlayTop) Color.White else LocalContentColor.current
         TopAppBar(
-            modifier = Modifier.hazeEffect(state = LocalHazeState.current, style = HazeMaterials.ultraThin()),
+            modifier = if (overlayTop) Modifier else Modifier.hazeEffect(state = LocalHazeState.current, style = HazeMaterials.ultraThin()),
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             title = {
                 if (inSelectMode) {
@@ -875,6 +897,7 @@ fun LocalPlaylistScreen(
                     }
                 } else {
                     IconButton(
+                        modifier = heroButtonModifier,
                         onClick = {
                             if (isSearching) {
                                 isSearching = false
@@ -892,6 +915,7 @@ fun LocalPlaylistScreen(
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),
                             contentDescription = null,
+                            tint = heroIconTint,
                         )
                     }
                 }
@@ -936,11 +960,13 @@ fun LocalPlaylistScreen(
                 } else if (!isSearching) {
                     // Only search button remains in TopAppBar
                     IconButton(
+                        modifier = heroButtonModifier,
                         onClick = { isSearching = true },
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.search),
                             contentDescription = null,
+                            tint = heroIconTint,
                         )
                     }
                 }
@@ -1211,20 +1237,8 @@ fun LocalPlaylistHeader(
     }
 
     Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(
-                    brush =
-                        easedHeaderGradient(
-                            colors = if (LocalPinkLilyTheme.current) emptyList() else headerGradientColors,
-                            baseColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                        ),
-                )
-                .lilyHeaderSpray()
-                .padding(top = 8.dp, bottom = 20.dp)
-                .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.Start,
+        modifier = modifier.fillMaxWidth().lilyHeaderSpray(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (showEditNoteDialog) {
             ActionPromptDialog(
@@ -1252,13 +1266,20 @@ fun LocalPlaylistHeader(
                 )
             }
         }
-        // Playlist Thumbnail(s) - Large centered with shadow
+        // Hero: full-bleed cover, half the screen, fading into the page with the title on top
+        val heroBase =
+            when {
+                LocalPinkLilyTheme.current -> MaterialTheme.colorScheme.background
+                pureBlack -> Color.Black
+                else -> MaterialTheme.colorScheme.surfaceContainer
+            }
+        val heroText = if (heroBase.luminance() > 0.5f) Color.Black else Color.White
         Box(
-            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         ) {
             when (coverThumbnails.size) {
                 0 -> if (LocalPinkLilyTheme.current) {
-                    Box(modifier = Modifier.size(170.dp)) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                         androidx.compose.foundation.Image(
                             painter = painterResource(R.drawable.lily_cover_empty),
                             contentDescription = null,
@@ -1275,13 +1296,8 @@ fun LocalPlaylistHeader(
                     Surface(
                         modifier =
                             Modifier
-                                .size(170.dp)
-                                .shadow(
-                                    elevation = 16.dp,
-                                    shape = RoundedCornerShape(3.dp),
-                                )
-                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
-                        shape = RoundedCornerShape(3.dp),
+                                .fillMaxSize(),
+                        shape = androidx.compose.ui.graphics.RectangleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant,
                     ) {
                         Box(
@@ -1302,14 +1318,8 @@ fun LocalPlaylistHeader(
                     Surface(
                         modifier =
                             Modifier
-                                .size(170.dp)
-                                .shadow(
-                                    elevation = 24.dp,
-                                    shape = RoundedCornerShape(3.dp),
-                                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                )
-                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
-                        shape = RoundedCornerShape(3.dp),
+                                .fillMaxSize(),
+                        shape = androidx.compose.ui.graphics.RectangleShape,
                     ) {
                         AsyncImage(
                             model = coverThumbnails[0],
@@ -1322,7 +1332,7 @@ fun LocalPlaylistHeader(
                     if (editable) {
                         OverlayEditButton(
                             visible = true,
-                            alignment = Alignment.BottomEnd,
+                            alignment = Alignment.CenterEnd,
                             onClick = {
                                 if (isCustomThumbnail) {
                                     menuState.show(
@@ -1373,14 +1383,8 @@ fun LocalPlaylistHeader(
                     Surface(
                         modifier =
                             Modifier
-                                .size(170.dp)
-                                .shadow(
-                                    elevation = 24.dp,
-                                    shape = RoundedCornerShape(3.dp),
-                                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                )
-                                .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
-                        shape = RoundedCornerShape(3.dp),
+                                .fillMaxSize(),
+                        shape = androidx.compose.ui.graphics.RectangleShape,
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             Column(modifier = Modifier.fillMaxSize()) {
@@ -1406,7 +1410,7 @@ fun LocalPlaylistHeader(
                     if (editable) {
                         OverlayEditButton(
                             visible = true,
-                            alignment = Alignment.BottomEnd,
+                            alignment = Alignment.CenterEnd,
                             onClick = {
                                 if (isCustomThumbnail) {
                                     menuState.show(
@@ -1453,19 +1457,51 @@ fun LocalPlaylistHeader(
                     }
                 }
             }
-        }
 
-        // Playlist Name
-        Text(
-            text = playlist.playlist.name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Start,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+            // Fade the cover into the page so the title stays readable
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                0.42f to Color.Transparent,
+                                0.72f to heroBase.copy(alpha = 0.7f),
+                                0.92f to heroBase.copy(alpha = 0.96f),
+                                1f to heroBase,
+                            ),
+                        ),
+            )
+            // Keeps the status bar and the floating top buttons legible over bright covers
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
+                        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent))),
+            )
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 56.dp)
+                        .padding(bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = playlist.playlist.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = heroText,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
-        Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
         // Metadata - Song Count • Duration
         val songCount =
@@ -1483,12 +1519,19 @@ fun LocalPlaylistHeader(
                 append(durationText)
             }
         }
-        Text(
-            text = metadataString,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-        )
+                Text(
+                    text = metadataString,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = heroText.copy(alpha = 0.75f),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
 
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
         val onlineAuthor = onlinePlaylist?.author
         if (onlineAuthor != null) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -1728,6 +1771,7 @@ fun LocalPlaylistHeader(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -5,7 +5,25 @@
 
 package com.wavlin.music.ui.screens.spotify
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.wavlin.music.constants.AppBarHeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -137,6 +155,10 @@ fun SpotifyPlaylistScreen(
         scope.launch { playSpotifyTracks(context, database, connection, title, tracks, startIndex, shuffle) }
     }
 
+    val listState = rememberLazyListState()
+    val scrolledPastHero by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    val overlayTop = state is SpotifyPlaylistState.Loaded && !scrolledPastHero
+
     when (val current = state) {
         SpotifyPlaylistState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
@@ -147,19 +169,27 @@ fun SpotifyPlaylistScreen(
 
         is SpotifyPlaylistState.Loaded ->
             LazyColumn(
-                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                state = listState,
+                contentPadding =
+                    run {
+                        val insets = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+                        val dir = LocalLayoutDirection.current
+                        PaddingValues(
+                            start = insets.calculateStartPadding(dir),
+                            end = insets.calculateEndPadding(dir),
+                            top = 0.dp,
+                            bottom = insets.calculateBottomPadding(),
+                        )
+                    },
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item(key = "header") {
-                    Column(Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        val cover = playlist?.thumbnailUrl()
-                        Box(
-                            Modifier
-                                .width(220.dp)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                    val cover = playlist?.thumbnailUrl()
+                    val heroBase = MaterialTheme.colorScheme.background
+                    val heroText = if (heroBase.luminance() > 0.5f) Color.Black else Color.White
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Hero: full-bleed cover, half the screen, fading into the page with the title on top
+                        Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
                             if (cover != null) {
                                 AsyncImage(
                                     model = cover,
@@ -168,31 +198,77 @@ fun SpotifyPlaylistScreen(
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
-                                Icon(painterResource(R.drawable.queue_music), contentDescription = null, modifier = Modifier.size(64.dp))
+                                Box(
+                                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(painterResource(R.drawable.queue_music), contentDescription = null, modifier = Modifier.size(96.dp))
+                                }
+                            }
+                            // Fade the cover into the page so the title stays readable
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to Color.Transparent,
+                                            0.42f to Color.Transparent,
+                                            0.72f to heroBase.copy(alpha = 0.7f),
+                                            0.92f to heroBase.copy(alpha = 0.96f),
+                                            1f to heroBase,
+                                        ),
+                                    ),
+                            )
+                            // Keeps the status bar and the floating top buttons legible over bright covers
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
+                                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent))),
+                            )
+                            Column(
+                                Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                                    .padding(bottom = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    color = heroText,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(Modifier.size(4.dp))
+                                val owner = playlist?.owner?.displayName
+                                Text(
+                                    text =
+                                        if (owner.isNullOrBlank()) {
+                                            stringResource(R.string.spotify_playlist_subtitle_no_owner, current.tracks.size)
+                                        } else {
+                                            stringResource(R.string.spotify_playlist_subtitle, owner, current.tracks.size)
+                                        },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = heroText.copy(alpha = 0.75f),
+                                )
+                                if (current.isOfflineCopy) {
+                                    Text(
+                                        stringResource(R.string.spotify_offline_copy),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        textAlign = TextAlign.Center,
+                                        color = heroText.copy(alpha = 0.6f),
+                                    )
+                                }
                             }
                         }
                         Spacer(Modifier.size(12.dp))
-                        Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        val owner = playlist?.owner?.displayName
-                        Text(
-                            text =
-                                if (owner.isNullOrBlank()) {
-                                    stringResource(R.string.spotify_playlist_subtitle_no_owner, current.tracks.size)
-                                } else {
-                                    stringResource(R.string.spotify_playlist_subtitle, owner, current.tracks.size)
-                                },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                        if (current.isOfflineCopy) {
-                            Text(
-                                stringResource(R.string.spotify_offline_copy),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Spacer(Modifier.size(12.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { play(current.tracks) }, modifier = Modifier.weight(1f)) {
                                 Icon(painterResource(R.drawable.play), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -222,12 +298,19 @@ fun SpotifyPlaylistScreen(
             }
     }
 
+    val heroButtonModifier =
+        if (overlayTop) Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)) else Modifier
+    val heroIconTint = if (overlayTop) Color.White else LocalContentColor.current
     TopAppBar(
-        colors = pinkTopBarColors(),
-        title = { Text(if (state is SpotifyPlaylistState.Loaded) "" else title) },
+        colors = if (overlayTop) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent) else pinkTopBarColors(),
+        title = { Text(if (state is SpotifyPlaylistState.Loaded && !scrolledPastHero) "" else title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
-            IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
+            IconButton(
+                onClick = navController::navigateUp,
+                onLongClick = navController::backToMain,
+                modifier = heroButtonModifier,
+            ) {
+                Icon(painterResource(R.drawable.arrow_back), contentDescription = null, tint = heroIconTint)
             }
         },
         actions = {
@@ -236,8 +319,9 @@ fun SpotifyPlaylistScreen(
                 IconButton(
                     onClick = { showDownloadSheet = true },
                     onLongClick = {},
+                    modifier = heroButtonModifier,
                 ) {
-                    Icon(painterResource(R.drawable.download), contentDescription = stringResource(R.string.action_download))
+                    Icon(painterResource(R.drawable.download), contentDescription = stringResource(R.string.action_download), tint = heroIconTint)
                 }
             }
         },

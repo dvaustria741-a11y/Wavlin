@@ -26,6 +26,8 @@ import com.wavlin.music.utils.SearchRoutes
 import com.wavlin.music.utils.dataStore
 import com.wavlin.music.utils.get
 import com.wavlin.music.utils.reportException
+import com.wavlin.music.spotify.SpotifyProvider
+import com.wavlin.music.spotify.SpotifyTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +45,7 @@ constructor(
     val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
+    val spotifyResults = MutableStateFlow<List<SpotifyTrack>?>(null)
 
     private suspend fun loadSummaryPage() {
         if (summaryPage == null) {
@@ -67,6 +70,13 @@ constructor(
     }
 
     init {
+        // Parallel Spotify search — runs independently of the YT filter flow
+        if (query.isNotEmpty()) {
+            viewModelScope.launch {
+                spotifyResults.value = SpotifyProvider.searchTracks(query)
+            }
+        }
+
         viewModelScope.launch {
             filter.collect { filter ->
                 if (filter == null) {

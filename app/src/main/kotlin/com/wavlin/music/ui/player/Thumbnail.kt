@@ -86,6 +86,12 @@ import com.wavlin.music.listentogether.RoomRole
 import com.wavlin.music.ui.component.CastButton
 import com.wavlin.music.utils.rememberEnumPreference
 import com.wavlin.music.utils.rememberPreference
+import androidx.compose.runtime.produceState
+import dagger.hilt.android.EntryPointAccessors
+import com.wavlin.music.constants.VideoCanvasEnabledKey
+import com.wavlin.music.di.VideoCanvasEntryPoint
+import com.wavlin.music.ui.player.CANVAS_IDLE_TIMEOUT_MS
+import com.wavlin.music.ui.player.VideoCanvasPlayer
 import kotlinx.coroutines.delay
 
 /**
@@ -199,6 +205,7 @@ private fun getTextColor(playerBackground: PlayerBackgroundStyle): Color {
 @Composable
 fun Thumbnail(
     sliderPositionProvider: () -> Long?,
+    onVideoIdleFullscreen: ((canvasUrl: String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
@@ -230,6 +237,33 @@ fun Thumbnail(
     // Pre-calculate text color based on background style
     val textBackgroundColor = getTextColor(playerBackground)
     
+
+    // ── Video Canvas ──────────────────────────────────────────────────────
+    val videoCanvasEnabled by rememberPreference(VideoCanvasEnabledKey, defaultValue = true)
+    val context = LocalContext.current
+    val canvasUrl: String? by produceState<String?>(null, mediaMetadata?.id) {
+        val id = mediaMetadata?.id ?: return@produceState
+        if (!videoCanvasEnabled) return@produceState
+        val manager = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            VideoCanvasEntryPoint::class.java,
+        ).videoCanvasManager()
+        value = manager.getCanvasUrl(id)
+    }
+    // Idle timer: after CANVAS_IDLE_TIMEOUT_MS of no interaction → fullscreen canvas
+    val lastInteractionMs = remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(canvasUrl) {
+        if (canvasUrl.isNullOrBlank() || onVideoIdleFullscreen == null) return@LaunchedEffect
+        while (true) {
+            delay(1_000)
+            if (System.currentTimeMillis() - lastInteractionMs.longValue >= CANVAS_IDLE_TIMEOUT_MS) {
+                onVideoIdleFullscreen.invoke(canvasUrl!!)
+                break
+            }
+        }
+    }
+    val onAnyInteraction: () -> Unit = remember { { lastInteractionMs.longValue = System.currentTimeMillis() } }
+
     // Grid state
     val thumbnailLazyGridState = rememberLazyGridState()
     
@@ -406,7 +440,9 @@ fun Thumbnail(
                                 isLandscape = isLandscape,
                                 isListenTogetherGuest = isListenTogetherGuest,
                                 currentMediaId = mediaMetadata?.id,
-                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl
+                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
+                                canvasUrl = if (videoCanvasEnabled) canvasUrl else null,
+                                onAnyInteraction = onAnyInteraction,
                             )
                         }
                     }
@@ -508,6 +544,8 @@ private fun ThumbnailItem(
     isListenTogetherGuest: Boolean = false,
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
+    canvasUrl: String? = null,
+    onAnyInteraction: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
@@ -578,6 +616,13 @@ private fun ThumbnailItem(
                 .size(if (pinkFrame) side * 0.9f else side)
                 .clip(RoundedCornerShape(if (pinkFrame) 18.dp else dimensions.cornerRadius))
         ) {
+            // Video canvas – rendered beneath the album art
+            if (!canvasUrl.isNullOrBlank() && !hidePlayerThumbnail) {
+                VideoCanvasPlayer(
+                    videoUrl = canvasUrl,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
             } else {

@@ -19,9 +19,13 @@ import timber.log.Timber
 /**
  * Manages Android's [EnvironmentalReverb] hardware audio effect.
  *
- * Presets mirror SpatialFlow's reverb presets exactly — same names, same
- * EnvironmentalReverb parameter values — so the two apps produce identical
- * reverb character.
+ * The effect is created as a session-bound INSERT effect tied to ExoPlayer's audio session.
+ * Insert effects are applied automatically to all audio in that session — no [AuxEffectInfo]
+ * needed.  Enabling the effect and setting its parameters is sufficient.
+ *
+ * Intensity is implemented by lerp-ing [EnvironmentalReverb.reverbLevel] and
+ * [EnvironmentalReverb.reflectionsLevel] from −9000 mB (silent) to the preset's target value,
+ * giving a true Subtle→Lush wet-level range without an auxiliary send path.
  *
  * Lifecycle:
  *  - [init]          : called once from MusicService.onCreate — loads persisted prefs.
@@ -145,16 +149,17 @@ object ReverbManager {
     }
 
     /**
-     * Create [EnvironmentalReverb] tied to the new ExoPlayer audio session
-     * and connect it via [AuxEffectInfo].
+     * Create [EnvironmentalReverb] tied to the new ExoPlayer audio session.
+     * This is a session-bound INSERT effect — it processes audio automatically once enabled.
      * Called from MusicService.openAudioEffectSession().
      */
     fun attachSession(sessionId: Int, player: ExoPlayer) {
         releaseEffect()
+        // Clear any stale AuxEffectInfo — insert effects don't use the aux path.
+        player.setAuxEffectInfo(AuxEffectInfo(0, 0f))
         try {
             reverbEffect = EnvironmentalReverb(0, sessionId).also { applyCurrentStateToEffect(it) }
             attachedPlayer = player
-            syncAuxEffectInfo(player)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to create EnvironmentalReverb for session $sessionId")
             reverbEffect = null
@@ -181,61 +186,55 @@ object ReverbManager {
     fun setEnabled(enabled: Boolean) {
         _isEnabled.value = enabled
         prefs?.edit()?.putBoolean(KEY_ENABLED, enabled)?.apply()
-        reverbEffect?.enabled = enabled
-        attachedPlayer?.let { syncAuxEffectInfo(it) }
+        reverbEffect?.let { applyCurrentStateToEffect(it) }
     }
 
     fun setPreset(index: Int) {
         _presetIndex.value = index.coerceIn(0, presetLabels.lastIndex)
         prefs?.edit()?.putInt(KEY_PRESET, _presetIndex.value)?.apply()
         reverbEffect?.let { applyCurrentStateToEffect(it) }
-        attachedPlayer?.let { syncAuxEffectInfo(it) }
     }
 
     fun setIntensity(value: Float) {
         _intensity.value = value.coerceIn(0f, 1f)
         prefs?.edit()?.putFloat(KEY_INTENSITY, _intensity.value)?.apply()
-        attachedPlayer?.let { syncAuxEffectInfo(it) }
+        reverbEffect?.let { applyCurrentStateToEffect(it) }
     }
 
     // ── Internal helpers ─────────────────────────────────────────────────────────
 
-    /** Push current enabled/preset state onto the [EnvironmentalReverb] instance. */
+    /**
+     * Push current enabled/preset/intensity state onto the [EnvironmentalReverb] instance.
+     *
+     * [reverbLevel] and [reflectionsLevel] are lerp'd from −9000 mB (silent) to the preset's
+     * target, so the Subtle (0 %) → Lush (100 %) slider scales the wet reverb output directly.
+     */
     private fun applyCurrentStateToEffect(effect: EnvironmentalReverb) {
         try {
-            effect.enabled = _isEnabled.value
             val p = activePreset()
+            // Disable (bypass) when toggled off or preset is None.
+            effect.enabled = _isEnabled.value && p != null
             if (p == null) {
-                // "None" — silence the reverb tail without fully destroying the effect
                 effect.decayTime   = 100
                 effect.reverbLevel = -9000
-            } else {
-                effect.roomLevel        = p.roomLevel
-                effect.roomHFLevel      = p.roomHFLevel
-                effect.decayTime        = p.decayTime
-                effect.decayHFRatio     = p.decayHFRatio
-                effect.reflectionsLevel = p.reflectionsLevel
-                effect.reflectionsDelay = p.reflectionsDelay
-                effect.reverbLevel      = p.reverbLevel
-                effect.reverbDelay      = p.reverbDelay
-                effect.diffusion        = p.diffusion
-                effect.density          = p.density
+                return
             }
+            val t = _intensity.value
+            effect.roomLevel        = p.roomLevel
+            effect.roomHFLevel      = p.roomHFLevel
+            effect.decayTime        = p.decayTime
+            effect.decayHFRatio     = p.decayHFRatio
+            effect.diffusion        = p.diffusion
+            effect.density          = p.density
+            effect.reflectionsDelay = p.reflectionsDelay
+            effect.reverbDelay      = p.reverbDelay
+            // Lerp wet levels by intensity: 0 % = silent (−90 dB), 100 % = preset target
+            effect.reflectionsLevel = ((-9000) + (p.reflectionsLevel.toInt() - (-9000)) * t)
+                .toInt().coerceIn(-9000, 1000).toShort()
+            effect.reverbLevel      = ((-9000) + (p.reverbLevel.toInt() - (-9000)) * t)
+                .toInt().coerceIn(-9000, 2000).toShort()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to apply preset to EnvironmentalReverb")
-        }
-    }
-
-    /**
-     * Wire or unwire the hardware effect from [player] via [AuxEffectInfo].
-     * [intensity] is the wet send-level: 0.0 = silent, 1.0 = full.
-     */
-    private fun syncAuxEffectInfo(player: ExoPlayer) {
-        val effect = reverbEffect
-        if (effect != null && _isEnabled.value && activePreset() != null) {
-            player.setAuxEffectInfo(AuxEffectInfo(effect.id, _intensity.value))
-        } else {
-            player.setAuxEffectInfo(AuxEffectInfo(0, 0f))
         }
     }
 

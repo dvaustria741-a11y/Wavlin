@@ -334,6 +334,27 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable(
+        route = "mood_detail/{browseId}?params={params}&title={title}",
+        arguments =
+            listOf(
+                navArgument("browseId") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("params") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("title") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+            ),
+    ) {
+        MoodDetailScreen(navController, it.arguments?.getString("title"))
+    }
+
+    composable(
         route = "youtube_browse/{browseId}?params={params}",
         arguments =
             listOf(

@@ -2440,9 +2440,7 @@ fun HomeScreen(
                                             MoodAndGenresButton(
                                                 title = it.title,
                                                 onClick = {
-                                                    navController.navigate(
-                                                        "youtube_browse/${it.endpoint.browseId}?params=${it.endpoint.params}",
-                                                    )
+                                                    navController.navigate(moodDetailRoute(it))
                                                 },
                                                 modifier =
                                                     Modifier

@@ -1133,4 +1133,5 @@
     <string name="new_releases">New Releases</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="clear_all">Clear all</string>
+    <string name="mood_hub_categories">Mood Hub • %1$d categories</string>
 </resources>

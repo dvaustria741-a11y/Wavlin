@@ -56,8 +56,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -120,7 +118,6 @@ private val collaborators = listOf(
 )
 
 private val communityLinks = listOf(
-    CommunityLink(R.string.credits_discord, R.drawable.discord, "https://discord.com/invite/zrdbeRG2Mt"),
     CommunityLink(R.string.credits_telegram, R.drawable.telegram, "https://t.me/wavlinapp"),
     CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/dvaustria741-a11y/Wavlin"),
     CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/dvaustria741-a11y/Wavlin/blob/main/LICENSE")
@@ -256,21 +253,12 @@ fun AboutScreen(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_logo_oval),
-                        contentDescription = null,
-                        modifier = Modifier.size(84.dp)
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.wavlin_logo),
-                        contentDescription = stringResource(R.string.wavlin),
-                        // The oval behind it is black, so the logo is drawn white on top of it
-                        colorFilter = ColorFilter.tint(Color.White),
-                        modifier = Modifier.size(52.dp)
-                    )
-                }
-        
+                Image(
+                    painter = painterResource(R.drawable.wavlin_logo),
+                    contentDescription = stringResource(R.string.wavlin),
+                    modifier = Modifier.size(84.dp)
+                )
+
                 Spacer(Modifier.width(20.dp))
         
                 Column {

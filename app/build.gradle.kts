@@ -364,6 +364,7 @@ dependencies {
     implementation(libs.materialKolor)
     implementation(libs.haze)
     implementation(libs.haze.materials)
+    implementation(libs.kyant.backdrop)
 
     implementation(libs.appcompat)
 

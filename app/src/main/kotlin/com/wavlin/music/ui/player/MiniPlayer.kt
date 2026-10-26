@@ -7,6 +7,8 @@
 
 package com.wavlin.music.ui.player
 
+import com.wavlin.music.ui.component.appleGlass
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -412,7 +414,11 @@ private fun NewMiniPlayer(
                     .clip(RoundedCornerShape(32.dp))
                     .let { base ->
                         if (useGlassBackdrop) {
-                            base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
+                            if (LocalInterfaceAppleMusic.current && !pinkLily) {
+                                base.appleGlass(RoundedCornerShape(32.dp), HazeMaterials.thin())
+                            } else {
+                                base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
+                            }
                         } else {
                             base.background(color = backgroundColor)
                         }

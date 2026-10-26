@@ -5,6 +5,19 @@
 
 package com.wavlin.music.ui.component
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -162,6 +175,18 @@ fun AppNavigationBar(
     val viewConfiguration = LocalViewConfiguration.current
     val hazeState = LocalHazeState.current
 
+    if (LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current) {
+        AppleFloatingTabBar(
+            navigationItems = navigationItems,
+            currentRoute = currentRoute,
+            onItemClick = onItemClick,
+            modifier = modifier,
+            slimNav = slimNav,
+            onSearchLongClick = onSearchLongClick,
+        )
+        return
+    }
+
     NavigationBar(
         modifier = modifier
             .let { base ->
@@ -271,6 +296,98 @@ fun AppNavigationBar(
                     }
                 } else null
             )
+        }
+    }
+}
+
+
+/**
+ * Apple Music style: a floating glass capsule with the tabs and a separate round Search
+ * button, instead of the full-width Material 3 navigation bar.
+ */
+@OptIn(ExperimentalHazeMaterialsApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun AppleFloatingTabBar(
+    navigationItems: List<Screens>,
+    currentRoute: String?,
+    onItemClick: (Screens, Boolean) -> Unit,
+    modifier: Modifier,
+    slimNav: Boolean,
+    onSearchLongClick: (() -> Unit)?,
+) {
+    val barHeight: Dp = if (slimNav) 52.dp else 60.dp
+    val tabs = navigationItems.filter { it != Screens.Search }
+    val search = navigationItems.firstOrNull { it == Screens.Search }
+    val haptics = LocalHapticFeedback.current
+
+    Row(
+        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(barHeight)
+                .appleGlass(CircleShape, HazeMaterials.thin())
+                .padding(6.dp),
+        ) {
+            tabs.forEach { screen ->
+                val selected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(if (selected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f) else Color.Transparent)
+                        .clickable { onItemClick(screen, selected) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = if (selected) screen.iconIdActive else screen.iconIdInactive),
+                        contentDescription = stringResource(screen.titleId),
+                        modifier = Modifier.size(22.dp),
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!slimNav) {
+                        Text(
+                            text = stringResource(screen.titleId),
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (search != null) {
+            val selected = isRouteSelected(currentRoute, search.route, navigationItems)
+            Box(
+                modifier = Modifier
+                    .size(barHeight)
+                    .appleGlass(CircleShape, HazeMaterials.thin())
+                    .clip(CircleShape)
+                    .combinedClickable(
+                        onClick = { onItemClick(search, selected) },
+                        onLongClick = onSearchLongClick?.let { cb ->
+                            {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                cb()
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(id = if (selected) search.iconIdActive else search.iconIdInactive),
+                    contentDescription = stringResource(search.titleId),
+                    modifier = Modifier.size(24.dp),
+                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }

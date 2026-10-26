@@ -451,6 +451,13 @@ enum class PlayerBackgroundStyle {
     BLUR,
 }
 
+enum class InterfaceStyle {
+    MATERIAL,
+    APPLE_MUSIC,
+}
+
+val InterfaceStyleKey = stringPreferencesKey("interfaceStyle")
+
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")
 

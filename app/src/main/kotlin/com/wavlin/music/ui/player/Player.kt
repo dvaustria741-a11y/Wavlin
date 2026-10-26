@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.player
 
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -248,10 +249,17 @@ fun BottomSheetPlayer(
         mutableStateOf(false)
     }
 
-    val playerBackground by rememberEnumPreference(
+    val playerBackgroundPref by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT,
     )
+    // Apple Music interface style: blurred artwork behind Now Playing.
+    val playerBackground =
+        if (LocalInterfaceAppleMusic.current && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            PlayerBackgroundStyle.BLUR
+        } else {
+            playerBackgroundPref
+        }
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT,

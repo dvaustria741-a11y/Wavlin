@@ -35,6 +35,7 @@ junit = "4.13.2"
 timber = "5.0.1"
 materialKolor = "5.0.0"
 haze = "1.7.2"
+backdrop = "2.0.1"
 kuromojiIpadic = "0.9.0"
 extractor = "3cd3341"
 tinypinyin = "2.0.3"
@@ -68,6 +69,7 @@ materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 
 haze = { module = "dev.chrisbanes.haze:haze-android", version.ref = "haze" }
 haze-materials = { module = "dev.chrisbanes.haze:haze-materials-android", version.ref = "haze" }
+kyant-backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 browser = { module = "androidx.browser:browser", version.ref = "browser" }

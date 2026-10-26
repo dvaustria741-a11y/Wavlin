@@ -5,6 +5,13 @@
 
 package com.wavlin.music
 
+import com.wavlin.music.ui.component.appleGlassSupported
+import com.wavlin.music.ui.component.LocalGlassBackdrop
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.constants.InterfaceStyleKey
+import com.wavlin.music.constants.InterfaceStyle
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ForegroundServiceStartNotAllowedException
@@ -1009,8 +1016,16 @@ class MainActivity : ComponentActivity() {
 
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 val hazeState = remember { HazeState() }
+                val interfaceStyle by rememberEnumPreference(InterfaceStyleKey, defaultValue = InterfaceStyle.MATERIAL)
+                val appleStyle = interfaceStyle == InterfaceStyle.APPLE_MUSIC
+                val glassBackdrop = rememberLayerBackdrop {
+                    drawRect(baseBg)
+                    drawContent()
+                }
 
                 CompositionLocalProvider(
+                    LocalInterfaceAppleMusic provides appleStyle,
+                    LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported()) glassBackdrop else null),
                     LocalDatabase provides database,
                     LocalNavController provides navController,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
@@ -1323,6 +1338,7 @@ class MainActivity : ComponentActivity() {
                             Modifier
                                 .fillMaxSize()
                                 .hazeSource(state = hazeState)
+                                .then(if (appleStyle && appleGlassSupported()) Modifier.layerBackdrop(glassBackdrop) else Modifier)
                                 .then(
                                     if (pinkWallpaper) {
                                         Modifier.paint(

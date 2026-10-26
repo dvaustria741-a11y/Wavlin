@@ -5,6 +5,8 @@
 
 package com.wavlin.music.ui.screens.settings
 
+import com.wavlin.music.constants.InterfaceStyleKey
+import com.wavlin.music.constants.InterfaceStyle
 import com.wavlin.music.ui.component.pinkTopBarColors
 import android.app.Activity
 import android.content.Context
@@ -353,6 +355,15 @@ fun AppearanceSettings(
         mutableStateOf(false)
     }
 
+    val (interfaceStyle, onInterfaceStyleChange) =
+        rememberEnumPreference(
+            InterfaceStyleKey,
+            defaultValue = InterfaceStyle.MATERIAL,
+        )
+    var showInterfaceStyleDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var showLyricsPositionDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -524,6 +535,25 @@ fun AppearanceSettings(
                 )
             }
         }
+    }
+
+    if (showInterfaceStyleDialog) {
+        EnumDialog(
+            onDismiss = { showInterfaceStyleDialog = false },
+            onSelect = {
+                onInterfaceStyleChange(it)
+                showInterfaceStyleDialog = false
+            },
+            title = stringResource(R.string.interface_style),
+            current = interfaceStyle,
+            values = InterfaceStyle.values().toList(),
+            valueText = {
+                when (it) {
+                    InterfaceStyle.MATERIAL -> stringResource(R.string.interface_style_material)
+                    InterfaceStyle.APPLE_MUSIC -> stringResource(R.string.interface_style_apple_music)
+                }
+            },
+        )
     }
 
     if (showPlayerButtonsStyleDialog) {
@@ -1042,6 +1072,21 @@ fun AppearanceSettings(
                             ),
                         )
                     }
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.palette),
+                            title = { Text(stringResource(R.string.interface_style)) },
+                            description = {
+                                Text(
+                                    when (interfaceStyle) {
+                                        InterfaceStyle.MATERIAL -> stringResource(R.string.interface_style_material)
+                                        InterfaceStyle.APPLE_MUSIC -> stringResource(R.string.interface_style_apple_music)
+                                    },
+                                )
+                            },
+                            onClick = { showInterfaceStyleDialog = true },
+                        ),
+                    )
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.palette),

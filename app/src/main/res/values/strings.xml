@@ -363,5 +363,9 @@
     <string name="app_icon_red">Red</string>
     <string name="app_icon_black">Black</string>
     <string name="app_icon_note">Some launchers take a few seconds to refresh, and a pinned shortcut may need to be re-added after changing the icon.</string>
+    <string name="interface_style">Interface style</string>
+    <string name="interface_style_material">Material 3</string>
+    <string name="interface_style_apple_music">Apple Music</string>
+    <string name="interface_style_desc">Apple Music uses a floating glass tab bar, glass mini player, blurred artwork Now Playing and Apple-style lyrics.</string>
 </resources>
 

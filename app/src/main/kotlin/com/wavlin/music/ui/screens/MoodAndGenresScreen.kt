@@ -176,7 +176,7 @@ fun moodDetailRoute(mood: MoodAndGenres.Item): String =
     "mood_detail/${mood.endpoint.browseId}?params=${mood.endpoint.params}&title=${Uri.encode(mood.title)}"
 
 @Composable
-private fun MoodCard(
+fun MoodCard(
     title: String,
     imageUrl: String?,
     gradientColors: List<Color>,

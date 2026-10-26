@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.viewmodels.MoodAndGenresViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -2429,24 +2430,40 @@ fun HomeScreen(
                                     )
                                 }
                                 item(key = "mood_and_genres_list", contentType = "row") {
-                                    LazyHorizontalGrid(
-                                        rows = GridCells.Fixed(4),
-                                        contentPadding = PaddingValues(6.dp),
-                                        modifier =
-                                            Modifier
-                                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp),
-                                    ) {
-                                        items(moodAndGenres.distinctBy { "${it.title}_${it.endpoint.browseId}_${it.endpoint.params}" }, key = { "${it.title}_${it.endpoint.browseId}_${it.endpoint.params}" }) {
-                                            MoodAndGenresButton(
-                                                title = it.title,
-                                                onClick = {
-                                                    navController.navigate(moodDetailRoute(it))
-                                                },
-                                                modifier =
-                                                    Modifier
-                                                        .padding(6.dp)
-                                                        .width(180.dp),
-                                            )
+                                    val moodViewModel: MoodAndGenresViewModel = hiltViewModel()
+                                    val moodArtwork by moodViewModel.artwork.collectAsStateWithLifecycle()
+                                    // 2x2 pages of mood cards: swiping reveals the next four
+                                    val moodPages =
+                                        remember(moodAndGenres) {
+                                            moodAndGenres
+                                                .distinctBy { "${it.title}_${it.endpoint.browseId}_${it.endpoint.params}" }
+                                                .chunked(4)
+                                        }
+                                    HorizontalPager(
+                                        state = rememberPagerState { moodPages.size },
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        pageSpacing = 12.dp,
+                                        verticalAlignment = Alignment.Top,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    ) { page ->
+                                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            moodPages[page].chunked(2).forEach { rowItems ->
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                ) {
+                                                    rowItems.forEach { mood ->
+                                                        MoodCard(
+                                                            title = mood.title,
+                                                            imageUrl = moodArtwork[MoodAndGenresViewModel.artworkKey(mood)],
+                                                            gradientColors = remember(mood.stripeColor) { moodGradientFor(mood.stripeColor) },
+                                                            onClick = { navController.navigate(moodDetailRoute(mood)) },
+                                                            modifier = Modifier.weight(1f),
+                                                        )
+                                                    }
+                                                    repeat(2 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                                                }
+                                            }
                                         }
                                     }
                                 }

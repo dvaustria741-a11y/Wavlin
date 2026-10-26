@@ -1363,6 +1363,7 @@ class MusicService :
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
         val reverbProcessor = com.wavlin.music.playback.audio.ReverbAudioProcessor()
+        com.wavlin.music.audio.reverb.ReverbManager.setProcessor(reverbProcessor)
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {

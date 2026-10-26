@@ -342,6 +342,7 @@ class MusicService :
     val currentStreamClient = MutableStateFlow<String?>(null)
 
     private lateinit var audioQuality: com.wavlin.music.constants.AudioQuality
+    private var losslessStreamingEnabled: Boolean = false
 
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
@@ -783,13 +784,16 @@ class MusicService :
 
         audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
-        val losslessEnabled = startupPrefs!![LosslessStreamingEnabledKey] ?: true
-        audioQuality = startupPrefs!![AudioQualityKey]?.let { value ->
-            val q = if (value == "VERY_HIGH") com.wavlin.music.constants.AudioQuality.HIGH
-                    else com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
-            if (!losslessEnabled && q == com.wavlin.music.constants.AudioQuality.LOSSLESS)
-                com.wavlin.music.constants.AudioQuality.HIGH else q
+        losslessStreamingEnabled = startupPrefs!![LosslessStreamingEnabledKey] ?: false
+        val startupBaseQ = startupPrefs!![AudioQualityKey]?.let { value ->
+            // Legacy migration: LOSSLESS was previously a picker value; now the toggle owns it.
+            when (value) {
+                "LOSSLESS" -> { losslessStreamingEnabled = true; com.wavlin.music.constants.AudioQuality.HIGH }
+                "VERY_HIGH" -> com.wavlin.music.constants.AudioQuality.HIGH
+                else -> com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
+            }
         } ?: com.wavlin.music.constants.AudioQuality.AUTO
+        audioQuality = if (losslessStreamingEnabled) com.wavlin.music.constants.AudioQuality.LOSSLESS else startupBaseQ
         playerVolume = MutableStateFlow((startupPrefs!![PlayerVolumeKey] ?: 1f).coerceIn(0f, 1f))
 
         initializeCast()
@@ -833,15 +837,19 @@ class MusicService :
         scope.launch {
             dataStore.data
                 .map {
-                    val lossless = it[LosslessStreamingEnabledKey] ?: true
-                    val q = it[AudioQualityKey]?.let { value ->
-                        if (value == "VERY_HIGH") com.wavlin.music.constants.AudioQuality.HIGH
-                        else com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
+                    val isLossless = it[LosslessStreamingEnabledKey] ?: false
+                    val baseQ = it[AudioQualityKey]?.let { value ->
+                        // Legacy: LOSSLESS in prefs = HIGH + toggle on
+                        when (value) {
+                            "LOSSLESS", "VERY_HIGH" -> com.wavlin.music.constants.AudioQuality.HIGH
+                            else -> com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
+                        }
                     } ?: com.wavlin.music.constants.AudioQuality.AUTO
-                    if (!lossless && q == com.wavlin.music.constants.AudioQuality.LOSSLESS)
-                        com.wavlin.music.constants.AudioQuality.HIGH else q
+                    isLossless to baseQ
                 }.distinctUntilChanged()
-                .collect { newQuality ->
+                .collect { (isLossless, baseQ) ->
+                    losslessStreamingEnabled = isLossless
+                    val newQuality = if (isLossless) com.wavlin.music.constants.AudioQuality.LOSSLESS else baseQ
                     val oldQuality = audioQuality
                     audioQuality = newQuality
 
@@ -4930,4 +4938,5 @@ class MusicService :
         var shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>().apply { complete(Unit) }
     }
 }
+
 

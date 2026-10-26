@@ -981,7 +981,7 @@ class MusicService :
             dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
             com.wavlin.music.audio.reverb.ReverbManager.isEnabled,
         ) { offloadPref, crossfadeEnabled, reverbEnabled ->
-            // Offload is disabled with crossfade (volume ramp issues) and with reverb (offloaded tracks bypass audio effects)
+            // Offload is disabled with crossfade (volume ramp issues) and with reverb (offloaded tracks bypass audio processors)
             if (crossfadeEnabled || reverbEnabled) false else offloadPref
         }.distinctUntilChanged()
             .collectLatest(scope) { useOffload ->
@@ -1354,6 +1354,7 @@ class MusicService :
         equalizerService.addAudioProcessor(eqProcessor)
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+        val reverbProcessor = com.wavlin.music.playback.audio.ReverbAudioProcessor()
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1374,7 +1375,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -2457,7 +2458,6 @@ class MusicService :
         isAudioEffectSessionOpened = true
         openedAudioEffectSessionId = audioSessionId
         com.wavlin.music.audio.dolby.DolbyAtmosManager.attachSession(audioSessionId)
-        com.wavlin.music.audio.reverb.ReverbManager.attachSession(audioSessionId, player)
 
         sendBroadcast(
             Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
@@ -3891,6 +3891,7 @@ class MusicService :
     private fun createRenderersFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
+        reverbProcessor: com.wavlin.music.playback.audio.ReverbAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
@@ -3951,6 +3952,7 @@ class MusicService :
                     arrayOf(
                         normalizationProcessor,
                         eqProcessor,
+                        reverbProcessor,
                         silenceProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
@@ -4174,7 +4176,6 @@ class MusicService :
     override fun onDestroy() {
         isRunning = false
         com.wavlin.music.audio.dolby.DolbyAtmosManager.release()
-        com.wavlin.music.audio.reverb.ReverbManager.release()
 
         if (!::player.isInitialized) {
             try {

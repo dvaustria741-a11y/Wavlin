@@ -240,7 +240,6 @@ fun Thumbnail(
 
     // ── Video Canvas ──────────────────────────────────────────────────────
     val videoCanvasEnabled by rememberPreference(VideoCanvasEnabledKey, defaultValue = true)
-    val context = LocalContext.current
     val canvasUrl: String? by produceState<String?>(null, mediaMetadata?.id) {
         val id = mediaMetadata?.id ?: return@produceState
         if (!videoCanvasEnabled) return@produceState

@@ -107,6 +107,7 @@ import com.wavlin.music.constants.AndroidAutoTargetPlaylistKey
 import com.wavlin.music.constants.AudioNormalizationKey
 import com.wavlin.music.constants.AudioOffload
 import com.wavlin.music.constants.AudioQualityKey
+import com.wavlin.music.constants.LosslessStreamingEnabledKey
 import com.wavlin.music.constants.AudioTrackPlaybackParamsKey
 import com.wavlin.music.constants.AutoDownloadOnLikeKey
 import com.wavlin.music.constants.AutoLoadMoreKey
@@ -781,9 +782,12 @@ class MusicService :
 
         audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
+        val losslessEnabled = startupPrefs!![LosslessStreamingEnabledKey] ?: true
         audioQuality = startupPrefs!![AudioQualityKey]?.let { value ->
-            if (value == "VERY_HIGH") com.wavlin.music.constants.AudioQuality.HIGH
-            else com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
+            val q = if (value == "VERY_HIGH") com.wavlin.music.constants.AudioQuality.HIGH
+                    else com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
+            if (!losslessEnabled && q == com.wavlin.music.constants.AudioQuality.LOSSLESS)
+                com.wavlin.music.constants.AudioQuality.HIGH else q
         } ?: com.wavlin.music.constants.AudioQuality.AUTO
         playerVolume = MutableStateFlow((startupPrefs!![PlayerVolumeKey] ?: 1f).coerceIn(0f, 1f))
 
@@ -823,15 +827,18 @@ class MusicService :
             }
         }
 
-        // Watch for audio quality setting changes
+        // Watch for audio quality setting changes (also re-evaluates when lossless toggle flips)
         var isFirstQualityEmit = true
         scope.launch {
             dataStore.data
                 .map {
-                    it[AudioQualityKey]?.let { value ->
+                    val lossless = it[LosslessStreamingEnabledKey] ?: true
+                    val q = it[AudioQualityKey]?.let { value ->
                         if (value == "VERY_HIGH") com.wavlin.music.constants.AudioQuality.HIGH
                         else com.wavlin.music.constants.AudioQuality.entries.find { it.name == value }
                     } ?: com.wavlin.music.constants.AudioQuality.AUTO
+                    if (!lossless && q == com.wavlin.music.constants.AudioQuality.LOSSLESS)
+                        com.wavlin.music.constants.AudioQuality.HIGH else q
                 }.distinctUntilChanged()
                 .collect { newQuality ->
                     val oldQuality = audioQuality
@@ -4917,3 +4924,4 @@ class MusicService :
         var shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>().apply { complete(Unit) }
     }
 }
+

@@ -111,6 +111,7 @@ val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val LastUpdateCheckTimeKey = longPreferencesKey("lastUpdateCheckTime")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
+val LosslessStreamingEnabledKey = booleanPreferencesKey("losslessStreamingEnabled")
 
 enum class AudioQuality {
     AUTO,
@@ -741,4 +742,5 @@ val CountryCodeToName =
         "YE" to "Yemen",
         "ZW" to "Zimbabwe",
     )
+
 

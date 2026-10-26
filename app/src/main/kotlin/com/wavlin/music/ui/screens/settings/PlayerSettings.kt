@@ -42,6 +42,7 @@ import com.wavlin.music.constants.AudioOffload
 import com.wavlin.music.constants.AudioTrackPlaybackParamsKey
 import com.wavlin.music.constants.AudioQuality
 import com.wavlin.music.constants.AudioQualityKey
+import com.wavlin.music.constants.LosslessStreamingEnabledKey
 import com.wavlin.music.constants.AutoDownloadOnLikeKey
 import com.wavlin.music.constants.CrossfadeDurationKey
 import com.wavlin.music.constants.CrossfadeEnabledKey
@@ -100,6 +101,10 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    val (losslessStreamingEnabled, onLosslessStreamingEnabledChange) = rememberPreference(
+        LosslessStreamingEnabledKey,
+        defaultValue = true
     )
     val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(
         CrossfadeEnabledKey,
@@ -308,6 +313,29 @@ fun PlayerSettings(
                     },
                     onClick = { showAudioQualityDialog = true }
                 ))
+                if (audioQuality == AudioQuality.LOSSLESS) {
+                    add(Material3SettingsItem(
+                        icon = painterResource(R.drawable.graphic_eq),
+                        title = { Text("Lossless streaming") },
+                        description = { Text("Stream highest-bitrate YouTube audio (AAC / Opus). Turn off to use standard High quality.") },
+                        trailingContent = {
+                            Switch(
+                                checked = losslessStreamingEnabled,
+                                onCheckedChange = onLosslessStreamingEnabledChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (losslessStreamingEnabled) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        },
+                        onClick = { onLosslessStreamingEnabledChange(!losslessStreamingEnabled) }
+                    ))
+                }
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.linear_scale),
                     title = { Text(stringResource(R.string.crossfade)) },
@@ -1144,3 +1172,4 @@ fun PlayerSettings(
         }
     )
 }
+

@@ -582,13 +582,15 @@ object YTPlayerUtils {
             AudioQuality.LOSSLESS -> {
                 // Premium subscribers may receive multiple AUDIO_QUALITY_HIGH streams at
                 // different bitrates (e.g. 256 kbps AAC-LC and 160 kbps Opus). Lossless mode
-                // ignores codec preference and selects purely by bitrate so the highest-fidelity
-                // stream is always chosen (e.g. itag 141 / 258 — YouTube Music's top-tier AAC).
+                // picks the highest-fidelity stream (highest bitrate), then breaks ties by
+                // preferring AAC (mp4a) — YouTube Music Premium's actual hi-fi codec
+                // (itag 141 = 256 kbps AAC, itag 258 = 384 kbps AAC).
                 val highFormats = audioCapableFormats.filter { it.audioQuality == "AUDIO_QUALITY_HIGH" }
                 val pool = if (highFormats.isNotEmpty()) highFormats else audioCapableFormats
                 pool.maxWithOrNull(
                     compareBy<PlayerResponse.StreamingData.Format> { it.bitrate }
                         .thenBy { it.audioChannels ?: 2 }
+                        .thenBy { if (it.mimeType.contains("mp4a", ignoreCase = true)) 1 else 0 }
                 )
             }
 
@@ -794,3 +796,4 @@ object YTPlayerUtils {
         Timber.tag(logTag).d("Force refreshing for videoId: $videoId")
     }
 }
+

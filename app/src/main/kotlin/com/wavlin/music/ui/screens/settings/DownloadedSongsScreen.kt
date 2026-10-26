@@ -82,7 +82,12 @@ fun DownloadedSongsScreen(navController: NavController) {
                 .mapNotNull { id -> database.getSongById(id) }
                 .filter { !it.song.isEpisode }
     }
-    val songs = remember(downloadedSongs, extraSongs) { downloadedSongs.asReversed() + extraSongs }
+    // Songs downloaded from a Spotify playlist stay with that playlist instead of listing here
+    val spotifyOnly by com.wavlin.music.spotify.SpotifyDownloadStore.hiddenSongIds.collectAsState()
+    val songs =
+        remember(downloadedSongs, extraSongs, spotifyOnly) {
+            (downloadedSongs.asReversed() + extraSongs).filter { it.id !in spotifyOnly }
+        }
 
     var inSelectMode by rememberSaveable { mutableStateOf(false) }
     val selection = rememberSaveable(

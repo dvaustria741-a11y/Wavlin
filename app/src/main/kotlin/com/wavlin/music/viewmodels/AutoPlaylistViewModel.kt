@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -67,6 +68,9 @@ constructor(
                         .map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
 
                     "downloaded" -> database.downloadedSongs(sortType, descending)
+                        .combine(com.wavlin.music.spotify.SpotifyDownloadStore.hiddenSongIds) { songs, hidden ->
+                            songs.filter { it.id !in hidden }
+                        }
                         .map { it.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs) }
 
                     "uploaded" -> database.uploadedSongs(sortType, descending)

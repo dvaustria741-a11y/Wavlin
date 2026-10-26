@@ -88,6 +88,10 @@ fun SpotifyPlaylistScreen(
 
     var showDownloadSheet by remember { mutableStateOf(false) }
 
+    val downloadUtil = com.wavlin.music.LocalDownloadUtil.current
+    val downloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+    val trackToSong by com.wavlin.music.spotify.SpotifyDownloadStore.trackToSong.collectAsStateWithLifecycle()
+
     // Finds the YouTube Music match for each picked song, saves it and starts its download
     fun startDownload(picked: List<com.wavlin.music.spotify.account.SpotifyWebTrack>, format: SpotifyDownloadFormat = SpotifyDownloadFormat.OPUS) {
         if (picked.isEmpty()) return
@@ -96,8 +100,11 @@ fun SpotifyPlaylistScreen(
             var started = 0
             picked.chunked(5).forEach { chunk ->
                 val matches = coroutineScope { chunk.map { async { SpotifyPlayback.resolve(it) } }.awaitAll() }
-                matches.filterNotNull().forEach { metadata ->
+                chunk.zip(matches).forEach { (spotifyTrack, metadata) ->
+                    if (metadata == null) return@forEach
                     withContext(Dispatchers.IO) { database.query { insert(metadata) } }
+                    // Stays with this Spotify playlist: kept out of the Downloaded library, shown with a check here
+                    com.wavlin.music.spotify.SpotifyDownloadStore.record(context, spotifyTrack.id, metadata.id)
                     // Encode "<title>|<format>" so ExoDownloadService can honour the
                     // chosen container format when transcoding support is added later.
                     val requestData = "${metadata.title}|${format.name}".toByteArray()
@@ -208,6 +215,7 @@ fun SpotifyPlaylistScreen(
                 itemsIndexed(current.tracks, key = { index, track -> "${track.id}_$index" }) { index, track ->
                     SpotifyTrackItem(
                         track = track,
+                        downloadState = trackToSong[track.id]?.let { downloads[it]?.state },
                         modifier = Modifier.clickable { play(current.tracks, startIndex = index) },
                     )
                 }

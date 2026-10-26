@@ -69,10 +69,12 @@ suspend fun playSpotifyTracks(
 fun SpotifyTrackItem(
     track: SpotifyWebTrack,
     modifier: Modifier = Modifier,
+    downloadState: Int? = null,
 ) {
     ListItem(
         title = track.name,
         subtitle = {
+            com.wavlin.music.ui.component.Icon.Download(downloadState)
             Text(
                 text = track.artistNames,
                 style = MaterialTheme.typography.bodyMedium,

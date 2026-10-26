@@ -248,6 +248,8 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
+    // Video canvas: URL set when idle threshold fires in Thumbnail; cleared on tap / song change
+    var videoCanvasIdleUrl by rememberSaveable { mutableStateOf<String?>(null) }
 
     val playerBackgroundPref by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -432,6 +434,8 @@ fun BottomSheetPlayer(
 
     val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
+
+    LaunchedEffect(mediaMetadata?.id) { videoCanvasIdleUrl = null }
 
     LaunchedEffect(mediaMetadata?.id, playerBackground) {
         if (playerBackground == PlayerBackgroundStyle.GRADIENT) {
@@ -2029,6 +2033,7 @@ fun BottomSheetPlayer(
             }
         }
 
+        Box(modifier = Modifier.fillMaxSize()) {
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
@@ -2151,6 +2156,7 @@ fun BottomSheetPlayer(
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
+                                    onVideoIdleFullscreen = { url -> videoCanvasIdleUrl = url },
                                     modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,

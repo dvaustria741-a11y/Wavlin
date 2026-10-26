@@ -1140,4 +1140,6 @@
     <string name="hub_fresh_singles">Fresh singles</string>
     <string name="hub_new_albums">New albums</string>
     <string name="hub_new_mixes">New music mixes</string>
+    <string name="video_canvas">Video Canvas</string>
+    <string name="video_canvas_desc">Show a short looping video behind the artwork. Auto-expands to full screen after 5 s of inactivity — tap to dismiss.</string>
 </resources>

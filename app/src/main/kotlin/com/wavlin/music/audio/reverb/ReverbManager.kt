@@ -17,12 +17,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 
 /**
- * Manages Android's EnvironmentalReverb hardware audio effect.
- * Preset definitions and parameter values match SpatialFlow exactly.
+ * Manages Android's [EnvironmentalReverb] hardware audio effect.
+ *
+ * Presets mirror SpatialFlow's reverb presets exactly — same names, same
+ * EnvironmentalReverb parameter values — so the two apps produce identical
+ * reverb character.
  *
  * Lifecycle:
  *  - [init]          : called once from MusicService.onCreate — loads persisted prefs.
- *  - [attachSession] : called from openAudioEffectSession() when ExoPlayer's audio session opens.
+ *  - [attachSession] : called from openAudioEffectSession() when ExoPlayer opens a session.
  *  - [detachSession] : called from closeAudioEffectSession() when the session closes.
  */
 @Suppress("DEPRECATION")
@@ -31,8 +34,10 @@ object ReverbManager {
     private const val TAG = "ReverbManager"
 
     /**
-     * EnvironmentalReverb parameters.  Values match SpatialFlow's setReverbPreset() exactly.
-     * All mB / ms / ‰ units follow the Android EnvironmentalReverb API.
+     * EnvironmentalReverb parameters.
+     * Units: roomLevel/roomHFLevel/reflectionsLevel/reverbLevel in mB,
+     *        decayTime/reflectionsDelay/reverbDelay in ms,
+     *        decayHFRatio/diffusion/density in ‰.
      */
     data class Preset(
         val roomLevel: Short,
@@ -47,83 +52,101 @@ object ReverbManager {
         val density: Short,
     )
 
+    /** String resource IDs for the preset dropdown — order matches [presets]. */
     @StringRes
-    val presetLabels = listOf(
+    val presetLabels: List<Int> = listOf(
         R.string.reverb_preset_none,
         R.string.reverb_preset_small_room,
-        R.string.reverb_preset_medium_room,
-        R.string.reverb_preset_large_room,
-        R.string.reverb_preset_medium_hall,
-        R.string.reverb_preset_large_hall,
+        R.string.reverb_preset_concert_hall,
+        R.string.reverb_preset_stadium,
         R.string.reverb_preset_plate,
+        R.string.reverb_preset_spring,
     )
 
-    /** Index-aligned with [presetLabels].  null (index 0) = bypass. */
+    /**
+     * Index-aligned with [presetLabels].
+     * null at index 0 (None) = effect is bypassed.
+     *
+     * Parameter values are taken verbatim from SpatialFlow's setReverbPreset():
+     *   Small Room    → preset 1
+     *   Concert Hall  → preset 2  (Medium Room in SpatialFlow code)
+     *   Stadium       → preset 3  (Large Room)
+     *   Plate         → preset 4  (Medium Hall)
+     *   Spring        → preset 5  (Large Hall)
+     */
     private val presets: List<Preset?> = listOf(
+        // 0 — None (bypass)
         null,
         // 1 — Small Room
-        Preset(roomLevel = -1500, roomHFLevel = -100, decayTime = 4000,  decayHFRatio = 1200,
-               reflectionsLevel = 0,    reflectionsDelay = 50,  reverbLevel = 500,  reverbDelay = 40,
-               diffusion = 1000, density = 1000),
-        // 2 — Medium Room
-        Preset(roomLevel = -1500, roomHFLevel = 0,    decayTime = 6000,  decayHFRatio = 1400,
-               reflectionsLevel = 200,  reflectionsDelay = 80,  reverbLevel = 700,  reverbDelay = 60,
-               diffusion = 1000, density = 1000),
-        // 3 — Large Room
-        Preset(roomLevel = -1500, roomHFLevel = 0,    decayTime = 8000,  decayHFRatio = 1600,
-               reflectionsLevel = 400,  reflectionsDelay = 120, reverbLevel = 900,  reverbDelay = 80,
-               diffusion = 1000, density = 1000),
-        // 4 — Medium Hall
-        Preset(roomLevel = -1500, roomHFLevel = 0,    decayTime = 12000, decayHFRatio = 1800,
-               reflectionsLevel = 600,  reflectionsDelay = 160, reverbLevel = 1100, reverbDelay = 100,
-               diffusion = 1000, density = 1000),
-        // 5 — Large Hall
-        Preset(roomLevel = -1500, roomHFLevel = 0,    decayTime = 16000, decayHFRatio = 1900,
-               reflectionsLevel = 800,  reflectionsDelay = 220, reverbLevel = 1300, reverbDelay = 100,
-               diffusion = 1000, density = 1000),
-        // 6 — Plate
-        Preset(roomLevel = -1500, roomHFLevel = 0,    decayTime = 20000, decayHFRatio = 2000,
-               reflectionsLevel = 1000, reflectionsDelay = 300, reverbLevel = 1600, reverbDelay = 100,
-               diffusion = 1000, density = 1000),
+        Preset(
+            roomLevel = -1500, roomHFLevel = -100, decayTime = 4000,  decayHFRatio = 1200,
+            reflectionsLevel = 0,    reflectionsDelay = 50,  reverbLevel = 500,  reverbDelay = 40,
+            diffusion = 1000, density = 1000,
+        ),
+        // 2 — Concert Hall  (SpatialFlow "Medium Room" params)
+        Preset(
+            roomLevel = -1500, roomHFLevel = 0,    decayTime = 6000,  decayHFRatio = 1400,
+            reflectionsLevel = 200,  reflectionsDelay = 80,  reverbLevel = 700,  reverbDelay = 60,
+            diffusion = 1000, density = 1000,
+        ),
+        // 3 — Stadium  (SpatialFlow "Large Room" params)
+        Preset(
+            roomLevel = -1500, roomHFLevel = 0,    decayTime = 8000,  decayHFRatio = 1600,
+            reflectionsLevel = 400,  reflectionsDelay = 120, reverbLevel = 900,  reverbDelay = 80,
+            diffusion = 1000, density = 1000,
+        ),
+        // 4 — Plate  (SpatialFlow "Medium Hall" params)
+        Preset(
+            roomLevel = -1500, roomHFLevel = 0,    decayTime = 12000, decayHFRatio = 1800,
+            reflectionsLevel = 600,  reflectionsDelay = 160, reverbLevel = 1100, reverbDelay = 100,
+            diffusion = 1000, density = 1000,
+        ),
+        // 5 — Spring  (SpatialFlow "Large Hall" params)
+        Preset(
+            roomLevel = -1500, roomHFLevel = 0,    decayTime = 16000, decayHFRatio = 1900,
+            reflectionsLevel = 800,  reflectionsDelay = 220, reverbLevel = 1300, reverbDelay = 100,
+            diffusion = 1000, density = 1000,
+        ),
     )
 
-    // ── Shared preferences ──────────────────────────────────────────────────────
-    private const val PREFS_NAME  = "wavlin_reverb"
-    private const val KEY_ENABLED = "enabled"
-    private const val KEY_PRESET  = "preset"
+    // ── Shared preferences ───────────────────────────────────────────────────────
+    private const val PREFS_NAME    = "wavlin_reverb"
+    private const val KEY_ENABLED   = "enabled"
+    private const val KEY_PRESET    = "preset"
     private const val KEY_INTENSITY = "intensity"
 
     private var appContext: Context? = null
     private val prefs get() = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // ── StateFlows (observed by the UI) ─────────────────────────────────────────
-    private val _isEnabled    = MutableStateFlow(false)
+    // ── StateFlows observed by the UI ────────────────────────────────────────────
+    private val _isEnabled   = MutableStateFlow(false)
     val isEnabled: StateFlow<Boolean> = _isEnabled.asStateFlow()
 
-    private val _presetIndex  = MutableStateFlow(0)
+    private val _presetIndex = MutableStateFlow(0)
     val presetIndex: StateFlow<Int> = _presetIndex.asStateFlow()
 
-    private val _intensity    = MutableStateFlow(1.0f)
+    private val _intensity   = MutableStateFlow(1.0f)
     val intensity: StateFlow<Float> = _intensity.asStateFlow()
 
-    // ── Hardware effect (one per audio session) ──────────────────────────────────
+    // ── Hardware effect — one instance per ExoPlayer audio session ───────────────
     private var reverbEffect: EnvironmentalReverb? = null
     private var attachedPlayer: ExoPlayer? = null
 
     // ── Lifecycle ────────────────────────────────────────────────────────────────
 
-    /** Load persisted state.  Call once from MusicService.onCreate(). */
+    /** Load persisted settings.  Call once from MusicService.onCreate(). */
     fun init(context: Context) {
         appContext = context.applicationContext
         prefs?.let {
-            _isEnabled.value   = it.getBoolean(KEY_ENABLED,   false)
+            _isEnabled.value   = it.getBoolean(KEY_ENABLED, false)
             _presetIndex.value = it.getInt(KEY_PRESET, 0).coerceIn(0, presetLabels.lastIndex)
             _intensity.value   = it.getFloat(KEY_INTENSITY, 1.0f).coerceIn(0f, 1f)
         }
     }
 
     /**
-     * Create [EnvironmentalReverb] for the given ExoPlayer audio session and wire it up.
+     * Create [EnvironmentalReverb] tied to the new ExoPlayer audio session
+     * and connect it via [AuxEffectInfo].
      * Called from MusicService.openAudioEffectSession().
      */
     fun attachSession(sessionId: Int, player: ExoPlayer) {
@@ -143,14 +166,13 @@ object ReverbManager {
      * Called from MusicService.closeAudioEffectSession().
      */
     fun detachSession(player: ExoPlayer? = null) {
-        val p = player ?: attachedPlayer
-        p?.setAuxEffectInfo(AuxEffectInfo(0, 0f))
+        (player ?: attachedPlayer)?.setAuxEffectInfo(AuxEffectInfo(0, 0f))
         releaseEffect()
     }
 
     private fun releaseEffect() {
         try { reverbEffect?.release() } catch (_: Exception) {}
-        reverbEffect  = null
+        reverbEffect   = null
         attachedPlayer = null
     }
 
@@ -178,35 +200,35 @@ object ReverbManager {
 
     // ── Internal helpers ─────────────────────────────────────────────────────────
 
-    /** Push current enabled/preset state to the hardware [EnvironmentalReverb]. */
+    /** Push current enabled/preset state onto the [EnvironmentalReverb] instance. */
     private fun applyCurrentStateToEffect(effect: EnvironmentalReverb) {
         try {
             effect.enabled = _isEnabled.value
             val p = activePreset()
             if (p == null) {
-                // "None" preset — silence the reverb tail without disabling the effect
+                // "None" — silence the reverb tail without fully destroying the effect
                 effect.decayTime   = 100
                 effect.reverbLevel = -9000
             } else {
-                effect.roomLevel         = p.roomLevel
-                effect.roomHFLevel       = p.roomHFLevel
-                effect.decayTime         = p.decayTime
-                effect.decayHFRatio      = p.decayHFRatio
-                effect.reflectionsLevel  = p.reflectionsLevel
-                effect.reflectionsDelay  = p.reflectionsDelay
-                effect.reverbLevel       = p.reverbLevel
-                effect.reverbDelay       = p.reverbDelay
-                effect.diffusion         = p.diffusion
-                effect.density           = p.density
+                effect.roomLevel        = p.roomLevel
+                effect.roomHFLevel      = p.roomHFLevel
+                effect.decayTime        = p.decayTime
+                effect.decayHFRatio     = p.decayHFRatio
+                effect.reflectionsLevel = p.reflectionsLevel
+                effect.reflectionsDelay = p.reflectionsDelay
+                effect.reverbLevel      = p.reverbLevel
+                effect.reverbDelay      = p.reverbDelay
+                effect.diffusion        = p.diffusion
+                effect.density          = p.density
             }
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to apply preset parameters")
+            Timber.tag(TAG).e(e, "Failed to apply preset to EnvironmentalReverb")
         }
     }
 
     /**
-     * Connect or disconnect the hardware effect from [player] via [AuxEffectInfo].
-     * intensity is used as the send-level (0.0 = silent, 1.0 = full).
+     * Wire or unwire the hardware effect from [player] via [AuxEffectInfo].
+     * [intensity] is the wet send-level: 0.0 = silent, 1.0 = full.
      */
     private fun syncAuxEffectInfo(player: ExoPlayer) {
         val effect = reverbEffect
@@ -217,6 +239,6 @@ object ReverbManager {
         }
     }
 
-    /** Returns the DSP preset to apply right now, or null when reverb is off / set to None. */
+    /** The preset currently active, or null when disabled / set to None. */
     fun activePreset(): Preset? = if (_isEnabled.value) presets[_presetIndex.value] else null
 }

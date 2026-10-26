@@ -586,8 +586,8 @@ fun LocalPlaylistScreen(
                     val insets = LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime).asPaddingValues()
                     val dir = LocalLayoutDirection.current
                     PaddingValues(
-                        start = insets.calculateStartPadding(dir),
-                        end = insets.calculateEndPadding(dir),
+                        start = insets.calculateLeftPadding(dir),
+                        end = insets.calculateRightPadding(dir),
                         top = if (heroVisible) 0.dp else insets.calculateTopPadding(),
                         bottom = insets.calculateBottomPadding(),
                     )

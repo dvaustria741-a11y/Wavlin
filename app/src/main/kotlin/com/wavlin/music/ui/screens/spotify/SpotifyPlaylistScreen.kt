@@ -175,8 +175,8 @@ fun SpotifyPlaylistScreen(
                         val insets = LocalPlayerAwareWindowInsets.current.asPaddingValues()
                         val dir = LocalLayoutDirection.current
                         PaddingValues(
-                            start = insets.calculateStartPadding(dir),
-                            end = insets.calculateEndPadding(dir),
+                            start = insets.calculateLeftPadding(dir),
+                            end = insets.calculateRightPadding(dir),
                             top = 0.dp,
                             bottom = insets.calculateBottomPadding(),
                         )

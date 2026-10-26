@@ -519,6 +519,9 @@ fun AutoPlaylistScreen(
     }
 
     val state = rememberLazyListState()
+    val heroVisible = songs?.isNotEmpty() == true && !isSearching
+    val scrolledPastHero by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf { state.firstVisibleItemIndex > 0 } }
+    val overlayTop = heroVisible && !scrolledPastHero && !inSelectMode
 
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val pullRefreshState = rememberPullToRefreshState()
@@ -542,7 +545,7 @@ fun AutoPlaylistScreen(
     ) {
         LazyColumn(
             state = state,
-            contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+            contentPadding = heroListPadding(heroVisible),
         ) {
             if (songs != null) {
                 if (songs!!.isEmpty()) {
@@ -748,7 +751,7 @@ fun AutoPlaylistScreen(
         }
 
         TopAppBar(
-        colors = pinkTopBarColors(),
+        colors = if (overlayTop) androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent) else pinkTopBarColors(),
             title = {
                 when {
                     inSelectMode -> {
@@ -787,15 +790,18 @@ fun AutoPlaylistScreen(
                     }
 
                     else -> {
-                        Text(
-                            text = playlist,
-                            style = MaterialTheme.typography.titleLarge,
-                        )
+                        if (!heroVisible || scrolledPastHero) {
+                            Text(
+                                text = playlist,
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
                     }
                 }
             },
             navigationIcon = {
                 IconButton(
+                    modifier = heroTopButtonModifier(overlayTop),
                     onClick = {
                         when {
                             isSearching -> {
@@ -825,6 +831,7 @@ fun AutoPlaylistScreen(
                                 if (inSelectMode) R.drawable.close else R.drawable.arrow_back,
                             ),
                         contentDescription = null,
+                        tint = heroTopIconTint(overlayTop),
                     )
                 }
             },
@@ -861,11 +868,13 @@ fun AutoPlaylistScreen(
                     }
                 } else if (!isSearching) {
                     IconButton(
+                        modifier = heroTopButtonModifier(overlayTop),
                         onClick = { isSearching = true },
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.search),
                             contentDescription = null,
+                            tint = heroTopIconTint(overlayTop),
                         )
                     }
                 }
@@ -887,133 +896,34 @@ private fun AutoPlaylistHeader(
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // Playlist Thumbnail - Large centered with shadow
-        Box(
-            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
-        ) {
-            androidx.compose.material3.Surface(
-                modifier =
-                    Modifier
-                        .size(240.dp)
-                        .shadow(
-                            elevation = 24.dp,
-                            shape = RoundedCornerShape(3.dp),
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        )
-                        .border(1.dp, glassStrokeBrush(), RoundedCornerShape(3.dp)),
-                shape = RoundedCornerShape(3.dp),
-            ) {
-                AsyncImage(
-                    model = songs[0].song.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+    PlaylistHeroHeader(
+        title = name,
+        subtitle = buildString {
+            append(pluralStringResource(R.plurals.n_song, songs.size, songs.size))
+            if (likeLength > 0) {
+                append(" ")
+                append(makeTimeString(likeLength * 1000L))
             }
-        }
-
-        // Playlist Name
-        Text(
-            text = name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 32.dp),
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Metadata - Song Count • Duration
-        Text(
-            text =
-                buildString {
-                    append(pluralStringResource(R.plurals.n_song, songs.size, songs.size))
-                    if (likeLength > 0) {
-                        append(" ")
-                        append(makeTimeString(likeLength * 1000L))
-                    }
-                },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Action Buttons Row
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Shuffle Button - Smaller secondary button
-            androidx.compose.material3.Surface(
-                onClick = {
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = name,
-                            items = songs.shuffled().map { it.toMediaItem() },
-                        ),
-                    )
-                },
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.size(48.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.shuffle),
-                        contentDescription = stringResource(R.string.shuffle),
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-
-            // Play Button - Larger primary circular button
-            Surface(
-                onClick = {
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = name,
-                            items = songs.map { it.toMediaItem() },
-                        ),
-                    )
-                },
-                color = Color.Transparent,
-                shape = androidx.compose.foundation.shape.CircleShape,
-                modifier = Modifier.size(72.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = stringResource(R.string.play),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
-            }
-
-            // Menu Button - Smaller secondary button
-            Surface(
-                onClick = {
-                    menuState.show(expandFully = true) {
+        },
+        coverUrls = songs.mapNotNull { it.song.thumbnailUrl },
+        onShuffle = {
+            playerConnection.playQueue(
+                ListQueue(
+                    title = name,
+                    items = songs.shuffled().map { it.toMediaItem() },
+                ),
+            )
+        },
+        onPlay = {
+            playerConnection.playQueue(
+                ListQueue(
+                    title = name,
+                    items = songs.map { it.toMediaItem() },
+                ),
+            )
+        },
+        onMenu = {
+            menuState.show(expandFully = true) {
                         AutoPlaylistMenu(
                             downloadState = downloadState,
                             onQueue = {
@@ -1061,24 +971,9 @@ private fun AutoPlaylistHeader(
                             playlistName = name,
                         )
                     }
-                },
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.size(48.dp).glassPanel(shape = androidx.compose.foundation.shape.CircleShape),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-        }
-    }
+        },
+        modifier = modifier,
+    )
 }
 
 enum class PlaylistType {

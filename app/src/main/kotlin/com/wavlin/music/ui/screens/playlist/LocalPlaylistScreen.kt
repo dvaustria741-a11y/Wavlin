@@ -1778,17 +1778,18 @@ fun LocalPlaylistHeader(
 
 /** Playlist header buttons: a joined glass pair on the left, a rounded-square shuffle and a wide play pill. */
 @Composable
-private fun headerButtonShape(kind: Int): androidx.compose.ui.graphics.Shape =
+internal fun headerButtonShape(kind: Int): androidx.compose.ui.graphics.Shape =
     when (kind) {
         0 -> RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp)
         1 -> RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)
         2 -> RoundedCornerShape(18.dp)
+        4 -> RoundedCornerShape(22.dp)
         else -> RoundedCornerShape(24.dp)
     }
 
 /** Glass for the header buttons; the Secret Pink theme gets frosted rose glass instead of the haze blur. */
 @Composable
-private fun Modifier.headerGlass(kind: Int): Modifier {
+internal fun Modifier.headerGlass(kind: Int): Modifier {
     val shape = headerButtonShape(kind)
     return if (LocalPinkLilyTheme.current) {
         this
@@ -1802,9 +1803,9 @@ private fun Modifier.headerGlass(kind: Int): Modifier {
 }
 
 @Composable
-private fun headerButtonSize(kind: Int): Modifier =
+internal fun headerButtonSize(kind: Int): Modifier =
     when (kind) {
-        0, 1 -> Modifier.size(width = 52.dp, height = 44.dp)
+        0, 1, 4 -> Modifier.size(width = 52.dp, height = 44.dp)
         2 -> Modifier.size(52.dp)
         else -> Modifier.size(width = 80.dp, height = 56.dp)
     }

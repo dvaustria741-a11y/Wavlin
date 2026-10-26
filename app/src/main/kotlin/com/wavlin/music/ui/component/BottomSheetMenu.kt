@@ -61,6 +61,7 @@ class MenuState(
     var content by mutableStateOf(content)
     var expandFully by mutableStateOf(false)
     var heightFraction by mutableFloatStateOf(1f)
+    var skipPartial by mutableStateOf(false)
 
     fun show(content: @Composable ColumnScope.() -> Unit) = show(expandFully = false, content = content)
 
@@ -71,6 +72,8 @@ class MenuState(
     ) {
         show(expandFully = false, content = content)
         this.heightFraction = heightFraction
+        // Open straight at full sheet height instead of the half-height stop.
+        this.skipPartial = true
     }
 
     /** [expandFully] opens tall content (e.g. the share card) fully instead of half-height. */
@@ -80,6 +83,7 @@ class MenuState(
     ) {
         this.expandFully = expandFully
         this.heightFraction = 1f
+        this.skipPartial = false
         isVisible = true
         this.content = content
     }
@@ -154,7 +158,7 @@ fun BottomSheetMenu(
 ) {
     val focusManager = LocalFocusManager.current
     // Tall content (the share card) skips the half-height stop and opens fully; the state is keyed on it.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = state.expandFully)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = state.expandFully || state.skipPartial)
     val pinkLily = LocalPinkLilyTheme.current
     // The share sheet is only as tall as its card + buttons: the sheet itself stays full height (so its size never
     // depends on late-measured content) and the content sits at the bottom of it.

@@ -143,6 +143,11 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.wavlin.music.LocalDatabase
+import com.wavlin.music.db.entities.Song
+import com.wavlin.music.ui.menu.DownloadDestinationDialog
+import com.wavlin.music.playback.ExoDownloadService
+import androidx.media3.exoplayer.offline.DownloadService
+import androidx.media3.exoplayer.offline.Download
 import com.wavlin.music.LocalDownloadUtil
 import com.wavlin.music.LocalListenTogetherManager
 import com.wavlin.music.LocalPlayerConnection
@@ -598,9 +603,19 @@ fun BottomSheetPlayer(
             }
         }
 
+    val database = LocalDatabase.current
     val download by LocalDownloadUtil.current
         .getDownload(mediaMetadata?.id ?: "")
         .collectAsStateWithLifecycle(initialValue = null)
+
+    var showDownloadDestinationDialog by rememberSaveable { mutableStateOf(false) }
+    mediaMetadata?.let { md ->
+        DownloadDestinationDialog(
+            isVisible = showDownloadDestinationDialog,
+            songs = listOf(Song(song = md.toSongEntity(), artists = emptyList())),
+            onDismiss = { showDownloadDestinationDialog = false },
+        )
+    }
 
     val sleepTimerEnabled =
         remember(
@@ -1440,6 +1455,32 @@ fun BottomSheetPlayer(
                             .horizontalScroll(rememberScrollState())
                             .padding(horizontal = PlayerHorizontalPadding),
                 ) {
+                    PlayerChip(
+                        icon = if (download?.state == Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download,
+                        label =
+                            stringResource(
+                                when (download?.state) {
+                                    Download.STATE_COMPLETED -> R.string.remove_download
+                                    Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> R.string.downloading
+                                    else -> R.string.action_download
+                                },
+                            ),
+                        onClick = {
+                            val md = mediaMetadata
+                            when (download?.state) {
+                                Download.STATE_COMPLETED, Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
+                                    DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, md.id, false)
+                                else -> {
+                                    database.transaction { insert(md) }
+                                    showDownloadDestinationDialog = true
+                                }
+                            }
+                        },
+                        isActive = download?.state == Download.STATE_COMPLETED || download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING,
+                        textButtonColor = textButtonColor,
+                        iconButtonColor = iconButtonColor,
+                        textColor = TextBackgroundColor,
+                    )
                     PlayerChip(
                         icon = R.drawable.queue_music,
                         label = stringResource(R.string.queue),

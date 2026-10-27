@@ -113,6 +113,7 @@ import com.wavlin.music.ui.menu.YouTubePlaylistMenu
 import com.wavlin.music.ui.menu.YouTubeSongMenu
 import com.wavlin.music.utils.SearchRoutes
 import com.wavlin.music.utils.rememberPreference
+import com.wavlin.music.spotify.SpotifyTrack
 import com.wavlin.music.viewmodels.OnlineSearchViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -134,6 +135,7 @@ fun OnlineSearchResult(
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
+    val spotifyResults by viewModel.spotifyResults.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val scrollToTopCount by savedStateHandle
@@ -553,6 +555,51 @@ fun OnlineSearchResult(
                         }
                     }
 
+
+                    // Spotify results — shown below YT results when no filter is active
+                    if (searchFilter == null) {
+                        val tracks = spotifyResults
+                        if (!tracks.isNullOrEmpty()) {
+                            item(key = "spotify_results_header") {
+                                NavigationTitle(title = "Songs on Spotify")
+                            }
+                            items(
+                                items = tracks,
+                                key = { "spotify_track_\${it.id}" },
+                            ) { track ->
+                                SpotifyTrackListItem(
+                                    track = track,
+                                    onClick = {
+                                        val ytQuery = "\${track.name} \${track.primaryArtist}"
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            com.wavlin.innertube.YouTube.search(
+                                                ytQuery,
+                                                com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG
+                                            ).onSuccess { result ->
+                                                result.items.firstOrNull()?.let { ytSong ->
+                                                    if (ytSong is com.wavlin.innertube.models.SongItem) {
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                            playerConnection.playQueue(
+                                                                com.wavlin.music.playback.queues.YouTubeQueue(
+                                                                    com.wavlin.innertube.models.WatchEndpoint(videoId = ytSong.id),
+                                                                    ytSong.toMediaMetadata(),
+                                                                )
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        } else if (tracks == null && searchSummary != null) {
+                            item(key = "spotify_shimmer") {
+                                ShimmerHost { repeat(3) { ListItemPlaceHolder() } }
+                            }
+                        }
+                    }
+
                     item(key = "bottom_spacer") {
                         Spacer(modifier = Modifier.height(MiniPlayerHeight + MiniPlayerBottomSpacing + NavigationBarHeight))
                     }
@@ -576,5 +623,62 @@ fun OnlineSearchResult(
                 onClick = { navController.navigate("recognition") },
             )
         }
+    }
+}
+
+
+@androidx.compose.runtime.Composable
+private fun SpotifyTrackListItem(
+    track: SpotifyTrack,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
+        ) {
+            coil3.compose.AsyncImage(
+                model = track.thumbnailUrl,
+                contentDescription = track.name,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.BottomEnd)
+                    .size(14.dp)
+                    .background(androidx.compose.ui.graphics.Color(0xFF1DB954), androidx.compose.foundation.shape.CircleShape)
+                    .border(1.5.dp, androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.CircleShape),
+            )
+        }
+        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+            androidx.compose.material3.Text(
+                text = track.name,
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            androidx.compose.material3.Text(
+                text = track.allArtists,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+        androidx.compose.material3.Text(
+            text = "Spotify",
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.ui.graphics.Color(0xFF1DB954),
+        )
     }
 }

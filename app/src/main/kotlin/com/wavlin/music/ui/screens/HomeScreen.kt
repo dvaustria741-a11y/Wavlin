@@ -171,6 +171,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
+import com.wavlin.music.spotify.SpotifyAlbumItem
 import kotlin.random.Random
 
 sealed class HomeSection(
@@ -200,6 +201,64 @@ sealed class HomeSection(
     ) : HomeSection("home_page_section_$index", 10)
 
     data object MoodAndGenres : HomeSection("mood_and_genres", 5)
+
+    data object SpotifyNewReleases : HomeSection("spotify_new_releases", 7)
+}
+
+@Composable
+fun SpotifyAlbumCard(
+    album: SpotifyAlbumItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .width(140.dp)
+            .combinedClickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .clip(RoundedCornerShape(12.dp)),
+        ) {
+            AsyncImage(
+                model = album.thumbnailUrl,
+                contentDescription = album.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp)
+                    .background(Color(0xFF1DB954), CircleShape)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = "Spotify",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = album.name,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = album.primaryArtist,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -676,6 +735,7 @@ fun HomeScreen(
     // Official podcast API data
     val savedPodcastShows by viewModel.savedPodcastShows.collectAsStateWithLifecycle()
     val episodesForLater by viewModel.episodesForLater.collectAsStateWithLifecycle()
+    val spotifyNewReleases by viewModel.spotifyNewReleases.collectAsStateWithLifecycle()
 
     val isLoading: Boolean by viewModel.isLoading.collectAsStateWithLifecycle()
     val isMoodAndGenresLoading = isLoading && explorePage?.moodAndGenres == null
@@ -1036,6 +1096,7 @@ fun HomeScreen(
             similarRecommendations,
             homePage?.sections,
             explorePage?.moodAndGenres,
+            spotifyNewReleases,
         ) {
             val list = mutableListOf<HomeSection>()
             val chipActive = selectedChip != null
@@ -1059,6 +1120,7 @@ fun HomeScreen(
             }
 
             if (explorePage?.moodAndGenres != null) list.add(HomeSection.MoodAndGenres)
+            if (!chipActive && spotifyNewReleases?.isNotEmpty() == true) list.add(HomeSection.SpotifyNewReleases)
 
             if (randomizeHomeOrder) {
                 list.sortedByDescending { section ->
@@ -1123,6 +1185,7 @@ fun HomeScreen(
                         HomeSection.AccountPlaylists to 50,
                         HomeSection.ForgottenFavorites to 40,
                         HomeSection.MoodAndGenres to 10,
+                        HomeSection.SpotifyNewReleases to 7,
                     )
 
                 list.sortedByDescending { section ->
@@ -2409,6 +2472,35 @@ fun HomeScreen(
                                             ) { item ->
                                                 ytGridItem(item)
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        HomeSection.SpotifyNewReleases -> {
+                            spotifyNewReleases?.takeIf { it.isNotEmpty() }?.let { releases ->
+                                item(key = "spotify_new_releases_title") {
+                                    NavigationTitle(title = "New on Spotify")
+                                }
+                                item(key = "spotify_new_releases_row") {
+                                    LazyRow(
+                                        contentPadding = WindowInsets.systemBars
+                                            .only(WindowInsetsSides.Horizontal)
+                                            .asPaddingValues(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        items(releases, key = { "spotify_rel_\${it.id}" }) { album ->
+                                            SpotifyAlbumCard(
+                                                album = album,
+                                                onClick = {
+                                                    navController.navigate(
+                                                        com.wavlin.music.utils.SearchRoutes.resultRoute(
+                                                            "\${album.name} \${album.primaryArtist}"
+                                                        )
+                                                    )
+                                                },
+                                            )
                                         }
                                     }
                                 }

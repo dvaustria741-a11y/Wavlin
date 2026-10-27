@@ -60,6 +60,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import com.wavlin.music.spotify.SpotifyAlbumItem
+import com.wavlin.music.spotify.SpotifyProvider
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -107,6 +109,7 @@ class HomeViewModel @Inject constructor(
     // Official API data for podcast sections
     val savedPodcastShows = MutableStateFlow<List<com.wavlin.innertube.models.PodcastItem>>(emptyList())
     val episodesForLater = MutableStateFlow<List<SongItem>>(emptyList())
+    val spotifyNewReleases = MutableStateFlow<List<SpotifyAlbumItem>?>(null)
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
@@ -511,6 +514,14 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { getDailyDiscover() }
 
         viewModelScope.launch(Dispatchers.IO) { getCommunityPlaylists() }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                spotifyNewReleases.value = SpotifyProvider.getNewReleases()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load Spotify new releases")
+            }
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.explore().onSuccess { page ->

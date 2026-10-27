@@ -5,182 +5,136 @@
 
 package com.wavlin.music.playback.audio
 
-import androidx.media3.common.C
+import androidx.annotation.Keep
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.roundToInt
 
 /**
- * Software reverb AudioProcessor using a Freeverb (Schroeder-Moorer) algorithm.
+ * Software Freeverb reverb applied in ExoPlayer's audio processor chain.
  *
- * Replaces the previous EnvironmentalReverb hardware-effect approach which silently
- * did nothing on most devices. This processor runs entirely in ExoPlayer's audio
- * pipeline so it works on all devices, exactly like [CustomEqualizerAudioProcessor].
+ * Parameters are set by [com.wavlin.music.audio.reverb.ReverbManager] via
+ * [setParameters] / [setEnabled].  [isActive] controls whether ExoPlayer
+ * routes audio through here; when false the processor is bypassed entirely
+ * and adds zero latency.
  *
- * Algorithm: 8 parallel comb filters (feedback + lowpass) summed, then 4 series
- * all-pass filters, mixed wet+dry. Stereo uses independent L/R filter banks with a
- * 23-sample delay spread for width.
- *
- * Parameters are pushed by [com.wavlin.music.audio.reverb.ReverbManager] via
- * [setReverbParams] whenever the user changes preset, intensity or enable state.
+ * Audio format assumed: PCM_FLOAT (4 bytes / sample), any channel count,
+ * any sample rate.  For other encodings the processor is transparent.
  */
 @UnstableApi
 class ReverbAudioProcessor : AudioProcessor {
 
-    // ── Format state ─────────────────────────────────────────────────────────────
-    private var sampleRate   = 0
-    private var channelCount = 0
-    private var encoding     = C.ENCODING_INVALID
-    private var processorActive = false
-
-    private var outputBuffer: ByteBuffer = EMPTY
-    private var inputEnded = false
-
-    // ── Reverb parameters (volatile – written on main thread, read on audio thread) ──
-    @Volatile private var reverbEnabled = false
-    @Volatile private var wetLevel      = 0f
-    @Volatile private var dryLevel      = 0.7f   // keep direct signal audible
-
-    // Comb/allpass filter state (only touched on audio thread after configure())
-    private var combL  = emptyArray<CombFilter>()
-    private var combR  = emptyArray<CombFilter>()
-    private var apL    = emptyArray<AllPassFilter>()
-    private var apR    = emptyArray<AllPassFilter>()
-
+    // ── Freeverb tuning constants (calibrated for 44 100 Hz) ────────────────
     companion object {
-        private val EMPTY: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
-
-        // Standard Freeverb tuning delays at 44100 Hz
         private val COMB_DELAYS    = intArrayOf(1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617)
         private val ALLPASS_DELAYS = intArrayOf(556, 441, 341, 225)
-        private const val STEREO_SPREAD = 23
-
-        // Input gain that keeps comb filter accumulators in [-1, 1]
-        private const val FIXED_GAIN = 0.007f
+        private const val SPREAD   = 23      // stereo width offset (samples)
+        private const val GAIN     = 0.015f  // input gain before comb filters
     }
 
-    // ── Called by ReverbManager ───────────────────────────────────────────────────
+    // ── Mutable parameters (written from main thread, read on audio thread) ──
+    @Volatile private var roomFeedback = 0.84f   // comb feedback: room * 0.28 + 0.70
+    @Volatile private var damp1        = 0.5f    // HF damping factor
+    @Volatile private var damp2        = 0.5f    // 1 - damp1
+    @Volatile private var wet          = 0.33f   // reverb send level
+    @Volatile private var active       = false
+
+    // ── Filter banks (L / R) ────────────────────────────────────────────────
+    private var combL   = buildCombs(44100)
+    private var combR   = buildCombs(44100, spread = SPREAD)
+    private var apL     = buildAllpasses(44100)
+    private var apR     = buildAllpasses(44100, spread = SPREAD)
+
+    private var sampleRate   = 44100
+    private var channelCount = 2
+    private var isFloat      = true   // false → passthrough, audio format not PCM_FLOAT
+
+    private var outputBuffer  = EMPTY
+    private var inputEnded    = false
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public API called by ReverbManager
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Push current enabled/preset/intensity state.  Safe to call from any thread.
-     *
-     * @param enabled   whether reverb is active
-     * @param roomSize  0..1 — maps to comb-filter feedback (longer tail at higher values)
-     * @param damping   0..1 — high-frequency absorption (0 = bright, 1 = dark)
-     * @param wet       0..1 — wet mix level (already scaled by intensity in ReverbManager)
+     * @param room     room size   [0.0, 1.0]  (mapped: feedback = room * 0.28 + 0.70)
+     * @param damping  HF damping  [0.0, 1.0]
+     * @param wetLevel wet mix     [0.0, 1.0]
      */
-    fun setReverbParams(enabled: Boolean, roomSize: Float, damping: Float, wet: Float) {
-        // Push scalar params first; reverbEnabled last so the audio thread never
-        // sees a stale wetLevel when it reads reverbEnabled == true.
-        wetLevel = wet
-        dryLevel = 0.7f
-        updateCombParams(roomSize, damping)
-        reverbEnabled = enabled
+    fun setParameters(room: Float, damping: Float, wetLevel: Float) {
+        roomFeedback = room * 0.28f + 0.70f
+        damp1 = damping
+        damp2 = 1.0f - damping
+        wet   = wetLevel
+        pushToCombFilters()
     }
 
-    private fun updateCombParams(roomSize: Float, damping: Float) {
-        // feedback ∈ [0.28, 0.98], damp1 controls lowpass cutoff
-        val feedback = roomSize * 0.70f + 0.28f
-        val damp1    = damping * 0.40f
-        combL.forEach { it.setFeedbackAndDamp(feedback, damp1) }
-        combR.forEach { it.setFeedbackAndDamp(feedback, damp1) }
-    }
+    fun setEnabled(enabled: Boolean) { active = enabled }
 
-    // ── AudioProcessor lifecycle ──────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // AudioProcessor
+    // ─────────────────────────────────────────────────────────────────────────
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        sampleRate   = inputAudioFormat.sampleRate
         channelCount = inputAudioFormat.channelCount
-        encoding     = inputAudioFormat.encoding
-
-        if (encoding != C.ENCODING_PCM_16BIT || channelCount < 1 || channelCount > 2) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        isFloat = (inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_FLOAT)
+        if (inputAudioFormat.sampleRate != sampleRate) {
+            sampleRate = inputAudioFormat.sampleRate
+            rebuildFilters()
         }
-
-        rebuildFilters()
-        processorActive = true
-        return inputAudioFormat
+        return inputAudioFormat   // same format in and out
     }
 
-    private fun rebuildFilters() {
-        val scale = sampleRate.toFloat() / 44100f
-        val feedback = combL.firstOrNull()?.currentFeedback ?: 0.84f
-        val damp1    = combL.firstOrNull()?.currentDamp1    ?: 0.20f
-
-        combL = Array(COMB_DELAYS.size)    { i -> CombFilter((COMB_DELAYS[i]    * scale).roundToInt()).also { it.setFeedbackAndDamp(feedback, damp1) } }
-        combR = Array(COMB_DELAYS.size)    { i -> CombFilter(((COMB_DELAYS[i] + STEREO_SPREAD) * scale).roundToInt()).also { it.setFeedbackAndDamp(feedback, damp1) } }
-        apL   = Array(ALLPASS_DELAYS.size) { i -> AllPassFilter((ALLPASS_DELAYS[i]    * scale).roundToInt()) }
-        apR   = Array(ALLPASS_DELAYS.size) { i -> AllPassFilter(((ALLPASS_DELAYS[i] + STEREO_SPREAD) * scale).roundToInt()) }
-    }
-
-    override fun isActive(): Boolean = processorActive
+    override fun isActive(): Boolean = active && isFloat
 
     override fun queueInput(inputBuffer: ByteBuffer) {
-        val inputSize = inputBuffer.remaining()
-        if (inputSize == 0) return
+        val remaining = inputBuffer.remaining()
+        if (remaining == 0) { outputBuffer = EMPTY; return }
 
-        if (outputBuffer === EMPTY || outputBuffer.capacity() < inputSize) {
-            outputBuffer = ByteBuffer.allocateDirect(inputSize).order(ByteOrder.nativeOrder())
-        } else {
-            outputBuffer.clear()
+        // Ensure capacity
+        if (outputBuffer === EMPTY || outputBuffer.capacity() < remaining) {
+            outputBuffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
         }
+        outputBuffer.clear().limit(remaining)
 
-        if (!reverbEnabled) {
-            // Passthrough
-            outputBuffer.put(inputBuffer)
-            outputBuffer.flip()
-            return
-        }
+        val inFB  = inputBuffer.asFloatBuffer()   // read-only view
+        val outFB = outputBuffer.asFloatBuffer()   // write view
+        val frames = remaining / (4 * channelCount)
 
-        when (channelCount) {
-            1    -> processMono(inputBuffer, outputBuffer)
-            else -> processStereo(inputBuffer, outputBuffer)
-        }
-        outputBuffer.flip()
-    }
+        if (channelCount >= 2) {
+            for (f in 0 until frames) {
+                val inL = inFB.get()
+                val inR = inFB.get()
 
-    private fun processMono(input: ByteBuffer, output: ByteBuffer) {
-        val wet = wetLevel
-        val dry = dryLevel
-        while (input.remaining() >= 2) {
-            val sample = input.getShort().toFloat() / 32768f
-            val revIn  = sample * FIXED_GAIN
+                var revL = 0f; var revR = 0f
+                for (c in combL) revL += c.process(inL * GAIN)
+                for (c in combR) revR += c.process(inR * GAIN)
+                for (a in apL)   revL  = a.process(revL)
+                for (a in apR)   revR  = a.process(revR)
 
-            var reverbOut = 0f
-            for (cf in combL) reverbOut += cf.process(revIn)
-            for (ap in apL)   reverbOut  = ap.process(reverbOut)
+                outFB.put(inL + revL * wet)
+                outFB.put(inR + revR * wet)
 
-            val mixed = sample * dry + reverbOut * wet
-            output.putShort(mixed.coerceIn(-1f, 1f).times(32767f).toInt().toShort())
-        }
-    }
-
-    private fun processStereo(input: ByteBuffer, output: ByteBuffer) {
-        val wet = wetLevel
-        val dry = dryLevel
-        while (input.remaining() >= 4) {
-            val dryL  = input.getShort().toFloat() / 32768f
-            val dryR  = input.getShort().toFloat() / 32768f
-            val revIn = (dryL + dryR) * FIXED_GAIN   // mono sum into reverb (standard Freeverb)
-
-            var reverbL = 0f
-            var reverbR = 0f
-            for (i in combL.indices) {
-                reverbL += combL[i].process(revIn)
-                reverbR += combR[i].process(revIn)
+                // Skip any extra channels unchanged
+                repeat(channelCount - 2) { outFB.put(inFB.get()) }
             }
-            for (ap in apL) reverbL = ap.process(reverbL)
-            for (ap in apR) reverbR = ap.process(reverbR)
-
-            val mixedL = dryL * dry + reverbL * wet
-            val mixedR = dryR * dry + reverbR * wet
-
-            output.putShort(mixedL.coerceIn(-1f, 1f).times(32767f).toInt().toShort())
-            output.putShort(mixedR.coerceIn(-1f, 1f).times(32767f).toInt().toShort())
+        } else {
+            // Mono
+            for (f in 0 until frames) {
+                val inS = inFB.get()
+                var rev = 0f
+                for (c in combL) rev += c.process(inS * GAIN)
+                for (a in apL)   rev  = a.process(rev)
+                outFB.put(inS + rev * wet)
+            }
         }
+
+        inputBuffer.position(inputBuffer.limit())   // mark input consumed
+        outputBuffer.position(0)
     }
+
+    override fun queueEndOfStream() { inputEnded = true }
 
     override fun getOutput(): ByteBuffer {
         val out = outputBuffer
@@ -188,78 +142,82 @@ class ReverbAudioProcessor : AudioProcessor {
         return out
     }
 
-    override fun isEnded(): Boolean = inputEnded && outputBuffer.remaining() == 0
+    override fun isEnded(): Boolean = inputEnded && outputBuffer === EMPTY
 
     @Deprecated("Deprecated in AudioProcessor")
     override fun flush() {
+        inputEnded = false
         outputBuffer = EMPTY
-        inputEnded   = false
-        combL.forEach { it.clear() }
-        combR.forEach { it.clear() }
-        apL.forEach   { it.clear() }
-        apR.forEach   { it.clear() }
+        combL.forEach { it.reset() }; combR.forEach { it.reset() }
+        apL.forEach   { it.reset() }; apR.forEach   { it.reset() }
     }
 
+    @Deprecated("Deprecated in AudioProcessor")
     override fun reset() {
-        @Suppress("DEPRECATION")
+        roomFeedback = 0.84f; damp1 = 0.5f; damp2 = 0.5f; wet = 0.33f; active = false
         flush()
-        sampleRate      = 0
-        channelCount    = 0
-        encoding        = C.ENCODING_INVALID
-        processorActive = false
     }
 
-    override fun queueEndOfStream() { inputEnded = true }
+    // ─────────────────────────────────────────────────────────────────────────
+    // Internals
+    // ─────────────────────────────────────────────────────────────────────────
 
-    // ── DSP building blocks ───────────────────────────────────────────────────────
+    private fun pushToCombFilters() {
+        combL.forEach { it.feedback = roomFeedback; it.damp1 = damp1; it.damp2 = damp2 }
+        combR.forEach { it.feedback = roomFeedback; it.damp1 = damp1; it.damp2 = damp2 }
+    }
 
-    /** Feedback comb filter with first-order lowpass on the feedback path (Freeverb-style). */
+    private fun rebuildFilters() {
+        val scale = sampleRate.toDouble() / 44100.0
+        combL = buildCombs(sampleRate, scale = scale)
+        combR = buildCombs(sampleRate, scale = scale, spread = SPREAD)
+        apL   = buildAllpasses(sampleRate, scale = scale)
+        apR   = buildAllpasses(sampleRate, scale = scale, spread = SPREAD)
+        pushToCombFilters()
+    }
+
+    private fun buildCombs(rate: Int, scale: Double = 1.0, spread: Int = 0) =
+        Array(8) { i -> CombFilter(((COMB_DELAYS[i] + spread) * scale).toInt().coerceAtLeast(8)) }
+
+    private fun buildAllpasses(rate: Int, scale: Double = 1.0, spread: Int = 0) =
+        Array(4) { i -> AllpassFilter(((ALLPASS_DELAYS[i] + spread) * scale).toInt().coerceAtLeast(4)) }
+
+    // ── Comb filter (Freeverb LPF-comb) ─────────────────────────────────────
     private class CombFilter(size: Int) {
-        private val buffer    = FloatArray(size.coerceAtLeast(1))
-        private var index     = 0
-        private var filterStore = 0f
-
-        var currentFeedback = 0.84f; private set
-        var currentDamp1    = 0.20f; private set
-        private var damp2   = 0.80f
-
-        fun setFeedbackAndDamp(feedback: Float, damp1: Float) {
-            currentFeedback = feedback
-            currentDamp1    = damp1
-            damp2           = 1f - damp1
-        }
+        private val buf = FloatArray(size)
+        private var idx = 0
+        private var store = 0f
+        var feedback = 0.84f
+        var damp1    = 0.5f
+        var damp2    = 0.5f
 
         fun process(input: Float): Float {
-            val output = buffer[index]
-            filterStore = output * damp2 + filterStore * currentDamp1
-            buffer[index] = input + filterStore * currentFeedback
-            if (++index >= buffer.size) index = 0
-            return output
+            val out = buf[idx]
+            store = out * damp2 + store * damp1  // LPF on feedback
+            buf[idx] = input + store * feedback
+            if (++idx >= buf.size) idx = 0
+            return out
         }
 
-        fun clear() {
-            buffer.fill(0f)
-            filterStore = 0f
-            index       = 0
-        }
+        fun reset() { buf.fill(0f); store = 0f; idx = 0 }
     }
 
-    /** All-pass filter (Schroeder) with fixed 0.5 gain. */
-    private class AllPassFilter(size: Int) {
-        private val buffer = FloatArray(size.coerceAtLeast(1))
-        private var index  = 0
+    // ── Allpass filter ────────────────────────────────────────────────────────
+    private class AllpassFilter(size: Int) {
+        private val buf = FloatArray(size)
+        private var idx = 0
 
         fun process(input: Float): Float {
-            val bufOut = buffer[index]
-            val output = -input + bufOut
-            buffer[index] = input + bufOut * 0.5f
-            if (++index >= buffer.size) index = 0
-            return output
+            val out = buf[idx]
+            buf[idx] = input + out * 0.5f
+            if (++idx >= buf.size) idx = 0
+            return out - input
         }
 
-        fun clear() {
-            buffer.fill(0f)
-            index = 0
-        }
+        fun reset() { buf.fill(0f); idx = 0 }
+    }
+
+    private companion object {
+        val EMPTY: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

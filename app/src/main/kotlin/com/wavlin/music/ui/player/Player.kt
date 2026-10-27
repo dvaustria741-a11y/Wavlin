@@ -2211,6 +2211,27 @@ fun BottomSheetPlayer(
                 },
             )
         }
+
+        // ── Video canvas fullscreen idle overlay ────────────────────────
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !videoCanvasIdleUrl.isNullOrBlank(),
+            enter = androidx.compose.animation.fadeIn(
+                androidx.compose.animation.core.tween(500)
+            ),
+            exit = androidx.compose.animation.fadeOut(
+                androidx.compose.animation.core.tween(300)
+            ),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            videoCanvasIdleUrl?.let { url ->
+                VideoCanvasFullscreenOverlay(
+                    videoUrl = url,
+                    metadata = mediaMetadata,
+                    onExit   = { videoCanvasIdleUrl = null },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
         }
     }
 }

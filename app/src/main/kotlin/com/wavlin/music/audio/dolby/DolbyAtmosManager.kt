@@ -14,6 +14,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.media.audiofx.Virtualizer
+import com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor
+import java.util.Collections
+import java.util.WeakHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,6 +39,10 @@ object DolbyAtmosManager {
     private const val TAG = "DolbyAtmosManager"
     const val PREFS_NAME = "wavlin_dolby"
     const val KEY_DOLBY_ATMOS_ENABLED = "dolby_atmos_enabled"
+    const val KEY_EXPANDED_STEREO = "dolby_expanded_stereo"
+
+    /** Enhanced dialogue is fixed at its maximum (3), matching the system Dolby Atmos setting. */
+    const val ENHANCED_DIALOGUE_LEVEL = 3
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -57,6 +64,16 @@ object DolbyAtmosManager {
     private val _isAtmosEnabledByUser = MutableStateFlow(false)
     val isAtmosEnabledByUser: StateFlow<Boolean> = _isAtmosEnabledByUser.asStateFlow()
 
+    /** Expanded stereo strength 0..3 (default 3). Only audible on earphone routes, like system Dolby. */
+    private val _expandedStereoLevel = MutableStateFlow(3)
+    val expandedStereoLevel: StateFlow<Int> = _expandedStereoLevel.asStateFlow()
+
+    private val _isHeadphoneRoute = MutableStateFlow(false)
+    val isHeadphoneRoute: StateFlow<Boolean> = _isHeadphoneRoute.asStateFlow()
+
+    private val processors: MutableSet<DolbyAtmosAudioProcessor> =
+        Collections.newSetFromMap(WeakHashMap<DolbyAtmosAudioProcessor, Boolean>())
+
     private var currentSongHasAtmos: Boolean = false
     private var currentSongMimeType: String? = null
     private var currentSongChannelCount: Int = 2
@@ -74,8 +91,10 @@ object DolbyAtmosManager {
         prefs = sp
         val isEnabled = sp.getBoolean(KEY_DOLBY_ATMOS_ENABLED, false)
         _isAtmosEnabledByUser.value = isEnabled
+        _expandedStereoLevel.value = sp.getInt(KEY_EXPANDED_STEREO, 3).coerceIn(0, 3)
 
         audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        _isHeadphoneRoute.value = detectHeadphoneRoute()
 
         registerListeners(app)
         refreshCapabilities()
@@ -159,8 +178,61 @@ object DolbyAtmosManager {
                 updatedDiag.capability != DolbyAtmosCapability.UNSUPPORTED &&
                 updatedDiag.capability != DolbyAtmosCapability.DISABLED
             _isAtmosActive.value = active
+            _isHeadphoneRoute.value = detectHeadphoneRoute()
             applyVirtualizerState(isPreferred)
+            syncProcessors()
         }
+    }
+
+    /** True when audio is going to wired / USB / Bluetooth earphones (expanded stereo is earphones-only). */
+    private fun detectHeadphoneRoute(): Boolean {
+        val am = audioManager ?: return false
+        return try {
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { d ->
+                when (d.type) {
+                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                    AudioDeviceInfo.TYPE_USB_HEADSET,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                    -> true
+                    else -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        d.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                }
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun effectiveStereoLevel(): Int = if (_isHeadphoneRoute.value) _expandedStereoLevel.value else 0
+
+    /** Registers a player's processor and immediately pushes the current Dolby settings to it. */
+    fun registerProcessor(proc: DolbyAtmosAudioProcessor) {
+        synchronized(processors) { processors.add(proc) }
+        pushTo(proc)
+    }
+
+    private fun syncProcessors() {
+        val snapshot = synchronized(processors) { processors.toList() }
+        snapshot.forEach { pushTo(it) }
+    }
+
+    private fun pushTo(proc: DolbyAtmosAudioProcessor) {
+        proc.setParameters(
+            enabled = _isAtmosEnabledByUser.value,
+            dialogueLevel = ENHANCED_DIALOGUE_LEVEL,
+            stereoLevel = effectiveStereoLevel(),
+        )
+    }
+
+    /** Sets Expanded stereo strength (0..3). */
+    fun setExpandedStereoLevel(level: Int) {
+        val v = level.coerceIn(0, 3)
+        _expandedStereoLevel.value = v
+        prefs?.edit()?.putInt(KEY_EXPANDED_STEREO, v)?.apply()
+        applyVirtualizerState(_isAtmosEnabledByUser.value)
+        syncProcessors()
     }
 
     /**
@@ -169,6 +241,8 @@ object DolbyAtmosManager {
     fun setAtmosEnabled(enabled: Boolean) {
         _isAtmosEnabledByUser.value = enabled
         prefs?.edit()?.putBoolean(KEY_DOLBY_ATMOS_ENABLED, enabled)?.apply()
+        applyVirtualizerState(enabled)
+        syncProcessors()
         refreshCapabilities()
     }
 
@@ -216,8 +290,9 @@ object DolbyAtmosManager {
         attachedSessionId = sessionId
         try {
             virtualizer = Virtualizer(0, sessionId).apply {
-                if (strengthSupported) setStrength(1000.toShort())
-                enabled = _isAtmosEnabledByUser.value
+                val level = effectiveStereoLevel()
+                if (strengthSupported) setStrength((level * 1000 / 3).toShort())
+                enabled = _isAtmosEnabledByUser.value && level > 0
             }
             Log.i(TAG, "Virtualizer attached to session $sessionId, strengthSupported=${virtualizer?.strengthSupported}, enabled=${virtualizer?.enabled}")
         } catch (e: Exception) {
@@ -229,7 +304,10 @@ object DolbyAtmosManager {
     @Synchronized
     private fun applyVirtualizerState(active: Boolean) {
         try {
-            virtualizer?.enabled = active
+            val v = virtualizer ?: return
+            val level = effectiveStereoLevel()
+            if (v.strengthSupported) v.setStrength((level * 1000 / 3).toShort())
+            v.enabled = active && level > 0
         } catch (e: Exception) {
             Log.w(TAG, "Failed toggling Virtualizer", e)
         }

@@ -1382,6 +1382,8 @@ class MusicService :
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
         val reverbProcessor = com.wavlin.music.playback.audio.ReverbAudioProcessor()
         com.wavlin.music.audio.reverb.ReverbManager.setProcessor(reverbProcessor)
+        val dolbyProcessor = com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor()
+        com.wavlin.music.audio.dolby.DolbyAtmosManager.registerProcessor(dolbyProcessor)
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1402,7 +1404,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, dolbyProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -3925,6 +3927,7 @@ class MusicService :
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         reverbProcessor: com.wavlin.music.playback.audio.ReverbAudioProcessor,
+        dolbyProcessor: com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
@@ -3986,6 +3989,7 @@ class MusicService :
                         normalizationProcessor,
                         eqProcessor,
                         reverbProcessor,
+                        dolbyProcessor,
                         silenceProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),

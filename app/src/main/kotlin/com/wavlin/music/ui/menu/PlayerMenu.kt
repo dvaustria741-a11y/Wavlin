@@ -376,6 +376,7 @@ fun PlayerMenu(
                 }
 
                 PlayerMenuSettingsCard()
+                PlayerMenuExpandedStereoCard()
             }
         }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -334,6 +336,78 @@ fun PlayerMenuSettingsCard() {
             enabled = atmosSupported,
             onCheckedChange = { DolbyAtmosManager.setAtmosEnabled(it) },
         )
+    }
+}
+
+/** Expanded stereo strength (0..3), shown right under the Dolby Atmos switch while Dolby is on. */
+@Composable
+fun PlayerMenuExpandedStereoCard() {
+    val atmosEnabled by DolbyAtmosManager.isAtmosEnabledByUser.collectAsStateWithLifecycle()
+    val atmosDiag by DolbyAtmosManager.liveDiagnostics.collectAsStateWithLifecycle()
+    val level by DolbyAtmosManager.expandedStereoLevel.collectAsStateWithLifecycle()
+    val onEarphones by DolbyAtmosManager.isHeadphoneRoute.collectAsStateWithLifecycle()
+    if (!atmosEnabled || atmosDiag.capability == DolbyAtmosCapability.UNSUPPORTED) return
+
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(R.string.dolby_expanded_stereo), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.dolby_earphones_only),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(onSurface.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .alpha(if (onEarphones) 1f else 0.6f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(onSurface.copy(alpha = 0.12f))
+                    .padding(4.dp),
+        ) {
+            (0..3).forEach { value ->
+                val selected = level == value
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                when {
+                                    selected && LocalPinkLilyTheme.current -> PinkSwoosh.copy(alpha = 0.45f)
+                                    selected -> onSurface.copy(alpha = 0.24f)
+                                    else -> Color.Transparent
+                                },
+                            ).clickable { DolbyAtmosManager.setExpandedStereoLevel(value) },
+                ) {
+                    Text(
+                        text = value.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
     }
 }
 

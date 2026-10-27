@@ -647,7 +647,7 @@ private fun SpotifyTrackListItem(
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)),
         ) {
             coil3.compose.AsyncImage(
-                model = track.thumbnailUrl,
+                model = track.coverUrl,
                 contentDescription = track.name,
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -662,13 +662,13 @@ private fun SpotifyTrackListItem(
         }
         androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
             androidx.compose.material3.Text(
-                text = track.name,
+                text = track.title,
                 style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
             androidx.compose.material3.Text(
-                text = track.allArtists,
+                text = track.artist,
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 maxLines = 1,

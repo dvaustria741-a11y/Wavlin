@@ -316,111 +316,103 @@ fun AccountSettings(
             )
         }
 
-        Material3SettingsGroup(
-            items = listOf(
-                Material3SettingsItem(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (isLoggedIn && accountImageUrl != null) {
-                                AsyncImage(
-                                    model = accountImageUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(40.dp).clip(CircleShape)
-                                )
+        // Plain rows like Settings/Integrations below: no card behind them.
+        val loginDescription = buildList {
+            if (isLoggedIn) add("YouTube Music")
+            if (spotifyConnected) add(stringResource(R.string.spotify))
+        }.joinToString(" · ")
 
-                                Spacer(Modifier.width(12.dp))
-                            }
+        PreferenceEntry(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoggedIn && accountImageUrl != null) {
+                        AsyncImage(
+                            model = accountImageUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
+                        )
 
-                            Text(
-                                text = if (isLoggedIn) accountName else stringResource(R.string.login),
-                            )
-                        }
-                    },
-                    icon = if (!isLoggedIn) painterResource(R.drawable.login) else null,
-                    description = {
-                        val parts = buildList {
-                            if (isLoggedIn) add("YouTube Music")
-                            if (spotifyConnected) add(stringResource(R.string.spotify))
-                        }
-                        if (parts.isNotEmpty()) Text(parts.joinToString(" · "))
-                    },
-                    onClick = { showLoginPicker = true }
-                )
-            ),
-            useLowContrast = true
+                        Spacer(Modifier.width(12.dp))
+                    }
+
+                    Text(text = if (isLoggedIn) accountName else stringResource(R.string.login))
+                }
+            },
+            description = loginDescription.ifEmpty { null },
+            icon = if (!isLoggedIn) {
+                { Icon(painterResource(R.drawable.login), null) }
+            } else null,
+            onClick = { showLoginPicker = true },
+            modifier = Modifier.fillMaxWidth(),
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
-        Material3SettingsGroup(
-            items = listOfNotNull(
-                if (!isLoggedIn) null else Material3SettingsItem(
-                    title = {
-                        Text(
-                            when {
-                                !isLoggedIn -> stringResource(R.string.advanced_login)
-                                showToken -> stringResource(R.string.token_shown)
-                                else -> stringResource(R.string.token_hidden)
-                            }
-                        )
+        if (isLoggedIn) {
+            PreferenceEntry(
+                title = {
+                    Text(
+                        if (showToken) stringResource(R.string.token_shown) else stringResource(R.string.token_hidden)
+                    )
+                },
+                icon = { Icon(painterResource(R.drawable.token), null) },
+                onClick = {
+                    if (!showToken) showToken = true else showTokenEditor = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(4.dp))
+        }
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.more_content)) },
+            icon = { Icon(painterResource(R.drawable.cached), null) },
+            trailingContent = {
+                Switch(
+                    enabled = isLoggedIn,
+                    checked = useLoginForBrowse,
+                    onCheckedChange = {
+                        YouTube.useLoginForBrowse = it
+                        onUseLoginForBrowseChange(it)
                     },
-                    icon = painterResource(R.drawable.token),
-                    onClick = {
-                        if (!isLoggedIn) showTokenEditor = true
-                        else if (!showToken) showToken = true
-                        else showTokenEditor = true
+                    thumbContent = {
+                        Icon(
+                            painter = painterResource(
+                                id = if (useLoginForBrowse) R.drawable.check else R.drawable.close
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                        )
                     }
-                ),
-                Material3SettingsItem(
-                    title = { Text(stringResource(R.string.more_content)) },
-                    icon = painterResource(R.drawable.cached),
-                    trailingContent = {
-                        Switch(
-                            enabled = isLoggedIn,
-                            checked = useLoginForBrowse,
-                            onCheckedChange = {
-                                YouTube.useLoginForBrowse = it
-                                onUseLoginForBrowseChange(it)
-                            },
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useLoginForBrowse) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    enabled = isLoggedIn
-                ),
-                Material3SettingsItem(
-                    title = { Text(stringResource(R.string.yt_sync)) },
-                    icon = painterResource(R.drawable.cached),
-                    trailingContent = {
-                        Switch(
-                            enabled = isLoggedIn,
-                            checked = ytmSync,
-                            onCheckedChange = onYtmSyncChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (ytmSync) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    enabled = isLoggedIn
                 )
-            ),
-            useLowContrast = true
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.yt_sync)) },
+            icon = { Icon(painterResource(R.drawable.cached), null) },
+            trailingContent = {
+                Switch(
+                    enabled = isLoggedIn,
+                    checked = ytmSync,
+                    onCheckedChange = onYtmSyncChange,
+                    thumbContent = {
+                        Icon(
+                            painter = painterResource(
+                                id = if (ytmSync) R.drawable.check else R.drawable.close
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                        )
+                    }
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(12.dp))

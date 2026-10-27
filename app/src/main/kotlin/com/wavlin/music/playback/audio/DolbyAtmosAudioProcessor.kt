@@ -28,6 +28,7 @@ import kotlin.math.tanh
  * - **Dialogue enhancer / presence**: peaking lift on the mid (centre) signal. Level 0..3 only adds a little.
  * - **Surround virtualizer feel**: always-on base widening + pseudo-stereo; Expanded stereo (0..3, earphones only) adds more.
  *   Only the side (background) signal is darkened, so vocals stay clear while instruments sit behind them.
+ * - **Graphic equalizer**: 10-band EQ (default = the "Custom" curve from the user's system Dolby: bass up, highs down).
  * - **Intelligent equalizer**: slowly measures the low/mid/high balance of the song and nudges it toward a target tone
  *   (leaves already-balanced songs alone).
  * - **Volume leveler**: per-band (3 bands) downward compression + makeup gain, so everything is evened out without pumping.
@@ -61,14 +62,20 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         /** Only the side (background) signal is darkened → vocals stay clear, instruments recede. */
         private const val SIDE_SHELF_HZ = 3000.0
-        private const val SIDE_SHELF_DB = -7.0
+        private const val SIDE_SHELF_DB = -4.0
 
-        // ── Static tone ──────────────────────────────────────────────────────
-        private const val BODY_HZ = 250.0
-        private const val BODY_GAIN_DB = 4.0
-        private const val BODY_Q = 0.7
-        private const val SHELF_HZ = 8000.0
-        private const val SHELF_GAIN_DB = -1.5
+        // ── Graphic equalizer (10 bands, like the system Dolby "Graphic equalizer") ──
+        private val GEQ_FREQS = doubleArrayOf(31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
+        private const val GEQ_Q = 1.414 // octave-wide bands
+
+        /** The system slider range is ±100%; assume 100% ≈ 10 dB (tweak here if it sounds too strong or weak). */
+        private const val GEQ_DB_PER_100_PERCENT = 10f
+
+        /** Default curve = the user's own "Custom" preset in the system Dolby (percent per band). */
+        private val DEFAULT_GEQ_PERCENT = floatArrayOf(45f, 64f, 28f, -36f, -27f, -45f, -19f, -36f, -55f, -72f)
+
+        /** Headroom for the EQ boost so the limiter isn't constantly working. */
+        private const val GEQ_HEADROOM_DB = -2.0
 
         // ── 3-band split (low | mid | high) ──────────────────────────────────
         private const val XOVER_LOW_HZ = 250.0
@@ -90,7 +97,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // ── Intelligent equalizer ────────────────────────────────────────────
         private const val TARGET_LOW_DB = 4f   // low band level relative to mid band
         private const val TARGET_HIGH_DB = -11f // high band level relative to mid band
-        private const val EQ_STRENGTH = 0.6f
+        private const val EQ_STRENGTH = 0.4f
         private const val EQ_MAX_DB = 4f
         private const val EQ_POWER_TAU_S = 1.5
         private const val EQ_SMOOTH_TAU_S = 0.5
@@ -136,11 +143,12 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var decPrevOut = 0f
     private val sideShelf = Biquad()
 
-    // ── Static tone ──────────────────────────────────────────────────────────
-    private val bodyL = Biquad()
-    private val bodyR = Biquad()
-    private val shelfL = Biquad()
-    private val shelfR = Biquad()
+    // ── Graphic equalizer ────────────────────────────────────────────────────
+    private val geqL = Array(GEQ_FREQS.size) { Biquad() }
+    private val geqR = Array(GEQ_FREQS.size) { Biquad() }
+    @Volatile private var geqGainsDb = FloatArray(GEQ_FREQS.size) { DEFAULT_GEQ_PERCENT[it] * GEQ_DB_PER_100_PERCENT / 100f }
+    @Volatile private var geqVersion = 0
+    private var appliedGeqVersion = -1
 
     // ── Multiband ────────────────────────────────────────────────────────────
     private val lp1L = Biquad(); private val lp1R = Biquad() // low split
@@ -186,6 +194,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         this.enabled = enabled
     }
 
+    /** Replaces the 10-band graphic EQ curve (gains in dB, one per band 31 Hz … 16 kHz). */
+    fun setGraphicEq(gainsDb: FloatArray) {
+        if (gainsDb.size != GEQ_FREQS.size) return
+        geqGainsDb = gainsDb.copyOf()
+        geqVersion++
+    }
+
     // ── AudioProcessor ───────────────────────────────────────────────────────
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -204,9 +219,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf = FloatArray((DECOR_DELAY_S * sr).toInt().coerceAtLeast(8))
         decIdx = 0
 
-        applyHighShelf(SHELF_HZ, SHELF_GAIN_DB, shelfL, shelfR)
         applyHighShelf(SIDE_SHELF_HZ, SIDE_SHELF_DB, sideShelf)
-        applyPeaking(BODY_HZ, BODY_GAIN_DB, BODY_Q, bodyL, bodyR)
+        appliedGeqVersion = -1 // rebuild graphic EQ for the new sample rate
         applyLowpass(XOVER_LOW_HZ, lp1L, lp1R)
         applyLowpass(XOVER_HIGH_HZ, lp2L, lp2R)
 
@@ -255,6 +269,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val decor = BASE_DECOR + DECOR_GAIN[stereoLevel]
         regScale = 1f - REG_VOLUME_TIGHTEN * systemVolume
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
+        if (geqVersion != appliedGeqVersion) updateGraphicEq()
 
         val frames = remaining / (bytesPerSample * 2)
         if (isFloat) {
@@ -314,9 +329,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         s += decor * delayed
         s = sideShelf.process(s)
 
-        // Static tone.
-        val tl = shelfL.process(bodyL.process((m + s) * outGain))
-        val tr = shelfR.process(bodyR.process((m - s) * outGain))
+        // Graphic equalizer (10 bands).
+        var tl = (m + s) * outGain
+        var tr = (m - s) * outGain
+        for (i in geqL.indices) {
+            tl = geqL[i].process(tl)
+            tr = geqR[i].process(tr)
+        }
 
         // Intelligent EQ + volume leveler + audio regulator (3 bands).
         processBands(tl, tr)
@@ -457,6 +476,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         targets.forEach { it.set(nb0, nb1, nb2, na1, na2) }
     }
 
+    private fun updateGraphicEq() {
+        appliedGeqVersion = geqVersion
+        val gains = geqGainsDb
+        for (i in GEQ_FREQS.indices) {
+            applyPeaking(GEQ_FREQS[i], gains[i].toDouble(), GEQ_Q, geqL[i], geqR[i])
+        }
+    }
+
     /** Mid-signal presence peaking filter; output gain leaves headroom for the boost. */
     private fun updateDialogueFilter(level: Int) {
         appliedDialogue = level
@@ -471,7 +498,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         b2 = ((1.0 - alpha * a) / a0).toFloat()
         a1 = ((-2.0 * cosW) / a0).toFloat()
         a2 = ((1.0 - alpha / a) / a0).toFloat()
-        outGain = 10.0.pow(-gainDb * 0.5 / 20.0).toFloat()
+        outGain = 10.0.pow((GEQ_HEADROOM_DB - gainDb * 0.5) / 20.0).toFloat()
     }
 
     override fun queueEndOfStream() { inputEnded = true }
@@ -504,8 +531,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         sideShelf.reset()
-        bodyL.reset(); bodyR.reset()
-        shelfL.reset(); shelfR.reset()
+        geqL.forEach { it.reset() }
+        geqR.forEach { it.reset() }
         lp1L.reset(); lp1R.reset(); lp2L.reset(); lp2R.reset()
         for (i in 0 until 3) {
             bandEnv[i] = 0f

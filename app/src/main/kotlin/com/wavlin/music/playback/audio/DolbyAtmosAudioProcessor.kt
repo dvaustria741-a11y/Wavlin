@@ -34,13 +34,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private val EMPTY: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
 
         /** Peaking gain (dB) on the mid channel for dialogue level 0..3. */
-        private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 2f, 3.5f, 5f)
+        private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 0.8f, 1.6f, 2.4f)
 
         /** Extra side-channel gain (above the high-pass corner) for expanded stereo level 0..3. */
         private val WIDEN_GAIN = floatArrayOf(0f, 0.25f, 0.55f, 0.85f)
 
         private const val DIALOGUE_FREQ_HZ = 2500.0
-        private const val DIALOGUE_Q = 0.8
+        private const val DIALOGUE_Q = 0.7
         private const val SIDE_HP_HZ = 250.0
 
         /** Per-frame smoothing of the dry/wet mix so toggling never clicks (~15 ms). */

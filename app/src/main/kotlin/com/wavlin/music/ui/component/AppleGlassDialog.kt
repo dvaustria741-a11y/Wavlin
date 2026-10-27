@@ -11,6 +11,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -42,11 +52,14 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
 /**
- * Apple Music style account card.
+ * Apple Music style account card: a small liquid-glass popover anchored under the account button
+ * (top-right edge), like a popup menu, instead of a big centered dialog.
  *
  * A [androidx.compose.ui.window.Dialog] lives in its own window, so it can never sample the layer backdrop that
  * the tab bar and mini player refract. This is drawn in the main composition instead, as a sibling of the
  * backdrop source, so the card gets the same liquid glass as them.
+ *
+ * Opening scales/fades out of the top-right corner; closing plays the reverse and only then calls [onDismiss].
  */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
@@ -55,43 +68,76 @@ fun AppleGlassAccountOverlay(
     latestVersionName: String,
 ) {
     val navController = LocalNavController.current
-    val shape = RoundedCornerShape(28.dp)
-    BackHandler(onBack = onDismiss)
+    val shape = RoundedCornerShape(26.dp)
+    val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
+    val close: () -> Unit = { visibleState.targetState = false }
+    BackHandler(onBack = close)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss,
-            ),
-        contentAlignment = Alignment.Center,
+    // Leave composition only after the exit animation has finished.
+    LaunchedEffect(visibleState.currentState, visibleState.isIdle) {
+        if (visibleState.isIdle && !visibleState.currentState) onDismiss()
+    }
+
+    AnimatedVisibility(
+        visibleState = visibleState,
+        enter = EnterTransition.None,
+        exit = ExitTransition.None,
     ) {
-        Box(
-            modifier = Modifier
-                .systemBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .fillMaxWidth()
-                .widthIn(max = 480.dp)
-                .clip(shape)
-                .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.45f)
-                .border(1.dp, glassStrokeBrush(), shape)
-                // Swallow taps on the card so they don't fall through to the dismiss scrim.
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
-        ) {
-            // Rows inside the card must not try to glass themselves against the same backdrop.
-            CompositionLocalProvider(LocalGlassBackdrop provides null) {
-                AccountSettings(
-                    navController = navController,
-                    onClose = onDismiss,
-                    latestVersionName = latestVersionName,
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .animateEnterExit(enter = fadeIn(tween(220)), exit = fadeOut(tween(180)))
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.22f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = close,
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 56.dp, end = 12.dp)
+                    .animateEnterExit(
+                        enter = fadeIn(tween(160)) +
+                            scaleIn(
+                                animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
+                                initialScale = 0.72f,
+                                transformOrigin = TransformOrigin(1f, 0f),
+                            ),
+                        exit = fadeOut(tween(130)) +
+                            scaleOut(
+                                animationSpec = tween(150),
+                                targetScale = 0.86f,
+                                transformOrigin = TransformOrigin(1f, 0f),
+                            ),
+                    )
+                    .fillMaxWidth(0.86f)
+                    .widthIn(max = 320.dp)
+                    .clip(shape)
+                    .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.45f)
+                    .border(1.dp, glassStrokeBrush(), shape)
+                    // Swallow taps on the card so they don't fall through to the dismiss scrim.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                // Rows inside the card must not try to glass themselves against the same backdrop.
+                CompositionLocalProvider(
+                    LocalGlassBackdrop provides null,
+                    LocalPreferenceVerticalPadding provides 10.dp,
+                ) {
+                    AccountSettings(
+                        navController = navController,
+                        onClose = close,
+                        latestVersionName = latestVersionName,
+                        compact = true,
+                    )
+                }
             }
         }
     }

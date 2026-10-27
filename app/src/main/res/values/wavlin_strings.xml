@@ -1142,4 +1142,8 @@
     <string name="hub_new_mixes">New music mixes</string>
     <string name="video_canvas">Video Canvas</string>
     <string name="video_canvas_desc">Play the short looping Spotify Canvas video of the song in the player (needs a Spotify account signed in). After 5 s without touching, the controls fade out; tap to bring them back.</string>
+    <string name="account_guest">Guest</string>
+    <string name="account_good_morning">Good morning</string>
+    <string name="account_good_afternoon">Good afternoon</string>
+    <string name="account_good_evening">Good evening</string>
 </resources>

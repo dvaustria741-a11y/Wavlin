@@ -22,12 +22,17 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.wavlin.music.R
+
+/** Vertical padding of [PreferenceEntry] rows. Compact popovers (account card) shrink it. */
+val LocalPreferenceVerticalPadding = compositionLocalOf<Dp> { 16.dp }
 
 @Composable
 @Deprecated("Use Material3SettingsGroup instead :)")
@@ -50,7 +55,7 @@ fun PreferenceEntry(
                 enabled = isEnabled && onClick != null,
                 onClick = onClick ?: {},
             ).alpha(if (isEnabled) 1f else 0.5f)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = LocalPreferenceVerticalPadding.current),
     ) {
         if (icon != null) {
             Box(

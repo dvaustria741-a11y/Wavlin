@@ -570,7 +570,7 @@ fun OnlineSearchResult(
                                 SpotifyTrackListItem(
                                     track = track,
                                     onClick = {
-                                        val ytQuery = "\${track.name} \${track.primaryArtist}"
+                                        val ytQuery = track.query
                                         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                             com.wavlin.innertube.YouTube.search(
                                                 ytQuery,

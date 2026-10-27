@@ -58,18 +58,25 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BODY_HZ = 300.0
         private const val BODY_GAIN_DB = 3.0
         private const val BODY_Q = 0.7
-        private const val PRE_GAIN_DB = 2.5
+        private const val PRE_GAIN_DB = 1.0
 
         /** Gentle high shelf that takes the edge off treble so loud playback is less fatiguing. */
-        private const val SHELF_HZ = 7000.0
-        private const val SHELF_GAIN_DB = -1.5
+        private const val SHELF_HZ = 6000.0
+        private const val SHELF_GAIN_DB = -3.0
 
         /** Soft limiter: above LIMIT_T the level is compressed LIMIT_RATIO:1 (fast attack, slow release). */
-        private const val LIMIT_T = 0.55f
-        private const val LIMIT_RATIO = 3.5f
+        private const val LIMIT_T = 0.8f
+        private const val LIMIT_RATIO = 4f
         private const val LIMIT_ATTACK_S = 0.001
         private const val LIMIT_RELEASE_S = 0.12
-        private const val CLIP_KNEE = 0.8f
+        private const val CLIP_KNEE = 0.9f
+
+        /** Leveler ("evens everything out" like system Dolby): gentle downward compression + makeup gain. */
+        private const val LEVEL_T = 0.15f
+        private const val LEVEL_RATIO = 2.4f
+        private const val LEVEL_ATTACK_S = 0.008
+        private const val LEVEL_RELEASE_S = 0.25
+        private const val LEVEL_MAKEUP = 2.0f
 
         /** Per-frame smoothing of the dry/wet mix so toggling never clicks (~15 ms). */
         private const val MIX_SMOOTHING = 0.0015f
@@ -105,6 +112,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private val shelfL = Biquad()
     private val shelfR = Biquad()
     private var env = 0f
+    private var lvlEnv = 0f
+    private var lvlAtk = 0.01f
+    private var lvlRel = 0.0004f
     private var atkCoef = 0.05f
     private var relCoef = 0.0002f
 
@@ -144,6 +154,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decHpCoef = (1.0 / (2.0 * PI * DECOR_HP_HZ)).let { rc -> (rc / (rc + 1.0 / sampleRate)).toFloat() }
         atkCoef = (1.0 - exp(-1.0 / (LIMIT_ATTACK_S * sampleRate))).toFloat()
         relCoef = (1.0 - exp(-1.0 / (LIMIT_RELEASE_S * sampleRate))).toFloat()
+        lvlAtk = (1.0 - exp(-1.0 / (LEVEL_ATTACK_S * sampleRate))).toFloat()
+        lvlRel = (1.0 - exp(-1.0 / (LEVEL_RELEASE_S * sampleRate))).toFloat()
         clearState()
         return inputAudioFormat
     }
@@ -235,6 +247,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         var wl = shelfL.process(bodyL.process((m + s) * outGain))
         var wr = shelfR.process(bodyR.process((m - s) * outGain))
+
+        // Leveler: evens out dynamics and adds makeup gain.
+        val lp = max(abs(wl), abs(wr))
+        lvlEnv += (lp - lvlEnv) * (if (lp > lvlEnv) lvlAtk else lvlRel)
+        val lg = if (lvlEnv > LEVEL_T) (LEVEL_T + (lvlEnv - LEVEL_T) / LEVEL_RATIO) / lvlEnv else 1f
+        wl *= lg * LEVEL_MAKEUP
+        wr *= lg * LEVEL_MAKEUP
 
         // Soft limiter + soft clip: keeps loud passages from getting harsh at high volume.
         val peak = max(abs(wl), abs(wr))
@@ -357,5 +376,6 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         env = 0f
+        lvlEnv = 0f
     }
 }

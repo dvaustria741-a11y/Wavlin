@@ -1006,9 +1006,10 @@ class MusicService :
             dataStore.data.map { it[AudioOffload] ?: false },
             dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
             com.wavlin.music.audio.reverb.ReverbManager.isEnabled,
-        ) { offloadPref, crossfadeEnabled, reverbEnabled ->
-            // Offload is disabled with crossfade (volume ramp issues) and with reverb (offloaded tracks bypass audio processors)
-            if (crossfadeEnabled || reverbEnabled) false else offloadPref
+            com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser,
+        ) { offloadPref, crossfadeEnabled, reverbEnabled, dolbyEnabled ->
+            // Offload is disabled with crossfade (volume ramp issues), reverb and Dolby Atmos (offloaded tracks bypass audio processors)
+            if (crossfadeEnabled || reverbEnabled || dolbyEnabled) false else offloadPref
         }.distinctUntilChanged()
             .collectLatest(scope) { useOffload ->
                 player.setOffloadEnabled(useOffload)
@@ -1434,14 +1435,14 @@ class MusicService :
         if (prefs != null) {
             val offload = prefs[AudioOffload] ?: false
             val crossfade = prefs[CrossfadeEnabledKey] ?: false
-            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value) false else offload)
+            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value) false else offload)
             player.skipSilenceEnabled = prefs[SkipSilenceKey] ?: false
         } else {
             player.apply {
                 runBlocking {
                     val offload = dataStore.get(AudioOffload, false)
                     val crossfade = dataStore.get(CrossfadeEnabledKey, false)
-                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value) false else offload)
+                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value) false else offload)
                     skipSilenceEnabled = dataStore.get(SkipSilenceKey, false)
                 }
             }

@@ -67,7 +67,7 @@ class SpotifyProvider {
             url.trim().let { it.startsWith("https://open.spotify.com/") || it.startsWith("http://open.spotify.com/") || it.startsWith("spotify:") }
 
         private fun extractIdAndType(url: String): Pair<String, String>? {
-            val m = Regex("open\.spotify\.com/(track|playlist|album)/([A-Za-z0-9]+)").find(url)
+            val m = Regex("""open\.spotify\.com/(track|playlist|album)/([A-Za-z0-9]+)""").find(url)
                 ?: return null
             return m.groupValues[2] to m.groupValues[1]
         }

@@ -9,6 +9,10 @@
 package com.wavlin.music.spotify.account
 
 import androidx.compose.runtime.Immutable
+import com.wavlin.music.spotify.SpotifyAlbum
+import com.wavlin.music.spotify.SpotifyArtist
+import com.wavlin.music.spotify.SpotifyExternalUrls
+import com.wavlin.music.spotify.SpotifyImage as SpotifyTrackImage
 import com.wavlin.music.spotify.SpotifyTrack
 import kotlinx.serialization.Serializable
 
@@ -106,13 +110,19 @@ val SpotifyWebTrack.artistNames: String
 
 /** Converts to the track type the matcher and importer already understand. */
 fun SpotifyWebTrack.toImportTrack(): SpotifyTrack {
-    val artist = artistNames
+    val artistList = artists.map { SpotifyArtist(id = it.id.orEmpty(), name = it.name) }
     return SpotifyTrack(
+        id = id,
         title = name,
-        artist = artist,
-        query = if (artist.isEmpty()) name else "$artist - $name",
-        durationSeconds = durationMs / 1000,
-        url = if (id.isNotEmpty()) "https://open.spotify.com/track/$id" else null,
-        coverUrl = thumbnailUrl(),
+        artists = artistList,
+        album = album?.let { a ->
+            SpotifyAlbum(
+                id = a.id,
+                name = a.name,
+                images = a.images.map { img -> SpotifyTrackImage(url = img.url, width = img.width, height = img.height) },
+            )
+        },
+        durationMs = durationMs,
+        externalUrls = if (id.isNotEmpty()) SpotifyExternalUrls(spotify = "https://open.spotify.com/track/$id") else null,
     )
 }

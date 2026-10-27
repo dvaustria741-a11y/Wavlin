@@ -14,15 +14,18 @@ import java.nio.ByteOrder
  * Software Freeverb reverb applied in ExoPlayer's audio processor chain.
  *
  * Parameters are controlled by [com.wavlin.music.audio.reverb.ReverbManager].
- * [isActive] always returns true so ExoPlayer keeps this processor in the
- * audio chain permanently.  When reverb is disabled the processor simply copies
- * input to output unchanged (zero-overhead passthrough).  This is necessary
- * because ExoPlayer evaluates [isActive] once at configure-time; if it returns
- * false then the processor is permanently bypassed and enabling reverb later
- * has no effect.
  *
- * Supports PCM_FLOAT (4 bytes/sample) and PCM_16BIT (2 bytes/sample).
- * Any other encoding falls back to passthrough.
+ * [isActive] always returns true so ExoPlayer keeps this processor in the chain permanently
+ * (ExoPlayer only evaluates it at configure-time, so a processor that starts out inactive would
+ * never be fed audio again). While the effect is switched off the processor copies input to
+ * output unchanged.
+ *
+ * IMPORTANT: [reset] and [flush] are called by ExoPlayer whenever the audio sink is torn down
+ * (stop, new queue, output route change ...). They must only clear the audio *state* (delay
+ * lines, buffers). The user-controlled settings ([setEnabled] / [setParameters]) have to
+ * survive them, otherwise the effect silently turns itself off while the UI still shows it as on.
+ *
+ * Supports PCM_FLOAT and PCM_16BIT. Any other encoding is passed through unchanged.
  */
 @UnstableApi
 class ReverbAudioProcessor : AudioProcessor {
@@ -33,15 +36,20 @@ class ReverbAudioProcessor : AudioProcessor {
         private val ALLPASS_DELAYS = intArrayOf(556, 441, 341, 225)
         private const val SPREAD   = 23       // stereo width (samples)
         private const val GAIN     = 0.015f   // input gain before comb bank
+
+        // Classic Freeverb scaling: damping 0..1 maps to 0..0.4, wet 0..1 maps to 0..3.
+        private const val DAMP_SCALE = 0.4f
+        private const val WET_SCALE  = 3.0f
+
         private val EMPTY: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 
     // ── Parameters (written on main thread, read on audio thread) ────────────
     @Volatile private var roomFeedback = 0.84f   // comb feedback = room*0.28+0.70
-    @Volatile private var damp1        = 0.5f
-    @Volatile private var damp2        = 0.5f    // 1 - damp1
-    @Volatile private var wet          = 0.33f
-    @Volatile private var active       = false
+    @Volatile private var damp1        = 0.2f
+    @Volatile private var damp2        = 0.8f    // 1 - damp1
+    @Volatile private var wet          = 1.0f
+    @Volatile private var active       = false   // reverb on/off (NOT the same as isActive())
 
     // ── Filter banks ─────────────────────────────────────────────────────────
     private var combL = Array(8) { i -> CombFilter(COMB_DELAYS[i]) }
@@ -54,7 +62,8 @@ class ReverbAudioProcessor : AudioProcessor {
     private var isFloat         = true   // PCM_FLOAT → true, PCM_16BIT → false
     private var bytesPerSample  = 4      // 4 for float, 2 for s16, 0 for unsupported
 
-    private var outputBuffer: ByteBuffer = EMPTY
+    private var buffer: ByteBuffer       = EMPTY   // reusable storage
+    private var outputBuffer: ByteBuffer = EMPTY   // pending output handed out by getOutput()
     private var inputEnded               = false
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -63,14 +72,14 @@ class ReverbAudioProcessor : AudioProcessor {
 
     /**
      * @param room     room size   [0, 1]  → comb feedback = room * 0.28 + 0.70
-     * @param damping  HF damping  [0, 1]
-     * @param wetLevel wet level   [0, 1]
+     * @param damping  HF damping  [0, 1]  (scaled by 0.4 like classic Freeverb)
+     * @param wetLevel wet level   [0, 1]  (scaled by 3 like classic Freeverb)
      */
     fun setParameters(room: Float, damping: Float, wetLevel: Float) {
-        roomFeedback = room * 0.28f + 0.70f
-        damp1 = damping
-        damp2 = 1.0f - damping
-        wet   = wetLevel
+        roomFeedback = room.coerceIn(0f, 1f) * 0.28f + 0.70f
+        damp1 = damping.coerceIn(0f, 1f) * DAMP_SCALE
+        damp2 = 1.0f - damp1
+        wet   = wetLevel.coerceIn(0f, 1f) * WET_SCALE
         pushParamsToCombFilters()
     }
 
@@ -94,38 +103,35 @@ class ReverbAudioProcessor : AudioProcessor {
         return inputAudioFormat
     }
 
-    /**
-     * Always returns true so ExoPlayer never removes this processor from its
-     * audio chain.  Actual bypass (when reverb is disabled) is handled inside
-     * [queueInput] by copying bytes through unchanged.
-     */
+    /** Always true — see class doc. Bypass while disabled happens inside [queueInput]. */
     override fun isActive(): Boolean = true
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
-        if (remaining == 0) {
-            outputBuffer = EMPTY
-            return
-        }
+        if (remaining == 0) return
 
-        if (outputBuffer === EMPTY || outputBuffer.capacity() < remaining) {
-            outputBuffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
+        if (buffer.capacity() < remaining) {
+            buffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
+        } else {
+            buffer.clear()
         }
-        outputBuffer.clear()
-        outputBuffer.limit(remaining)
+        buffer.limit(remaining)
 
         // Passthrough: reverb disabled or unsupported encoding → copy bytes unchanged.
         if (!active || bytesPerSample == 0) {
-            outputBuffer.put(inputBuffer)
-            outputBuffer.position(0)
+            buffer.put(inputBuffer)
+            buffer.flip()
+            outputBuffer = buffer
             return
         }
 
+        val frameBytes = bytesPerSample * channelCount
+        val frames = remaining / frameBytes
+
         if (isFloat) {
             // ── PCM_FLOAT path ────────────────────────────────────────────────
-            val inFB   = inputBuffer.asFloatBuffer()
-            val outFB  = outputBuffer.asFloatBuffer()
-            val frames = remaining / (4 * channelCount)
+            val inFB  = inputBuffer.asFloatBuffer()
+            val outFB = buffer.asFloatBuffer()
 
             if (channelCount >= 2) {
                 for (f in 0 until frames) {
@@ -136,8 +142,8 @@ class ReverbAudioProcessor : AudioProcessor {
                     for (c in combR) revR += c.process(inR * GAIN)
                     for (a in apL)   revL  = a.process(revL)
                     for (a in apR)   revR  = a.process(revR)
-                    outFB.put(inL + revL * wet)
-                    outFB.put(inR + revR * wet)
+                    outFB.put((inL + revL * wet).coerceIn(-1f, 1f))
+                    outFB.put((inR + revR * wet).coerceIn(-1f, 1f))
                     repeat(channelCount - 2) { outFB.put(inFB.get()) }
                 }
             } else {
@@ -146,14 +152,13 @@ class ReverbAudioProcessor : AudioProcessor {
                     var rev = 0f
                     for (c in combL) rev += c.process(inS * GAIN)
                     for (a in apL)   rev  = a.process(rev)
-                    outFB.put(inS + rev * wet)
+                    outFB.put((inS + rev * wet).coerceIn(-1f, 1f))
                 }
             }
         } else {
             // ── PCM_16BIT path ────────────────────────────────────────────────
-            val inSB   = inputBuffer.asShortBuffer()
-            val outSB  = outputBuffer.asShortBuffer()
-            val frames = remaining / (2 * channelCount)
+            val inSB  = inputBuffer.asShortBuffer()
+            val outSB = buffer.asShortBuffer()
 
             if (channelCount >= 2) {
                 for (f in 0 until frames) {
@@ -164,8 +169,8 @@ class ReverbAudioProcessor : AudioProcessor {
                     for (c in combR) revR += c.process(inR * GAIN)
                     for (a in apL)   revL  = a.process(revL)
                     for (a in apR)   revR  = a.process(revR)
-                    outSB.put(((inL + revL * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
-                    outSB.put(((inR + revR * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
+                    outSB.put(toShort(inL + revL * wet))
+                    outSB.put(toShort(inR + revR * wet))
                     repeat(channelCount - 2) { outSB.put(inSB.get()) }
                 }
             } else {
@@ -174,13 +179,15 @@ class ReverbAudioProcessor : AudioProcessor {
                     var rev = 0f
                     for (c in combL) rev += c.process(inS * GAIN)
                     for (a in apL)   rev  = a.process(rev)
-                    outSB.put(((inS + rev * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
+                    outSB.put(toShort(inS + rev * wet))
                 }
             }
         }
 
         inputBuffer.position(inputBuffer.limit())
-        outputBuffer.position(0)
+        buffer.position(0)
+        buffer.limit(frames * frameBytes)
+        outputBuffer = buffer
     }
 
     override fun queueEndOfStream() { inputEnded = true }
@@ -191,25 +198,34 @@ class ReverbAudioProcessor : AudioProcessor {
         return out
     }
 
-    override fun isEnded(): Boolean = inputEnded && outputBuffer === EMPTY
+    override fun isEnded(): Boolean = inputEnded && !outputBuffer.hasRemaining()
 
+    /** Clears audio state only (delay lines + pending output). Settings are kept. */
     @Deprecated("Deprecated in AudioProcessor")
     override fun flush() {
         inputEnded   = false
         outputBuffer = EMPTY
-        combL.forEach { it.reset() }; combR.forEach { it.reset() }
-        apL.forEach   { it.reset() }; apR.forEach   { it.reset() }
+        clearFilterState()
     }
 
+    /** Releases audio state only. Settings ([setEnabled]/[setParameters]) are deliberately kept. */
     @Deprecated("Deprecated in AudioProcessor")
     override fun reset() {
-        roomFeedback = 0.84f; damp1 = 0.5f; damp2 = 0.5f; wet = 0.33f; active = false
         flush()
+        buffer = EMPTY
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Internals
     // ─────────────────────────────────────────────────────────────────────────
+
+    private fun toShort(v: Float): Short =
+        (v * 32768f).coerceIn(-32768f, 32767f).toInt().toShort()
+
+    private fun clearFilterState() {
+        combL.forEach { it.reset() }; combR.forEach { it.reset() }
+        apL.forEach   { it.reset() }; apR.forEach   { it.reset() }
+    }
 
     private fun pushParamsToCombFilters() {
         combL.forEach { it.feedback = roomFeedback; it.damp1 = damp1; it.damp2 = damp2 }
@@ -231,8 +247,8 @@ class ReverbAudioProcessor : AudioProcessor {
         private var idx  = 0
         private var store = 0f
         var feedback = 0.84f
-        var damp1    = 0.5f
-        var damp2    = 0.5f
+        var damp1    = 0.2f
+        var damp2    = 0.8f
 
         fun process(input: Float): Float {
             val out   = buf[idx]

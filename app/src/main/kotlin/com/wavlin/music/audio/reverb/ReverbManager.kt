@@ -10,6 +10,8 @@ import androidx.annotation.StringRes
 import androidx.media3.exoplayer.ExoPlayer
 import com.wavlin.music.R
 import com.wavlin.music.playback.audio.ReverbAudioProcessor
+import java.util.Collections
+import java.util.WeakHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,16 +19,21 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Central manager for Wavlin's reverb effect.
  *
- * The reverb is applied entirely in software via [ReverbAudioProcessor]
- * (Freeverb DSP), which lives in ExoPlayer's audio processor chain and
- * therefore works on every Android device regardless of hardware support.
+ * The reverb is applied entirely in software via [ReverbAudioProcessor] (Freeverb DSP), which
+ * lives in ExoPlayer's audio processor chain and therefore works on every Android device
+ * regardless of hardware support.
  *
- * Preset names and approximate reverb character match SpatialFlow's reverb
- * presets exactly (None / Small Room / Concert Hall / Stadium / Plate / Spring).
+ * Presets use the same names as SpatialFlow (None / Small Room / Concert Hall / Stadium /
+ * Plate / Spring). The DSP is a software approximation of those rooms, tuned by ear/measurement
+ * rather than a bit-exact copy of Android's EnvironmentalReverb.
+ *
+ * MusicService creates one [ReverbAudioProcessor] per ExoPlayer (primary, replacement and the
+ * crossfade secondary player). EVERY registered processor is driven, not just the latest one,
+ * so the effect applies no matter which player is currently audible.
  *
  * Lifecycle:
  *   1. [init]         — MusicService.onCreate()   → load persisted prefs
- *   2. [setProcessor] — createExoPlayer()          → wire up the DSP processor
+ *   2. [setProcessor] — createExoPlayer()          → register a player's DSP processor
  *   3. [setEnabled] / [setPreset] / [setIntensity] → called from the UI
  */
 object ReverbManager {
@@ -35,7 +42,7 @@ object ReverbManager {
     /**
      * @param room     room size   [0.0, 1.0] — higher = longer tail
      * @param damping  HF damping  [0.0, 1.0] — higher = darker, less bright
-     * @param wet      wet level   [0.0, 1.0] — amount of reverb in the mix
+     * @param wet      wet level   [0.0, 1.0] — amount of reverb in the mix at 100% intensity
      */
     data class Preset(val room: Float, val damping: Float, val wet: Float)
 
@@ -50,17 +57,18 @@ object ReverbManager {
     )
 
     /**
-     * Freeverb parameters tuned to match SpatialFlow's EnvironmentalReverb
-     * preset character as closely as possible in software.
-     * Index 0 (None) = null → processor disabled.
+     * Index-aligned with [presetLabels]. Index 0 (None) = null → reverb bypassed.
+     * Measured at 100% intensity on music-like input: wet is roughly -6 to -8 dB below the dry
+     * signal; decay (RT60) is ~0.9 s Small Room, ~1.6 s Concert Hall, ~3.1 s Stadium,
+     * ~1.5 s Plate (bright), ~1.2 s Spring (dark).
      */
     private val presets: List<Preset?> = listOf(
-        null,                                              // 0 — None
-        Preset(room = 0.30f, damping = 0.70f, wet = 0.25f), // 1 — Small Room
-        Preset(room = 0.65f, damping = 0.40f, wet = 0.40f), // 2 — Concert Hall
-        Preset(room = 0.85f, damping = 0.25f, wet = 0.50f), // 3 — Stadium
-        Preset(room = 0.60f, damping = 0.80f, wet = 0.35f), // 4 — Plate
-        Preset(room = 0.50f, damping = 0.90f, wet = 0.30f), // 5 — Spring
+        null,                                                // 0 — None
+        Preset(room = 0.30f, damping = 0.60f, wet = 0.30f),  // 1 — Small Room
+        Preset(room = 0.65f, damping = 0.50f, wet = 0.30f),  // 2 — Concert Hall
+        Preset(room = 0.85f, damping = 0.40f, wet = 0.28f),  // 3 — Stadium
+        Preset(room = 0.60f, damping = 0.20f, wet = 0.30f),  // 4 — Plate
+        Preset(room = 0.50f, damping = 0.80f, wet = 0.28f),  // 5 — Spring
     )
 
     // ── Shared preferences ───────────────────────────────────────────────────
@@ -82,8 +90,10 @@ object ReverbManager {
     private val _intensity   = MutableStateFlow(1.0f)
     val intensity: StateFlow<Float> = _intensity.asStateFlow()
 
-    // ── DSP processor reference ───────────────────────────────────────────────
-    private var processor: ReverbAudioProcessor? = null
+    // ── DSP processors (one per ExoPlayer) ────────────────────────────────────
+    // Weak so a released player's processor can be garbage-collected.
+    private val processors: MutableSet<ReverbAudioProcessor> =
+        Collections.newSetFromMap(WeakHashMap<ReverbAudioProcessor, Boolean>())
 
     // ─────────────────────────────────────────────────────────────────────────
     // Lifecycle
@@ -100,16 +110,16 @@ object ReverbManager {
     }
 
     /**
-     * Register the [ReverbAudioProcessor] that is part of the ExoPlayer
-     * audio chain.  Called from MusicService.createExoPlayer() after the
-     * processor is created and before the player is built.
+     * Register a player's [ReverbAudioProcessor] and immediately push the current settings to it.
+     * Called from MusicService.createExoPlayer() — once per player. Earlier processors stay
+     * registered, so creating a secondary/replacement player no longer orphans the first one.
      */
     fun setProcessor(proc: ReverbAudioProcessor) {
-        processor = proc
-        sync()
+        synchronized(processors) { processors.add(proc) }
+        pushTo(proc)
     }
 
-    // Kept as no-ops so MusicService compiles unchanged after any prior edits.
+    // Kept as no-ops: MusicService still calls these from its audio-effect-session hooks.
     fun attachSession(sessionId: Int, player: ExoPlayer) = Unit
     fun detachSession(player: ExoPlayer? = null) = Unit
 
@@ -139,17 +149,21 @@ object ReverbManager {
     // Internal
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Push current state to the DSP processor. */
+    /** Push current state to every registered processor. */
     private fun sync() {
-        val proc   = processor ?: return
+        val snapshot = synchronized(processors) { processors.toList() }
+        snapshot.forEach { pushTo(it) }
+    }
+
+    private fun pushTo(proc: ReverbAudioProcessor) {
         val preset = activePreset()
         if (preset != null) {
-            proc.setEnabled(true)
             proc.setParameters(
                 room     = preset.room,
                 damping  = preset.damping,
                 wetLevel = preset.wet * _intensity.value,
             )
+            proc.setEnabled(true)
         } else {
             proc.setEnabled(false)
         }

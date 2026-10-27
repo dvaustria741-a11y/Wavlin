@@ -1185,9 +1185,9 @@ fun HomeScreen(
                     )
                 }
 
-            val quickPicksDistinct = remember(quickPicks) { quickPicks.distinctBy { it.id } }
-            val forgottenFavoritesDistinct = remember(forgottenFavorites) { forgottenFavorites.distinctBy { it.id } }
-            val keepListeningDistinct = remember(keepListening) { keepListening.distinctBy { it.id } }
+            val quickPicksDistinct = remember(quickPicks) { quickPicks?.distinctBy { it.id }.orEmpty() }
+            val forgottenFavoritesDistinct = remember(forgottenFavorites) { forgottenFavorites?.distinctBy { it.id }.orEmpty() }
+            val keepListeningDistinct = remember(keepListening) { keepListening?.distinctBy { it.id }.orEmpty() }
 
             LazyColumn(
                 state = lazylistState,

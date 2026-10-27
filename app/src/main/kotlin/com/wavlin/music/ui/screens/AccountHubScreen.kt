@@ -26,7 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -66,7 +67,10 @@ import com.wavlin.music.constants.UseLoginForBrowse
 import com.wavlin.music.constants.YtmSyncKey
 import com.wavlin.music.spotify.account.SpotifyAuthState
 import com.wavlin.music.ui.component.DefaultDialog
+import com.wavlin.music.ui.component.IconButton
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.ui.component.pinkTopBarColors
+import com.wavlin.music.ui.utils.backToMain
 import com.wavlin.music.utils.rememberPreference
 import com.wavlin.music.viewmodels.AccountSettingsViewModel
 import com.wavlin.music.viewmodels.HomeViewModel
@@ -76,6 +80,7 @@ import kotlinx.coroutines.launch
 private val SpotifyGreen = Color(0xFF1DB954)
 private val YouTubeRed = Color(0xFFFF0000)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountHubScreen(
     navController: NavController,
@@ -156,23 +161,11 @@ fun AccountHubScreen(
     Column(
         modifier =
             Modifier
-                .fillMaxSize()
                 .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(8.dp))
-        IconButton(
-            onClick = navController::navigateUp,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-        ) {
-            Icon(painterResource(R.drawable.arrow_back), contentDescription = stringResource(R.string.back))
-        }
-
         Spacer(Modifier.height(16.dp))
         AccountAvatar(
             imageUrl = if (isLoggedIn) accountImageUrl else null,
@@ -276,6 +269,16 @@ fun AccountHubScreen(
         }
         Spacer(Modifier.height(32.dp))
     }
+
+    TopAppBar(
+        colors = pinkTopBarColors(),
+        title = {},
+        navigationIcon = {
+            IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
+                Icon(painterResource(R.drawable.arrow_back), contentDescription = stringResource(R.string.back))
+            }
+        },
+    )
 }
 
 @Composable

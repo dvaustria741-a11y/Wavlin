@@ -1020,6 +1020,9 @@ class MainActivity : ComponentActivity() {
                 val hazeState = remember { HazeState() }
                 val interfaceStyle by rememberEnumPreference(InterfaceStyleKey, defaultValue = InterfaceStyle.MATERIAL)
                 val appleStyle = interfaceStyle == InterfaceStyle.APPLE_MUSIC
+                // A WebView can't be recorded into the glass backdrop layer (it crashes the page or the app),
+                // so the screens that host one run without the liquid-glass backdrop.
+                val webViewRoute = currentRoute == "login" || currentRoute == "spotify_signin"
                 val glassBackdrop = rememberLayerBackdrop {
                     drawRect(baseBg)
                     drawContent()
@@ -1033,7 +1036,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalInterfaceAppleMusic provides appleStyle,
                     com.wavlin.music.ui.component.LocalPlayerGlassBackdrop provides (if (appleStyle && appleGlassSupported()) playerGlassBackdrop else null),
-                    LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported()) glassBackdrop else null),
+                    LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported() && !webViewRoute) glassBackdrop else null),
                     LocalDatabase provides database,
                     LocalNavController provides navController,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
@@ -1350,7 +1353,7 @@ class MainActivity : ComponentActivity() {
                             Modifier
                                 .fillMaxSize()
                                 .hazeSource(state = hazeState)
-                                .then(if (appleStyle && appleGlassSupported()) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                                .then(if (appleStyle && appleGlassSupported() && !webViewRoute) Modifier.layerBackdrop(glassBackdrop) else Modifier)
                                 .then(
                                     if (pinkWallpaper) {
                                         Modifier.paint(
@@ -1508,11 +1511,12 @@ class MainActivity : ComponentActivity() {
                             showAccountDialog = false
                             homeViewModel.refresh()
                         }
-                        if (appleStyle && appleGlassSupported() && !pinkWallpaper) {
-                            // Real liquid glass: must live in this composition (not a Dialog window) to sample the backdrop.
+                        if (!pinkWallpaper) {
+                            // Small popover anchored top-right in both styles; real liquid glass only in Apple Music style.
                             com.wavlin.music.ui.component.AppleGlassAccountOverlay(
                                 onDismiss = dismissAccount,
                                 latestVersionName = latestVersionName,
+                                glass = appleStyle && appleGlassSupported() && !webViewRoute,
                             )
                         } else {
                             AccountSettingsDialog(

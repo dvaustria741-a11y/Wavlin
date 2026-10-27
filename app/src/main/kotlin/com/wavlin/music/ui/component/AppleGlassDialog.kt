@@ -68,6 +68,8 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 fun AppleGlassAccountOverlay(
     onDismiss: () -> Unit,
     latestVersionName: String,
+    /** Liquid glass (Apple Music style); otherwise the same card with a Material surface. */
+    glass: Boolean = true,
 ) {
     val navController = LocalNavController.current
     val shape = RoundedCornerShape(26.dp)
@@ -119,8 +121,15 @@ fun AppleGlassAccountOverlay(
                     .fillMaxWidth(0.86f)
                     .widthIn(max = 320.dp)
                     .clip(shape)
-                    .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.45f)
-                    .border(1.dp, glassStrokeBrush(), shape)
+                    .then(
+                        if (glass) {
+                            Modifier
+                                .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.45f)
+                                .border(1.dp, glassStrokeBrush(), shape)
+                        } else {
+                            Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+                        },
+                    )
                     // Swallow taps on the card so they don't fall through to the dismiss scrim.
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },

@@ -65,8 +65,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val PRE_GAIN_DB = 1.0
 
         /** Gentle high shelf that takes the edge off treble so loud playback is less fatiguing. */
-        private const val SHELF_HZ = 4500.0
-        private const val SHELF_GAIN_DB = -5.5
+        private const val SHELF_HZ = 8000.0
+        private const val SHELF_GAIN_DB = -1.5
+
+        /**
+         * Background recession: only the side (non-centre) signal is darkened, so vocals stay clear
+         * while the instruments behind them sit further back ("lubog" like the system Dolby).
+         */
+        private const val SIDE_SHELF_HZ = 3000.0
+        private const val SIDE_SHELF_DB = -7.0
+
+        /** Always-on vocal presence on the mid signal, on top of the dialogue level. */
+        private const val BASE_PRESENCE_DB = 2.0
 
         /** Soft limiter: above LIMIT_T the level is compressed LIMIT_RATIO:1 (fast attack, slow release). */
         private const val LIMIT_T = 0.8f
@@ -113,6 +123,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var decHpCoef = 0f
     private var decPrevIn = 0f
     private var decPrevOut = 0f
+    private val sideShelf = Biquad()
     private val shelfL = Biquad()
     private val shelfR = Biquad()
     private var env = 0f
@@ -248,6 +259,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf[decIdx] = mHp
         if (++decIdx >= decBuf.size) decIdx = 0
         s += decor * delayed
+        s = sideShelf.process(s)
 
         var wl = shelfL.process(bodyL.process((m + s) * outGain))
         var wr = shelfR.process(bodyR.process((m - s) * outGain))
@@ -296,10 +308,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         bodyR.set(nb0, nb1, nb2, nb1, na2)
     }
 
-    /** RBJ high shelf at [SHELF_HZ] (slope 1). */
+    /** RBJ high shelves (slope 1): mild global one on L/R, strong one on the side signal only. */
     private fun updateShelf() {
-        val a = 10.0.pow(SHELF_GAIN_DB / 40.0)
-        val w0 = 2.0 * PI * SHELF_HZ / sampleRate
+        applyHighShelf(SHELF_HZ, SHELF_GAIN_DB, shelfL, shelfR)
+        applyHighShelf(SIDE_SHELF_HZ, SIDE_SHELF_DB, sideShelf)
+    }
+
+    private fun applyHighShelf(hz: Double, gainDb: Double, vararg targets: Biquad) {
+        val a = 10.0.pow(gainDb / 40.0)
+        val w0 = 2.0 * PI * hz / sampleRate
         val cosW = cos(w0)
         val alpha = sin(w0) / 2.0 * sqrt(2.0)
         val t = 2.0 * sqrt(a) * alpha
@@ -309,8 +326,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val nb2 = (a * ((a + 1) + (a - 1) * cosW - t) / a0).toFloat()
         val na1 = (2.0 * ((a - 1) - (a + 1) * cosW) / a0).toFloat()
         val na2 = (((a + 1) - (a - 1) * cosW - t) / a0).toFloat()
-        shelfL.set(nb0, nb1, nb2, na1, na2)
-        shelfR.set(nb0, nb1, nb2, na1, na2)
+        targets.forEach { it.set(nb0, nb1, nb2, na1, na2) }
     }
 
     private class Biquad {
@@ -335,7 +351,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     /** RBJ peaking EQ at [DIALOGUE_FREQ_HZ]; output gain leaves headroom for the boost. */
     private fun updateDialogueFilter(level: Int) {
         appliedDialogue = level
-        val gainDb = DIALOGUE_GAIN_DB[level].toDouble()
+        val gainDb = BASE_PRESENCE_DB + DIALOGUE_GAIN_DB[level].toDouble()
         val a = 10.0.pow(gainDb / 40.0)
         val w0 = 2.0 * PI * DIALOGUE_FREQ_HZ / sampleRate
         val alpha = sin(w0) / (2.0 * DIALOGUE_Q)
@@ -375,7 +391,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private fun clearState() {
         z1 = 0f; z2 = 0f
         hpPrevIn = 0f; hpPrevOut = 0f
-        shelfL.reset(); shelfR.reset()
+        shelfL.reset(); shelfR.reset(); sideShelf.reset()
         bodyL.reset(); bodyR.reset()
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f

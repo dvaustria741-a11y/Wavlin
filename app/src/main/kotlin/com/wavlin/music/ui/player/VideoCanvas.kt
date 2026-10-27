@@ -10,7 +10,9 @@ import android.view.Surface
 import android.view.TextureView
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -143,6 +145,7 @@ private fun VideoCanvasPlayerContent(
  * (playing behind the player) stays on its own with a bottom gradient and the song title and
  * artist. Tapping anywhere calls [onExit] and the controls come back.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoCanvasIdleOverlay(
     metadata: MediaMetadata?,
@@ -188,7 +191,15 @@ fun VideoCanvasIdleOverlay(
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    modifier =
+                        Modifier.basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            initialDelayMillis = 1000,
+                            repeatDelayMillis = 1500,
+                            velocity = 40.dp,
+                        ),
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -196,7 +207,15 @@ fun VideoCanvasIdleOverlay(
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.72f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    modifier =
+                        Modifier.basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            initialDelayMillis = 1000,
+                            repeatDelayMillis = 1500,
+                            velocity = 40.dp,
+                        ),
                 )
             }
         }

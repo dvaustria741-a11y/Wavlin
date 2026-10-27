@@ -86,12 +86,6 @@ import com.wavlin.music.listentogether.RoomRole
 import com.wavlin.music.ui.component.CastButton
 import com.wavlin.music.utils.rememberEnumPreference
 import com.wavlin.music.utils.rememberPreference
-import androidx.compose.runtime.produceState
-import dagger.hilt.android.EntryPointAccessors
-import com.wavlin.music.constants.VideoCanvasEnabledKey
-import com.wavlin.music.di.VideoCanvasEntryPoint
-import com.wavlin.music.ui.player.CANVAS_IDLE_TIMEOUT_MS
-import com.wavlin.music.ui.player.VideoCanvasPlayer
 import kotlinx.coroutines.delay
 
 /**
@@ -205,7 +199,7 @@ private fun getTextColor(playerBackground: PlayerBackgroundStyle): Color {
 @Composable
 fun Thumbnail(
     sliderPositionProvider: () -> Long?,
-    onVideoIdleFullscreen: ((canvasUrl: String) -> Unit)? = null,
+    hideArtworkForCanvas: Boolean = false,
     modifier: Modifier = Modifier,
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
@@ -238,30 +232,6 @@ fun Thumbnail(
     val textBackgroundColor = getTextColor(playerBackground)
     
 
-    // ── Video Canvas ──────────────────────────────────────────────────────
-    val videoCanvasEnabled by rememberPreference(VideoCanvasEnabledKey, defaultValue = true)
-    val canvasUrl: String? by produceState<String?>(null, mediaMetadata?.id) {
-        val id = mediaMetadata?.id ?: return@produceState
-        if (!videoCanvasEnabled) return@produceState
-        val manager = EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            VideoCanvasEntryPoint::class.java,
-        ).videoCanvasManager()
-        value = manager.getCanvasUrl(id)
-    }
-    // Idle timer: after CANVAS_IDLE_TIMEOUT_MS of no interaction → fullscreen canvas
-    val lastInteractionMs = remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(canvasUrl) {
-        if (canvasUrl.isNullOrBlank() || onVideoIdleFullscreen == null) return@LaunchedEffect
-        while (true) {
-            delay(1_000)
-            if (System.currentTimeMillis() - lastInteractionMs.longValue >= CANVAS_IDLE_TIMEOUT_MS) {
-                onVideoIdleFullscreen.invoke(canvasUrl!!)
-                break
-            }
-        }
-    }
-    val onAnyInteraction: () -> Unit = remember { { lastInteractionMs.longValue = System.currentTimeMillis() } }
 
     // Grid state
     val thumbnailLazyGridState = rememberLazyGridState()
@@ -440,8 +410,7 @@ fun Thumbnail(
                                 isListenTogetherGuest = isListenTogetherGuest,
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
-                                canvasUrl = if (videoCanvasEnabled) canvasUrl else null,
-                                onAnyInteraction = onAnyInteraction,
+                                hideArtworkForCanvas = hideArtworkForCanvas && item.mediaId == mediaMetadata?.id,
                             )
                         }
                     }
@@ -543,8 +512,7 @@ private fun ThumbnailItem(
     isListenTogetherGuest: Boolean = false,
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
-    canvasUrl: String? = null,
-    onAnyInteraction: () -> Unit = {},
+    hideArtworkForCanvas: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
@@ -615,13 +583,6 @@ private fun ThumbnailItem(
                 .size(if (pinkFrame) side * 0.9f else side)
                 .clip(RoundedCornerShape(if (pinkFrame) 18.dp else dimensions.cornerRadius))
         ) {
-            // Video canvas – rendered beneath the album art
-            if (!canvasUrl.isNullOrBlank() && !hidePlayerThumbnail) {
-                VideoCanvasPlayer(
-                    videoUrl = canvasUrl,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
             } else {
@@ -631,10 +592,17 @@ private fun ThumbnailItem(
                     item.mediaMetadata.artworkUri?.toString()
                 }
 
-                ThumbnailImage(
-                    artworkUri = artworkUriToUse,
-                    cropArtwork = cropAlbumArt
+                val artworkAlpha by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (hideArtworkForCanvas) 0f else 1f,
+                    animationSpec = androidx.compose.animation.core.tween(700),
+                    label = "canvasArtworkAlpha",
                 )
+                Box(Modifier.fillMaxSize().graphicsLayer { alpha = artworkAlpha }) {
+                    ThumbnailImage(
+                        artworkUri = artworkUriToUse,
+                        cropArtwork = cropAlbumArt
+                    )
+                }
             }
             
             // Cast button at top-right corner of thumbnail

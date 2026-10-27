@@ -281,6 +281,12 @@ class SpotifySession
             store.tokenExpiresAtMs = token.accessTokenExpirationTimestampMs
         }
 
+        /** A web-player access token that is still valid (renewed from the saved cookie when needed), or null when signed out. */
+        suspend fun validAccessToken(): String? =
+            withContext(Dispatchers.IO) {
+                if (ensureToken()) store.accessToken.takeIf { it.isNotBlank() } else null
+            }
+
         /** Makes sure [SpotifyClient] holds a token that is still valid, renewing it from the saved cookie if needed. */
         private suspend fun ensureToken(): Boolean {
             if (!store.isTokenExpiringSoon()) {

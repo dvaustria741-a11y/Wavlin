@@ -5,96 +5,147 @@
 
 package com.wavlin.music.playback
 
-import com.wavlin.innertube.YouTube
-import com.wavlin.innertube.models.YouTubeClient
+import android.content.Context
+import com.wavlin.music.spotify.SpotifyCanvasClient
 import com.wavlin.music.spotify.account.SpotifyAuthState
 import com.wavlin.music.spotify.account.SpotifySession
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Fetches and caches looping video-canvas URLs for the now-playing song.
+ * Resolves the short looping Spotify Canvas video of the now-playing song, like SimpMusic does.
  *
- * Resolution order
- *  1. YouTube / YTM adaptive video stream: lowest-bitrate MP4 that needs no cipher decoding.
- *  2. Spotify Canvas (stub – requires a Spotify track ID; wired up in a follow-up commit).
- *
- * All results (including "no canvas") are cached in an LRU so each videoId is only
- * queried once per app session.
+ * The track is matched on Spotify by title, artist and duration, its canvas mp4 is fetched once and
+ * kept in the app cache, and the player loops that local file. Needs a signed-in Spotify account.
+ * Canvases are never part of song downloads.
  */
 @Singleton
-class VideoCanvasManager @Inject constructor(
-    private val spotifySession: SpotifySession,
-) {
-    /** Sentinel stored for a "fetched, nothing found" entry so we skip re-fetching. */
-    private val NO_CANVAS = "\u0001"
+class VideoCanvasManager
+    @Inject
+    constructor(
+        @ApplicationContext private val context: Context,
+        private val spotifySession: SpotifySession,
+    ) {
+        private val noCanvas = "\u0001"
 
-    private val cache: MutableMap<String, String?> = Collections.synchronizedMap(
-        object : LinkedHashMap<String, String?>(64, 0.75f, true) {
-            override fun removeEldestEntry(eldest: Map.Entry<String, String?>) = size > 100
-        }
-    )
+        private val memory: MutableMap<String, String> =
+            Collections.synchronizedMap(
+                object : LinkedHashMap<String, String>(64, 0.75f, true) {
+                    override fun removeEldestEntry(eldest: Map.Entry<String, String>) = size > 200
+                },
+            )
 
-    /**
-     * Returns a direct, playable MP4 video URL for [videoId], or `null` when none is available.
-     * IO-safe: dispatches to [Dispatchers.IO] internally.
-     */
-    suspend fun getCanvasUrl(videoId: String): String? {
-        cache[videoId]?.let { cached -> return if (cached == NO_CANVAS) null else cached }
-        val url = withContext(Dispatchers.IO) {
-            tryYtmVideoStream(videoId) ?: trySpotifyCanvas(videoId)
-        }
-        cache[videoId] = url ?: NO_CANVAS
-        return url
-    }
+        private val dir by lazy { File(context.cacheDir, "video_canvas").also { it.mkdirs() } }
 
-    /** Clears cached results (e.g. on account sign-out). */
-    fun clearCache() = cache.clear()
-
-    // ── YouTube / YTM ──────────────────────────────────────────────────────
-
-    /**
-     * Calls the innertube /player endpoint and picks the smallest direct-URL MP4 video stream.
-     *
-     * Streams protected by a signatureCipher need n-parameter deobfuscation that this path
-     * does not perform; those are filtered out. What remains is typically ≤240 p – adequate
-     * for a background canvas loop.
-     */
-    private suspend fun tryYtmVideoStream(videoId: String): String? = runCatching {
-        YouTube.player(
-            videoId = videoId,
-            client = YouTubeClient.WEB_REMIX,
-        ).getOrNull()
-            ?.streamingData
-            ?.adaptiveFormats
-            ?.filter { fmt ->
-                fmt.width != null                        // video track (not audio-only)
-                    && fmt.mimeType.startsWith("video/mp4")
-                    && fmt.url != null                   // direct URL present
-                    && fmt.signatureCipher == null        // no cipher needed
-                    && fmt.cipher == null
+        /**
+         * A local file uri of the looping canvas for [mediaId], or null when the song has none, the
+         * Spotify account is not connected, or the lookup failed (failures are retried next time).
+         */
+        suspend fun getCanvasUrl(
+            mediaId: String,
+            title: String,
+            artist: String,
+            durationSec: Int,
+        ): String? {
+            memory[mediaId]?.let { hit ->
+                if (hit == noCanvas) return null
+                if (File(hit.removePrefix("file://")).exists()) return hit
+                memory.remove(mediaId)
             }
-            ?.minByOrNull { it.bitrate }
-            ?.url
-    }.getOrElse {
-        Timber.d("VideoCanvas: YTM lookup failed for $videoId — ${it.message}")
-        null
-    }
+            return withContext(Dispatchers.IO) {
+                val key = fileKey(mediaId)
+                val cached = File(dir, "$key.mp4")
+                val missMarker = File(dir, "$key.none")
+                if (cached.exists() && cached.length() > 0) {
+                    return@withContext "file://${cached.absolutePath}".also { memory[mediaId] = it }
+                }
+                if (missMarker.exists() && System.currentTimeMillis() - missMarker.lastModified() < MISS_TTL_MS) {
+                    memory[mediaId] = noCanvas
+                    return@withContext null
+                }
+                if (spotifySession.authState.value != SpotifyAuthState.CONNECTED) {
+                    Timber.d("VideoCanvas: Spotify not connected, skipping")
+                    return@withContext null
+                }
+                try {
+                    val token = spotifySession.validAccessToken() ?: return@withContext null
+                    val remote =
+                        SpotifyCanvasClient.fetchCanvasUrl(
+                            accessToken = token,
+                            title = title,
+                            artist = artist,
+                            durationMs = durationSec * 1000L,
+                        )
+                    if (remote == null) {
+                        Timber.d("VideoCanvas: no canvas for '%s'", title)
+                        missMarker.writeText("")
+                        memory[mediaId] = noCanvas
+                        return@withContext null
+                    }
+                    download(remote, cached)
+                    trimCache()
+                    "file://${cached.absolutePath}".also { memory[mediaId] = it }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.d("VideoCanvas: lookup failed for '%s': %s", title, e.message)
+                    null
+                }
+            }
+        }
 
-    // ── Spotify Canvas ─────────────────────────────────────────────────────
+        /** Clears cached results (e.g. on account sign-out). */
+        fun clearCache() {
+            memory.clear()
+            dir.listFiles()?.forEach { it.delete() }
+        }
 
-    /**
-     * Future: match [videoId] to a Spotify track then call SpotifyClient.fetchCanvas().
-     * A YTM video ID != a Spotify track ID, so a search/match step is needed first.
-     * TODO: implement SpotifyMatcher lookup + SpotifyClient.fetchCanvas(trackId)
-     */
-    @Suppress("UNUSED_PARAMETER")
-    private suspend fun trySpotifyCanvas(videoId: String): String? {
-        if (spotifySession.authState.value != SpotifyAuthState.CONNECTED) return null
-        return null
+        private fun fileKey(mediaId: String): String =
+            MessageDigest
+                .getInstance("SHA-1")
+                .digest(mediaId.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
+        private fun download(
+            url: String,
+            target: File,
+        ) {
+            val tmp = File(target.parentFile, target.name + ".part")
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                if (connection.responseCode !in 200..299) {
+                    throw SpotifyCanvasClient.CanvasLookupException("canvas download HTTP ${connection.responseCode}")
+                }
+                connection.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+            } finally {
+                connection.disconnect()
+            }
+            if (tmp.length() == 0L || !tmp.renameTo(target)) {
+                tmp.delete()
+                throw SpotifyCanvasClient.CanvasLookupException("canvas download empty")
+            }
+        }
+
+        private fun trimCache() {
+            val files = dir.listFiles { f -> f.extension == "mp4" }?.sortedBy { it.lastModified() } ?: return
+            if (files.size > MAX_CACHED) files.take(files.size - MAX_CACHED).forEach { it.delete() }
+        }
+
+        private companion object {
+            const val MAX_CACHED = 60
+            const val MISS_TTL_MS = 6 * 60 * 60 * 1000L
+        }
     }
-}

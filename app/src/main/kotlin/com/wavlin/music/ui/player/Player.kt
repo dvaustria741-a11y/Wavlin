@@ -101,10 +101,12 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -163,6 +165,8 @@ import com.wavlin.music.constants.PlayerBackgroundStyleKey
 import com.wavlin.music.constants.PlayerButtonsStyle
 import com.wavlin.music.constants.PlayerButtonsStyleKey
 import com.wavlin.music.constants.PlayerHorizontalPadding
+import com.wavlin.music.constants.VideoCanvasEnabledKey
+import com.wavlin.music.di.VideoCanvasEntryPoint
 import com.wavlin.music.constants.QueuePeekHeight
 import com.wavlin.music.constants.SleepTimerDefaultKey
 import com.wavlin.music.constants.SleepTimerFadeOutKey
@@ -248,8 +252,11 @@ fun BottomSheetPlayer(
     var isFullScreen by rememberSaveable {
         mutableStateOf(false)
     }
-    // Video canvas: URL set when idle threshold fires in Thumbnail; cleared on tap / song change
-    var videoCanvasIdleUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    // Video canvas (Spotify): looping video behind the player, controls fade out after 5 s idle
+    val videoCanvasEnabled by rememberPreference(VideoCanvasEnabledKey, defaultValue = true)
+    var videoCanvasUrl by remember { mutableStateOf<String?>(null) }
+    var videoCanvasIdle by remember { mutableStateOf(false) }
+    var lastTouchMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     val playerBackgroundPref by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
@@ -257,7 +264,9 @@ fun BottomSheetPlayer(
     )
     // Apple Music interface style: blurred artwork behind Now Playing.
     val playerBackground =
-        if (LocalInterfaceAppleMusic.current && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (videoCanvasUrl != null ||
+            (LocalInterfaceAppleMusic.current && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+        ) {
             PlayerBackgroundStyle.BLUR
         } else {
             playerBackgroundPref
@@ -435,7 +444,36 @@ fun BottomSheetPlayer(
     val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
-    LaunchedEffect(mediaMetadata?.id) { videoCanvasIdleUrl = null }
+    LaunchedEffect(mediaMetadata?.id, videoCanvasEnabled) {
+        videoCanvasUrl = null
+        videoCanvasIdle = false
+        lastTouchMs = System.currentTimeMillis()
+        val md = mediaMetadata ?: return@LaunchedEffect
+        if (!videoCanvasEnabled) return@LaunchedEffect
+        val manager =
+            EntryPointAccessors
+                .fromApplication(context.applicationContext, VideoCanvasEntryPoint::class.java)
+                .videoCanvasManager()
+        videoCanvasUrl =
+            manager.getCanvasUrl(
+                mediaId = md.id,
+                title = md.title,
+                artist = md.artists.joinToString(" ") { it.name },
+                durationSec = md.duration,
+            )
+    }
+
+    LaunchedEffect(videoCanvasUrl, videoCanvasIdle, state.isExpanded, showInlineLyrics) {
+        if (videoCanvasUrl == null || videoCanvasIdle || !state.isExpanded || showInlineLyrics) return@LaunchedEffect
+        lastTouchMs = System.currentTimeMillis()
+        while (true) {
+            delay(500)
+            if (System.currentTimeMillis() - lastTouchMs >= CANVAS_IDLE_TIMEOUT_MS) {
+                videoCanvasIdle = true
+                break
+            }
+        }
+    }
 
     LaunchedEffect(mediaMetadata?.id, playerBackground) {
         if (playerBackground == PlayerBackgroundStyle.GRADIENT) {
@@ -979,6 +1017,28 @@ fun BottomSheetPlayer(
                     else -> {
                         PlayerBackgroundStyle.DEFAULT
                     }
+                }
+                val canvasBackdropUrl = videoCanvasUrl
+                if (canvasBackdropUrl != null && state.isExpanded) {
+                    VideoCanvasPlayer(
+                        videoUrl = canvasBackdropUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colorStops =
+                                            arrayOf(
+                                                0.0f to Color.Black.copy(alpha = 0.25f),
+                                                0.5f to Color.Black.copy(alpha = 0.30f),
+                                                1.0f to Color.Black.copy(alpha = 0.85f),
+                                            ),
+                                    ),
+                                ),
+                    )
                 }
             }
         },
@@ -2033,7 +2093,25 @@ fun BottomSheetPlayer(
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        val controlsAlpha by animateFloatAsState(
+            targetValue = if (videoCanvasIdle) 0f else 1f,
+            animationSpec = tween(500),
+            label = "canvasControlsAlpha",
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial)
+                                lastTouchMs = System.currentTimeMillis()
+                            }
+                        }
+                    },
+        ) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = controlsAlpha }) {
         when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
@@ -2083,6 +2161,7 @@ fun BottomSheetPlayer(
                                     isPlayerExpanded = isExpandedProvider,
                                     isLandscape = true,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    hideArtworkForCanvas = videoCanvasUrl != null,
                                 )
                             }
                         }
@@ -2156,7 +2235,7 @@ fun BottomSheetPlayer(
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
-                                    onVideoIdleFullscreen = { url -> videoCanvasIdleUrl = url },
+                                    hideArtworkForCanvas = videoCanvasUrl != null,
                                     modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
@@ -2184,9 +2263,10 @@ fun BottomSheetPlayer(
                 }
             }
         }
+        }
 
         AnimatedVisibility(
-            visible = !isFullScreen,
+            visible = !isFullScreen && !videoCanvasIdle,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         ) {
@@ -2212,25 +2292,21 @@ fun BottomSheetPlayer(
             )
         }
 
-        // ── Video canvas fullscreen idle overlay ────────────────────────
+        // ── Video canvas idle overlay (controls faded out, canvas on its own) ──
         androidx.compose.animation.AnimatedVisibility(
-            visible = !videoCanvasIdleUrl.isNullOrBlank(),
-            enter = androidx.compose.animation.fadeIn(
-                androidx.compose.animation.core.tween(500)
-            ),
-            exit = androidx.compose.animation.fadeOut(
-                androidx.compose.animation.core.tween(300)
-            ),
+            visible = videoCanvasIdle && videoCanvasUrl != null,
+            enter = androidx.compose.animation.fadeIn(tween(500)),
+            exit = androidx.compose.animation.fadeOut(tween(300)),
             modifier = Modifier.fillMaxSize(),
         ) {
-            videoCanvasIdleUrl?.let { url ->
-                VideoCanvasFullscreenOverlay(
-                    videoUrl = url,
-                    metadata = mediaMetadata,
-                    onExit   = { videoCanvasIdleUrl = null },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            VideoCanvasIdleOverlay(
+                metadata = mediaMetadata,
+                onExit = {
+                    videoCanvasIdle = false
+                    lastTouchMs = System.currentTimeMillis()
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
         }
     }

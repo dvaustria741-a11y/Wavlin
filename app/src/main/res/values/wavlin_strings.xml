@@ -1141,5 +1141,5 @@
     <string name="hub_new_albums">New albums</string>
     <string name="hub_new_mixes">New music mixes</string>
     <string name="video_canvas">Video Canvas</string>
-    <string name="video_canvas_desc">Show a short looping video behind the artwork. Auto-expands to full screen after 5 s of inactivity — tap to dismiss.</string>
+    <string name="video_canvas_desc">Play the song's short looping Spotify Canvas video in the player (needs a Spotify account signed in). After 5 s without touching, the controls fade out; tap to bring them back.</string>
 </resources>

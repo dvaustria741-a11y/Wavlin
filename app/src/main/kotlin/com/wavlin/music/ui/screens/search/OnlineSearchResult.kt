@@ -648,7 +648,7 @@ private fun SpotifyTrackListItem(
         ) {
             coil3.compose.AsyncImage(
                 model = track.coverUrl,
-                contentDescription = track.name,
+                contentDescription = track.title,
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )

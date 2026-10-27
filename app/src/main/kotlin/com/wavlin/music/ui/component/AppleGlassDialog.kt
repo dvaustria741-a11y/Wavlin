@@ -26,6 +26,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -182,13 +184,11 @@ fun AppleGlassMenuSheet(
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(state.heightFraction)
                     .clip(shape)
-                    .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.4f, backdrop = backdrop)
-                    .border(1.dp, glassStrokeBrush(), shape)
                     // Swallow taps so they don't reach the dismiss scrim.
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -196,6 +196,17 @@ fun AppleGlassMenuSheet(
                         onClick = {},
                     ),
             ) {
+                // The glass lives on its own offscreen layer, a sibling of the content. Blur + lens + vibrancy are
+                // rendered once and the cached texture is reused, instead of being re-run every time the menu
+                // content scrolls, animates or recomposes.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.4f, backdrop = backdrop)
+                        .border(1.dp, glassStrokeBrush(), shape),
+                )
+                Column(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
@@ -214,6 +225,7 @@ fun AppleGlassMenuSheet(
                     ) {
                         state.content(this)
                     }
+                }
                 }
             }
         }

@@ -303,7 +303,7 @@ fun PlayerMenu(
                 if (isQueueTrigger != true) {
                     PlayerMenuNowPlayingCard(
                         mediaMetadata = mediaMetadata,
-                        volume = if (isCasting) castVolume else playerVolume.value,
+                        volumeProvider = { if (isCasting) castVolume else playerVolume.value },
                         onVolumeChange = { volume ->
                             if (isCasting) {
                                 castHandler?.setVolume(volume)

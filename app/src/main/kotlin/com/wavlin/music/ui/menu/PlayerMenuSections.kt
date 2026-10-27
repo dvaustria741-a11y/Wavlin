@@ -75,10 +75,12 @@ private fun Modifier.menuCard(): Modifier =
 @Composable
 fun PlayerMenuNowPlayingCard(
     mediaMetadata: MediaMetadata,
-    volume: Float,
+    volumeProvider: () -> Float,
     onVolumeChange: (Float) -> Unit,
     castDeviceName: String?,
 ) {
+    // Read here so volume changes only recompose this card, not the whole menu.
+    val volume = volumeProvider()
     Column(
         modifier =
             Modifier

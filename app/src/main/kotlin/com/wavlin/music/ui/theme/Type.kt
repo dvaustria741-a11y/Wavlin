@@ -125,3 +125,16 @@ val AppTypography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+
+// Apple Music interface style: heavier, tighter titles with regular-weight body text.
+val AppleMusicTypography = AppTypography.copy(
+    headlineLarge = AppTypography.headlineLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+    headlineMedium = AppTypography.headlineMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
+    headlineSmall = AppTypography.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+    titleLarge = AppTypography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
+    titleMedium = AppTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 17.sp, letterSpacing = 0.sp),
+    titleSmall = AppTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+    bodyLarge = AppTypography.bodyLarge.copy(letterSpacing = 0.sp),
+    bodyMedium = AppTypography.bodyMedium.copy(letterSpacing = 0.sp),
+    labelLarge = AppTypography.labelLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+)

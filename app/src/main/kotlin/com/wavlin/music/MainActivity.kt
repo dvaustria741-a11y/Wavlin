@@ -669,10 +669,12 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        val themeInterfaceStyle by rememberEnumPreference(InterfaceStyleKey, defaultValue = InterfaceStyle.MATERIAL)
         WavlinTheme(
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
             themeColor = themeColor,
+            appleMusic = themeInterfaceStyle == InterfaceStyle.APPLE_MUSIC,
         ) {
             val currentDensity = LocalDensity.current
             val windowInfo = LocalWindowInfo.current
@@ -1091,7 +1093,7 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 Text(
                                                     text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                    style = MaterialTheme.typography.titleLarge,
+                                                    style = if (appleStyle) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
                                                 )
                                             }
                                         },
@@ -1149,6 +1151,8 @@ class MainActivity : ComponentActivity() {
                                                         Color.Transparent
                                                     } else if (pureBlack) {
                                                         Color.Black
+                                                    } else if (appleStyle) {
+                                                        MaterialTheme.colorScheme.background
                                                     } else {
                                                         MaterialTheme.colorScheme.surfaceContainer
                                                     },
@@ -1157,6 +1161,8 @@ class MainActivity : ComponentActivity() {
                                                         Color.Transparent
                                                     } else if (pureBlack) {
                                                         Color.Black
+                                                    } else if (appleStyle) {
+                                                        MaterialTheme.colorScheme.background
                                                     } else {
                                                         MaterialTheme.colorScheme.surfaceContainer
                                                     },

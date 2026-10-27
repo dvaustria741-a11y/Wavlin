@@ -9,7 +9,9 @@
 package com.wavlin.music.ui.component
 
 import android.os.Build
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import com.wavlin.music.constants.ThumbnailCornerRadius
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -68,3 +70,8 @@ fun Modifier.appleGlass(
         },
     )
 }
+
+/** Artwork corner shape: Apple Music uses noticeably rounder cover art than the Material default. */
+@Composable
+fun artworkShape(): RoundedCornerShape =
+    RoundedCornerShape(if (LocalInterfaceAppleMusic.current) 8.dp else ThumbnailCornerRadius)

@@ -51,6 +51,7 @@ fun NavigationTitle(
     @DrawableRes leadingIconRes: Int? = null,
 ) {
     val pinkLily = LocalPinkLilyTheme.current
+    val appleMusic = LocalInterfaceAppleMusic.current && !pinkLily
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -99,7 +100,7 @@ fun NavigationTitle(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (appleMusic) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 1,
                 )
@@ -109,8 +110,8 @@ fun NavigationTitle(
         onPlayAllClick?.let { playAllClick ->
             OutlinedButton(
                 onClick = playAllClick,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                shape = if (appleMusic) RoundedCornerShape(percent = 50) else RoundedCornerShape(12.dp),
+                border = BorderStroke(if (appleMusic) 0.dp else 1.dp, MaterialTheme.colorScheme.primary.copy(alpha = if (appleMusic) 0f else 0.5f)),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.primary
                 ),
@@ -127,9 +128,9 @@ fun NavigationTitle(
 
         if (onClick != null) {
             Icon(
-                painter = painterResource(if (pinkLily) R.drawable.navigate_next else R.drawable.arrow_forward),
+                painter = painterResource(if (pinkLily || appleMusic) R.drawable.navigate_next else R.drawable.arrow_forward),
                 contentDescription = null,
-                tint = if (pinkLily) PinkInk else MaterialTheme.colorScheme.primary
+                tint = if (pinkLily) PinkInk else if (appleMusic) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
             )
         }
     }

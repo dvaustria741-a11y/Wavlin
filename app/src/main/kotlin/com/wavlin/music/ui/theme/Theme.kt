@@ -10,6 +10,9 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -26,6 +29,15 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
+// Apple Music uses tighter corner radii than Material 3's defaults.
+private val AppleMusicShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(10.dp),
+    large = RoundedCornerShape(14.dp),
+    extraLarge = RoundedCornerShape(20.dp),
+)
+
 val DefaultThemeColor = Color(0xFFED5564)
 
 // Secret "Pink" theme, unlocked via the password prompt in the color palette picker.
@@ -37,6 +49,7 @@ fun WavlinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,
+    appleMusic: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -69,7 +82,8 @@ fun WavlinTheme(
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // Use the defined AppTypography
+        typography = if (appleMusic) AppleMusicTypography else AppTypography,
+        shapes = if (appleMusic) AppleMusicShapes else Shapes(),
         content = content
     )
 }

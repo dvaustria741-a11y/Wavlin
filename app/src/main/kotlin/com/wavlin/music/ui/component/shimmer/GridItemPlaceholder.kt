@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.component.shimmer
 
+import com.wavlin.music.ui.component.artworkShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +32,7 @@ import com.wavlin.music.utils.rememberEnumPreference
 @Composable
 fun GridItemPlaceHolder(
     modifier: Modifier = Modifier,
-    thumbnailShape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
+    thumbnailShape: Shape = artworkShape(),
     fillMaxWidth: Boolean = false,
 ) {
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)

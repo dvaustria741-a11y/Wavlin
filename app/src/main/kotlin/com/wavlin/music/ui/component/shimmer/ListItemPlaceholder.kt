@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.component.shimmer
 
+import com.wavlin.music.ui.component.artworkShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +28,7 @@ import com.wavlin.music.constants.ThumbnailCornerRadius
 @Composable
 fun ListItemPlaceHolder(
     modifier: Modifier = Modifier,
-    thumbnailShape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
+    thumbnailShape: Shape = artworkShape(),
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,

@@ -52,17 +52,21 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         /** Pseudo-stereo: delayed, high-passed mid signal injected out-of-phase into L/R (works on near-mono music). */
         private val DECOR_GAIN = floatArrayOf(0f, 0.12f, 0.25f, 0.4f)
         private const val DECOR_DELAY_S = 0.015
+
+        /** Always-on stereo feel (works on the phone speakers too, like the system Dolby at 0). */
+        private const val BASE_WIDEN = 0.5f
+        private const val BASE_DECOR = 0.1f
         private const val DECOR_HP_HZ = 300.0
 
         /** Always-on "Dolby" body: low-mid lift (guitars, vocals) plus a loudness boost, tamed by the limiter. */
-        private const val BODY_HZ = 300.0
-        private const val BODY_GAIN_DB = 3.0
+        private const val BODY_HZ = 250.0
+        private const val BODY_GAIN_DB = 4.0
         private const val BODY_Q = 0.7
         private const val PRE_GAIN_DB = 1.0
 
         /** Gentle high shelf that takes the edge off treble so loud playback is less fatiguing. */
-        private const val SHELF_HZ = 6000.0
-        private const val SHELF_GAIN_DB = -3.0
+        private const val SHELF_HZ = 4500.0
+        private const val SHELF_GAIN_DB = -5.5
 
         /** Soft limiter: above LIMIT_T the level is compressed LIMIT_RATIO:1 (fast attack, slow release). */
         private const val LIMIT_T = 0.8f
@@ -183,8 +187,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         }
 
         val dLevel = dialogueLevel
-        val widen = WIDEN_GAIN[stereoLevel]
-        val decor = DECOR_GAIN[stereoLevel]
+        val widen = BASE_WIDEN + WIDEN_GAIN[stereoLevel]
+        val decor = BASE_DECOR + DECOR_GAIN[stereoLevel]
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
 
         val frames = remaining / (bytesPerSample * 2)

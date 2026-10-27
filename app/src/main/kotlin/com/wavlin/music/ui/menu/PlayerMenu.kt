@@ -304,6 +304,7 @@ fun PlayerMenu(
                     PlayerMenuNowPlayingCard(
                         mediaMetadata = mediaMetadata,
                         volumeProvider = { if (isCasting) castVolume else systemVolume.volume },
+                        animateProvider = { !isCasting && systemVolume.animateChange },
                         onVolumeChange = { volume ->
                             if (isCasting) {
                                 castHandler?.setVolume(volume)

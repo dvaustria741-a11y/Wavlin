@@ -80,9 +80,23 @@ fun PlayerMenuNowPlayingCard(
     volumeProvider: () -> Float,
     onVolumeChange: (Float) -> Unit,
     castDeviceName: String?,
+    animateProvider: () -> Boolean = { false },
 ) {
     // Read here so volume changes only recompose this card, not the whole menu.
-    val volume = volumeProvider()
+    // Changes that don't come from dragging the slider (volume keys) glide instead of jumping.
+    val volume by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = volumeProvider(),
+        animationSpec =
+            if (animateProvider()) {
+                androidx.compose.animation.core.tween(
+                    durationMillis = 320,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                )
+            } else {
+                androidx.compose.animation.core.snap()
+            },
+        label = "menuVolume",
+    )
     Column(
         modifier =
             Modifier

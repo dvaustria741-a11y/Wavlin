@@ -17,6 +17,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -30,6 +31,10 @@ class SystemVolumeState(
     var volume by mutableFloatStateOf(read())
         private set
 
+    /** True when the last change came from outside the slider (hardware keys, system UI), so the UI should glide. */
+    var animateChange by mutableStateOf(false)
+        private set
+
     private var lastUserChange = 0L
 
     private fun read(): Float {
@@ -40,6 +45,7 @@ class SystemVolumeState(
     fun set(value: Float) {
         val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val clamped = value.coerceIn(0f, 1f)
+        animateChange = false
         volume = clamped
         lastUserChange = SystemClock.uptimeMillis()
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (clamped * max).roundToInt(), 0)
@@ -48,6 +54,7 @@ class SystemVolumeState(
     /** Called when the system volume changes; ignored briefly after a drag so the thumb doesn't snap to a step. */
     fun refresh() {
         if (SystemClock.uptimeMillis() - lastUserChange < 300L) return
+        animateChange = true
         volume = read()
     }
 }

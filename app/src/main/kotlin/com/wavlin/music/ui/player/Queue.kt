@@ -99,6 +99,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
 import com.wavlin.music.ui.component.lilyGlassAuto
 import com.wavlin.music.ui.component.lilyNinePatch
 import com.wavlin.music.LocalNavController
@@ -890,9 +891,13 @@ fun Queue(
                         if (pureBlack) {
                             Color.Black
                         } else {
-                            MaterialTheme.colorScheme
-                                .secondaryContainer
-                                .copy(alpha = 0.90f)
+                            if (LocalInterfaceAppleMusic.current) {
+                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+                            } else {
+                                MaterialTheme.colorScheme
+                                    .secondaryContainer
+                                    .copy(alpha = 0.90f)
+                            }
                         },
                     ).windowInsetsPadding(
                         WindowInsets.systemBars
@@ -1036,9 +1041,13 @@ fun Queue(
                         if (pureBlack) {
                             Color.Black
                         } else {
-                            MaterialTheme.colorScheme
-                                .secondaryContainer
-                                .copy(alpha = 0.90f)
+                            if (LocalInterfaceAppleMusic.current) {
+                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+                            } else {
+                                MaterialTheme.colorScheme
+                                    .secondaryContainer
+                                    .copy(alpha = 0.90f)
+                            }
                         },
                     ).fillMaxWidth()
                     .height(

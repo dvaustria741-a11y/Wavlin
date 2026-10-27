@@ -160,7 +160,9 @@ fun ExperimentalLyrics(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
 
-    val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val lyricsTextPositionPref by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    // Apple Music lyrics are always left aligned.
+    val lyricsTextPosition = if (LocalInterfaceAppleMusic.current) LyricsPosition.LEFT else lyricsTextPositionPref
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
     val romanizeAsMain by rememberPreference(LyricsRomanizeAsMainKey, false)

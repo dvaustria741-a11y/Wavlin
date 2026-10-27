@@ -207,7 +207,9 @@ fun OriginalLyrics(
     val shareLyricsStr = stringResource(R.string.share_lyrics)
     val failedToCreateImageTemplate = stringResource(R.string.failed_to_create_image)
 
-    val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val lyricsTextPositionPref by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    // Apple Music lyrics are always left aligned.
+    val lyricsTextPosition = if (LocalInterfaceAppleMusic.current) LyricsPosition.LEFT else lyricsTextPositionPref
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val scrollLyrics by rememberPreference(LyricsScrollKey, true)
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")

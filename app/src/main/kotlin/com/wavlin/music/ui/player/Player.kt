@@ -31,6 +31,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -1625,7 +1627,7 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            when (if (LocalPinkNowPlaying.current) SliderStyle.SLIM else sliderStyle) {
+            when (if (LocalPinkNowPlaying.current || appleMusicPlayer) SliderStyle.SLIM else sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
                         value = (sliderPosition ?: effectivePosition).toFloat(),
@@ -1706,7 +1708,14 @@ fun BottomSheetPlayer(
                 }
 
                 SliderStyle.SLIM -> {
+                    val seekInteractionSource = remember { MutableInteractionSource() }
+                    val seekDragging by seekInteractionSource.collectIsDraggedAsState()
+                    val appleTrackHeight by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (seekDragging) 12.dp else 6.dp,
+                        label = "appleSeekTrackHeight",
+                    )
                     Slider(
+                        interactionSource = seekInteractionSource,
                         value = (sliderPosition ?: effectivePosition).toFloat(),
                         valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                         onValueChange = {
@@ -1738,7 +1747,16 @@ fun BottomSheetPlayer(
                             } else {
                                 PlayerSliderTrack(
                                     sliderState = sliderState,
-                                    colors = PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                                    colors =
+                                        if (appleMusicPlayer) {
+                                            SliderDefaults.colors(
+                                                activeTrackColor = TextBackgroundColor,
+                                                inactiveTrackColor = TextBackgroundColor.copy(alpha = 0.25f),
+                                            )
+                                        } else {
+                                            PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                        },
+                                    trackHeight = if (appleMusicPlayer) appleTrackHeight else 10.dp,
                                 )
                             }
                         },

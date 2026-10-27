@@ -14,11 +14,15 @@ import java.nio.ByteOrder
  * Software Freeverb reverb applied in ExoPlayer's audio processor chain.
  *
  * Parameters are controlled by [com.wavlin.music.audio.reverb.ReverbManager].
- * [isActive] returns false when disabled, so ExoPlayer bypasses this processor
- * entirely and adds zero latency overhead.
+ * [isActive] always returns true so ExoPlayer keeps this processor in the
+ * audio chain permanently.  When reverb is disabled the processor simply copies
+ * input to output unchanged (zero-overhead passthrough).  This is necessary
+ * because ExoPlayer evaluates [isActive] once at configure-time; if it returns
+ * false then the processor is permanently bypassed and enabling reverb later
+ * has no effect.
  *
- * Assumes PCM_FLOAT input (4 bytes / sample). If another encoding arrives the
- * processor deactivates itself and passes audio through unchanged.
+ * Supports PCM_FLOAT (4 bytes/sample) and PCM_16BIT (2 bytes/sample).
+ * Any other encoding falls back to passthrough.
  */
 @UnstableApi
 class ReverbAudioProcessor : AudioProcessor {
@@ -45,9 +49,10 @@ class ReverbAudioProcessor : AudioProcessor {
     private var apL   = Array(4) { i -> AllpassFilter(ALLPASS_DELAYS[i]) }
     private var apR   = Array(4) { i -> AllpassFilter(ALLPASS_DELAYS[i] + SPREAD) }
 
-    private var sampleRate   = 44100
-    private var channelCount = 2
-    private var isFloat      = true   // false → passthrough only
+    private var sampleRate      = 44100
+    private var channelCount    = 2
+    private var isFloat         = true   // PCM_FLOAT → true, PCM_16BIT → false
+    private var bytesPerSample  = 4      // 4 for float, 2 for s16, 0 for unsupported
 
     private var outputBuffer: ByteBuffer = EMPTY
     private var inputEnded               = false
@@ -77,7 +82,11 @@ class ReverbAudioProcessor : AudioProcessor {
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         channelCount = inputAudioFormat.channelCount
-        isFloat      = (inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_FLOAT)
+        when (inputAudioFormat.encoding) {
+            android.media.AudioFormat.ENCODING_PCM_FLOAT -> { isFloat = true;  bytesPerSample = 4 }
+            android.media.AudioFormat.ENCODING_PCM_16BIT -> { isFloat = false; bytesPerSample = 2 }
+            else                                         -> { isFloat = false; bytesPerSample = 0 }
+        }
         if (inputAudioFormat.sampleRate != sampleRate) {
             sampleRate = inputAudioFormat.sampleRate
             rebuildFilters()
@@ -85,7 +94,12 @@ class ReverbAudioProcessor : AudioProcessor {
         return inputAudioFormat
     }
 
-    override fun isActive(): Boolean = active && isFloat
+    /**
+     * Always returns true so ExoPlayer never removes this processor from its
+     * audio chain.  Actual bypass (when reverb is disabled) is handled inside
+     * [queueInput] by copying bytes through unchanged.
+     */
+    override fun isActive(): Boolean = true
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
@@ -100,30 +114,68 @@ class ReverbAudioProcessor : AudioProcessor {
         outputBuffer.clear()
         outputBuffer.limit(remaining)
 
-        val inFB  = inputBuffer.asFloatBuffer()
-        val outFB = outputBuffer.asFloatBuffer()
-        val frames = remaining / (4 * channelCount)
+        // Passthrough: reverb disabled or unsupported encoding → copy bytes unchanged.
+        if (!active || bytesPerSample == 0) {
+            outputBuffer.put(inputBuffer)
+            outputBuffer.position(0)
+            return
+        }
 
-        if (channelCount >= 2) {
-            for (f in 0 until frames) {
-                val inL = inFB.get()
-                val inR = inFB.get()
-                var revL = 0f; var revR = 0f
-                for (c in combL) revL += c.process(inL * GAIN)
-                for (c in combR) revR += c.process(inR * GAIN)
-                for (a in apL)   revL  = a.process(revL)
-                for (a in apR)   revR  = a.process(revR)
-                outFB.put(inL + revL * wet)
-                outFB.put(inR + revR * wet)
-                repeat(channelCount - 2) { outFB.put(inFB.get()) }
+        if (isFloat) {
+            // ── PCM_FLOAT path ────────────────────────────────────────────────
+            val inFB   = inputBuffer.asFloatBuffer()
+            val outFB  = outputBuffer.asFloatBuffer()
+            val frames = remaining / (4 * channelCount)
+
+            if (channelCount >= 2) {
+                for (f in 0 until frames) {
+                    val inL = inFB.get()
+                    val inR = inFB.get()
+                    var revL = 0f; var revR = 0f
+                    for (c in combL) revL += c.process(inL * GAIN)
+                    for (c in combR) revR += c.process(inR * GAIN)
+                    for (a in apL)   revL  = a.process(revL)
+                    for (a in apR)   revR  = a.process(revR)
+                    outFB.put(inL + revL * wet)
+                    outFB.put(inR + revR * wet)
+                    repeat(channelCount - 2) { outFB.put(inFB.get()) }
+                }
+            } else {
+                for (f in 0 until frames) {
+                    val inS = inFB.get()
+                    var rev = 0f
+                    for (c in combL) rev += c.process(inS * GAIN)
+                    for (a in apL)   rev  = a.process(rev)
+                    outFB.put(inS + rev * wet)
+                }
             }
         } else {
-            for (f in 0 until frames) {
-                val inS = inFB.get()
-                var rev = 0f
-                for (c in combL) rev += c.process(inS * GAIN)
-                for (a in apL)   rev  = a.process(rev)
-                outFB.put(inS + rev * wet)
+            // ── PCM_16BIT path ────────────────────────────────────────────────
+            val inSB   = inputBuffer.asShortBuffer()
+            val outSB  = outputBuffer.asShortBuffer()
+            val frames = remaining / (2 * channelCount)
+
+            if (channelCount >= 2) {
+                for (f in 0 until frames) {
+                    val inL = inSB.get() / 32768f
+                    val inR = inSB.get() / 32768f
+                    var revL = 0f; var revR = 0f
+                    for (c in combL) revL += c.process(inL * GAIN)
+                    for (c in combR) revR += c.process(inR * GAIN)
+                    for (a in apL)   revL  = a.process(revL)
+                    for (a in apR)   revR  = a.process(revR)
+                    outSB.put(((inL + revL * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
+                    outSB.put(((inR + revR * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
+                    repeat(channelCount - 2) { outSB.put(inSB.get()) }
+                }
+            } else {
+                for (f in 0 until frames) {
+                    val inS = inSB.get() / 32768f
+                    var rev = 0f
+                    for (c in combL) rev += c.process(inS * GAIN)
+                    for (a in apL)   rev  = a.process(rev)
+                    outSB.put(((inS + rev * wet) * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
+                }
             }
         }
 

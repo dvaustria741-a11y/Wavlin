@@ -159,7 +159,7 @@ object DolbyAtmosManager {
                 updatedDiag.capability != DolbyAtmosCapability.UNSUPPORTED &&
                 updatedDiag.capability != DolbyAtmosCapability.DISABLED
             _isAtmosActive.value = active
-            applyVirtualizerState(active)
+            applyVirtualizerState(isPreferred)
         }
     }
 
@@ -188,7 +188,7 @@ object DolbyAtmosManager {
             currentDiag.capability != DolbyAtmosCapability.UNSUPPORTED &&
             currentDiag.capability != DolbyAtmosCapability.DISABLED
         _isAtmosActive.value = active
-        applyVirtualizerState(active)
+        applyVirtualizerState(isPreferred)
         _liveDiagnostics.value = currentDiag.copy(
             activeMimeType = mimeType,
             channelCount = channelCount,
@@ -205,8 +205,9 @@ object DolbyAtmosManager {
     private var attachedSessionId: Int = 0
 
     /**
-     * Binds the spatial (Virtualizer) effect to the player's audio session. It is only switched on while
-     * Dolby Atmos is active, so nothing changes for people who leave the toggle off.
+     * Binds the spatial (Virtualizer) effect to the player's audio session. It follows the user's toggle,
+     * not the stream codec: YouTube Music never delivers E-AC-3 JOC/AC-4, so gating on the stream meant
+     * the effect could never turn on. The Atmos badge (isAtmosActive) still only shows for real Atmos streams.
      */
     @Synchronized
     fun attachSession(sessionId: Int) {
@@ -216,8 +217,9 @@ object DolbyAtmosManager {
         try {
             virtualizer = Virtualizer(0, sessionId).apply {
                 if (strengthSupported) setStrength(1000.toShort())
-                enabled = _isAtmosActive.value
+                enabled = _isAtmosEnabledByUser.value
             }
+            Log.i(TAG, "Virtualizer attached to session $sessionId, strengthSupported=${virtualizer?.strengthSupported}, enabled=${virtualizer?.enabled}")
         } catch (e: Exception) {
             Log.w(TAG, "Virtualizer unavailable for session $sessionId", e)
             virtualizer = null

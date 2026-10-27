@@ -1146,4 +1146,8 @@
     <string name="account_good_morning">Good morning</string>
     <string name="account_good_afternoon">Good afternoon</string>
     <string name="account_good_evening">Good evening</string>
+    <string name="connected_accounts">Connected accounts</string>
+    <string name="sign_in">Sign in</string>
+    <string name="account_not_logged_in">Not logged in</string>
+    <string name="youtube_music">YouTube Music</string>
 </resources>

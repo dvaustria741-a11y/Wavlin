@@ -117,7 +117,6 @@ fun AccountSettings(
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showLoginPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -126,60 +125,7 @@ fun AccountSettings(
             .padding(if (compact) 12.dp else 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        if (compact) {
-            val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                androidx.compose.foundation.layout.Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoggedIn && accountImageUrl != null) {
-                        AsyncImage(
-                            model = accountImageUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.person),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isLoggedIn && accountName.isNotBlank()) accountName else stringResource(R.string.account_guest),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = stringResource(
-                            when {
-                                hour < 12 -> R.string.account_good_morning
-                                hour < 18 -> R.string.account_good_afternoon
-                                else -> R.string.account_good_evening
-                            }
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        } else {
+        if (!compact) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,63 +195,6 @@ fun AccountSettings(
                         }
                     ) {
                         Text(stringResource(R.string.logout_keep))
-                    }
-                }
-            )
-        }
-
-        if (showLoginPicker) {
-            DefaultDialog(
-                onDismiss = { showLoginPicker = false },
-                title = { Text(stringResource(R.string.login_choose_service)) },
-                content = {
-                    LoginServiceRow(
-                        icon = painterResource(R.drawable.ic_youtube_music),
-                        tint = Color(0xFFFF0000),
-                        name = "YouTube Music",
-                        connected = isLoggedIn,
-                        status =
-                            if (isLoggedIn) {
-                                listOf(stringResource(R.string.spotify_connected), accountName).filter { it.isNotBlank() }.joinToString(" · ")
-                            } else {
-                                stringResource(R.string.spotify_not_connected)
-                            },
-                        actionLabel = if (isLoggedIn) stringResource(R.string.action_logout) else null,
-                        onAction = {
-                            showLoginPicker = false
-                            showLogoutDialog = true
-                        },
-                        onClick = {
-                            showLoginPicker = false
-                            onClose()
-                            navController.navigate(if (isLoggedIn) "account" else "login")
-                        }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LoginServiceRow(
-                        icon = painterResource(R.drawable.ic_spotify_logo),
-                        tint = Color(0xFF1DB954),
-                        name = stringResource(R.string.spotify),
-                        connected = spotifyConnected,
-                        status =
-                            when {
-                                spotifyConnected ->
-                                    listOf(stringResource(R.string.spotify_connected), spotifyName).filter { it.isNotBlank() }.joinToString(" · ")
-                                spotifyState == SpotifyAuthState.LOADING -> stringResource(R.string.spotify_connecting)
-                                else -> stringResource(R.string.spotify_not_connected)
-                            },
-                        actionLabel = if (spotifyConnected) stringResource(R.string.action_logout) else null,
-                        onAction = { spotifyViewModel.logout() },
-                        onClick = {
-                            showLoginPicker = false
-                            onClose()
-                            navController.navigate(if (spotifyConnected) "settings/integrations/spotify" else "spotify_signin")
-                        }
-                    )
-                },
-                buttons = {
-                    TextButton(onClick = { showLoginPicker = false }) {
-                        Text(stringResource(android.R.string.cancel))
                     }
                 }
             )
@@ -401,7 +290,10 @@ fun AccountSettings(
             icon = if (!isLoggedIn) {
                 { Icon(painterResource(R.drawable.login), null) }
             } else null,
-            onClick = { showLoginPicker = true },
+            onClick = {
+                onClose()
+                navController.navigate("accounts")
+            },
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -423,55 +315,6 @@ fun AccountSettings(
 
             Spacer(Modifier.height(4.dp))
         }
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.more_content)) },
-            icon = { Icon(painterResource(R.drawable.cached), null) },
-            trailingContent = {
-                Switch(
-                    enabled = isLoggedIn,
-                    checked = useLoginForBrowse,
-                    onCheckedChange = {
-                        YouTube.useLoginForBrowse = it
-                        onUseLoginForBrowseChange(it)
-                    },
-                    thumbContent = {
-                        Icon(
-                            painter = painterResource(
-                                id = if (useLoginForBrowse) R.drawable.check else R.drawable.close
-                            ),
-                            contentDescription = null,
-                            modifier = Modifier.size(SwitchDefaults.IconSize)
-                        )
-                    }
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.yt_sync)) },
-            icon = { Icon(painterResource(R.drawable.cached), null) },
-            trailingContent = {
-                Switch(
-                    enabled = isLoggedIn,
-                    checked = ytmSync,
-                    onCheckedChange = onYtmSyncChange,
-                    thumbContent = {
-                        Icon(
-                            painter = painterResource(
-                                id = if (ytmSync) R.drawable.check else R.drawable.close
-                            ),
-                            contentDescription = null,
-                            modifier = Modifier.size(SwitchDefaults.IconSize)
-                        )
-                    }
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
 
         Spacer(Modifier.height(12.dp))
 
@@ -539,53 +382,6 @@ fun AccountSettings(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun LoginServiceRow(
-    icon: androidx.compose.ui.graphics.painter.Painter,
-    tint: Color,
-    name: String,
-    status: String,
-    connected: Boolean,
-    actionLabel: String?,
-    onAction: () -> Unit,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = status,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (connected) Color(0xFF2E9E5B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        }
-        if (actionLabel != null) {
-            TextButton(onClick = onAction) { Text(actionLabel) }
         }
     }
 }

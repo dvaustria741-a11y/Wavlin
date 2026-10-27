@@ -104,7 +104,7 @@ fun PlayerMenuNowPlayingCard(
                             stringResource(R.string.now_playing)
                         },
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -132,7 +132,7 @@ fun PlayerMenuNowPlayingCard(
             Text(
                 text = "${(volume * 100).roundToInt()}%",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         Spacer(Modifier.height(4.dp))
@@ -140,7 +140,7 @@ fun PlayerMenuNowPlayingCard(
             value = volume,
             onValueChange = onVolumeChange,
             modifier = Modifier.fillMaxWidth(),
-            accentColor = MaterialTheme.colorScheme.primary,
+            accentColor = MaterialTheme.colorScheme.onSurface,
             compact = true,
         )
     }
@@ -186,7 +186,7 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
                     Icon(
                         painter = painterResource(action.iconRes),
                         contentDescription = null,
-                        tint = if (appleMenu()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -235,6 +235,23 @@ fun PlayerMenuRowCard(
     }
 }
 
+/** White switch so the menu never picks up the dynamic accent colour. */
+@Composable
+private fun menuSwitchColors() =
+    if (LocalPinkLilyTheme.current) {
+        androidx.compose.material3.SwitchDefaults.colors()
+    } else {
+        val onSurface = MaterialTheme.colorScheme.onSurface
+        androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.surface,
+            checkedTrackColor = onSurface.copy(alpha = 0.92f),
+            checkedBorderColor = Color.Transparent,
+            uncheckedThumbColor = onSurface.copy(alpha = 0.65f),
+            uncheckedTrackColor = onSurface.copy(alpha = 0.14f),
+            uncheckedBorderColor = Color.Transparent,
+        )
+    }
+
 /** Player theme picker and Dolby Atmos switch. */
 @Composable
 fun PlayerMenuSettingsCard() {
@@ -256,7 +273,7 @@ fun PlayerMenuSettingsCard() {
             Icon(
                 painter = painterResource(R.drawable.palette),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(12.dp))
@@ -281,9 +298,9 @@ fun PlayerMenuSettingsCard() {
                             .background(
                                 when {
                                     selected && LocalPinkLilyTheme.current -> PinkSwoosh.copy(alpha = 0.45f)
-                                    selected -> MaterialTheme.colorScheme.primaryContainer
+                                    selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
                                     LocalPinkLilyTheme.current -> Color.White.copy(alpha = 0.35f)
-                                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 },
                             ).clickable { onPlayerBackgroundChange(style) },
                 ) {
@@ -331,7 +348,7 @@ private fun SettingSwitchRow(
         Icon(
             painter = painterResource(iconRes),
             contentDescription = null,
-            tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.width(14.dp))
@@ -344,7 +361,12 @@ private fun SettingSwitchRow(
             )
         }
         Spacer(Modifier.width(12.dp))
-        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            colors = menuSwitchColors(),
+        )
     }
 }
 

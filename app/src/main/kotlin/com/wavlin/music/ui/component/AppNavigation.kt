@@ -302,8 +302,8 @@ fun AppNavigationBar(
 
 
 /**
- * Apple Music style: a floating glass capsule with the tabs and a separate round Search
- * button, instead of the full-width Material 3 navigation bar.
+ * Apple Music style: a single floating glass capsule holding every tab (Home, Search, Library)
+ * as an equal item, instead of the full-width Material 3 navigation bar.
  */
 @OptIn(ExperimentalHazeMaterialsApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -316,14 +316,10 @@ private fun AppleFloatingTabBar(
     onSearchLongClick: (() -> Unit)?,
 ) {
     val barHeight: Dp = if (slimNav) 52.dp else 60.dp
-    val tabs = navigationItems.filter { it != Screens.Search }
-    val search = navigationItems.firstOrNull { it == Screens.Search }
     val haptics = LocalHapticFeedback.current
 
     Row(
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
     ) {
         Row(
             modifier = Modifier
@@ -332,15 +328,24 @@ private fun AppleFloatingTabBar(
                 .appleGlass(CircleShape, HazeMaterials.thin())
                 .padding(6.dp),
         ) {
-            tabs.forEach { screen ->
+            navigationItems.forEach { screen ->
                 val selected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                val longClick = if (screen == Screens.Search) onSearchLongClick else null
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(CircleShape)
                         .background(if (selected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f) else Color.Transparent)
-                        .clickable { onItemClick(screen, selected) },
+                        .combinedClickable(
+                            onClick = { onItemClick(screen, selected) },
+                            onLongClick = longClick?.let { cb ->
+                                {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    cb()
+                                }
+                            },
+                        ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -360,33 +365,6 @@ private fun AppleFloatingTabBar(
                         )
                     }
                 }
-            }
-        }
-
-        if (search != null) {
-            val selected = isRouteSelected(currentRoute, search.route, navigationItems)
-            Box(
-                modifier = Modifier
-                    .size(barHeight)
-                    .appleGlass(CircleShape, HazeMaterials.thin())
-                    .clip(CircleShape)
-                    .combinedClickable(
-                        onClick = { onItemClick(search, selected) },
-                        onLongClick = onSearchLongClick?.let { cb ->
-                            {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                cb()
-                            }
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(id = if (selected) search.iconIdActive else search.iconIdInactive),
-                    contentDescription = stringResource(search.titleId),
-                    modifier = Modifier.size(24.dp),
-                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
             }
         }
     }

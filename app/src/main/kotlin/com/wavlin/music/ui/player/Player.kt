@@ -241,6 +241,7 @@ fun BottomSheetPlayer(
             UseNewPlayerDesignKey,
             defaultValue = true,
         )
+    val appleMusicPlayer = LocalInterfaceAppleMusic.current && !LocalPinkNowPlaying.current
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val (hideStatusBarOnFullscreen) = rememberPreference(HideStatusBarOnFullscreenKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
@@ -1255,20 +1256,28 @@ fun BottomSheetPlayer(
 
                 if (useNewPlayerDesign) {
                     val shareShape =
-                        RoundedCornerShape(
-                            topStart = 50.dp,
-                            bottomStart = 50.dp,
-                            topEnd = 3.dp,
-                            bottomEnd = 3.dp,
-                        )
+                        if (appleMusicPlayer) {
+                            CircleShape
+                        } else {
+                            RoundedCornerShape(
+                                topStart = 50.dp,
+                                bottomStart = 50.dp,
+                                topEnd = 3.dp,
+                                bottomEnd = 3.dp,
+                            )
+                        }
 
                     val favShape =
-                        RoundedCornerShape(
-                            topStart = 3.dp,
-                            bottomStart = 3.dp,
-                            topEnd = 50.dp,
-                            bottomEnd = 50.dp,
-                        )
+                        if (appleMusicPlayer) {
+                            CircleShape
+                        } else {
+                            RoundedCornerShape(
+                                topStart = 3.dp,
+                                bottomStart = 3.dp,
+                                topEnd = 50.dp,
+                                bottomEnd = 50.dp,
+                            )
+                        }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1519,12 +1528,12 @@ fun BottomSheetPlayer(
                 val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = if (appleMusicPlayer) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
+                            .let { if (appleMusicPlayer) it else it.horizontalScroll(rememberScrollState()) }
                             .padding(horizontal = PlayerHorizontalPadding),
                 ) {
                     PlayerChip(
@@ -1853,18 +1862,19 @@ fun BottomSheetPlayer(
                                 interactionSource = backInteractionSource,
                                 colors =
                                     IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = sideButtonContainerColor,
-                                        contentColor = sideButtonContentColor,
+                                        containerColor = if (appleMusicPlayer) Color.Transparent else sideButtonContainerColor,
+                                        contentColor = if (appleMusicPlayer) TextBackgroundColor else sideButtonContentColor,
+                                        disabledContainerColor = Color.Transparent,
                                     ),
                                 modifier =
                                     Modifier
-                                        .height(68.dp)
-                                        .weight(backButtonWeight),
+                                        .height(if (appleMusicPlayer) 80.dp else 68.dp)
+                                        .weight(if (appleMusicPlayer) 1f else backButtonWeight),
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
                                     contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(if (appleMusicPlayer) 44.dp else 32.dp),
                                 )
                             }
 
@@ -1893,13 +1903,13 @@ fun BottomSheetPlayer(
                                 interactionSource = playPauseInteractionSource,
                                 colors =
                                     IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = textButtonColor,
-                                        contentColor = iconButtonColor,
+                                        containerColor = if (appleMusicPlayer) Color.Transparent else textButtonColor,
+                                        contentColor = if (appleMusicPlayer) TextBackgroundColor else iconButtonColor,
                                     ),
                                 modifier =
                                     Modifier
-                                        .height(68.dp)
-                                        .weight(playPauseWeight)
+                                        .height(if (appleMusicPlayer) 80.dp else 68.dp)
+                                        .weight(if (appleMusicPlayer) 1f else playPauseWeight)
                                         .focusRequester(focusRequester),
                             ) {
                                 Row(
@@ -1921,8 +1931,9 @@ fun BottomSheetPlayer(
                                             } else {
                                                 if (effectiveIsPlaying) stringResource(R.string.pause) else stringResource(R.string.play)
                                             },
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(if (appleMusicPlayer) 64.dp else 32.dp),
                                     )
+                                    if (appleMusicPlayer) return@Row
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text =
@@ -1945,18 +1956,19 @@ fun BottomSheetPlayer(
                                 interactionSource = nextInteractionSource,
                                 colors =
                                     IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = sideButtonContainerColor,
-                                        contentColor = sideButtonContentColor,
+                                        containerColor = if (appleMusicPlayer) Color.Transparent else sideButtonContainerColor,
+                                        contentColor = if (appleMusicPlayer) TextBackgroundColor else sideButtonContentColor,
+                                        disabledContainerColor = Color.Transparent,
                                     ),
                                 modifier =
                                     Modifier
-                                        .height(68.dp)
-                                        .weight(nextButtonWeight),
+                                        .height(if (appleMusicPlayer) 80.dp else 68.dp)
+                                        .weight(if (appleMusicPlayer) 1f else nextButtonWeight),
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
                                     contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(if (appleMusicPlayer) 44.dp else 32.dp),
                                 )
                             }
                         }
@@ -2509,6 +2521,27 @@ private fun PlayerChip(
     enabled: Boolean = true,
 ) {
     val contentColor = if (isActive) iconButtonColor else textColor
+    if (LocalInterfaceAppleMusic.current && !LocalPinkNowPlaying.current) {
+        // Apple Music: icon-only round buttons instead of labelled chips.
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier =
+                Modifier
+                    .size(44.dp)
+                    .alpha(if (enabled) 1f else 0.4f)
+                    .clip(CircleShape)
+                    .background(if (isActive) textButtonColor else textColor.copy(alpha = 0.12f))
+                    .clickable(enabled = enabled, onClick = onClick),
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = label,
+                tint = contentColor,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

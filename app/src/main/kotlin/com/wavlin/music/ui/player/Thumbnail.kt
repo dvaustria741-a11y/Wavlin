@@ -581,7 +581,7 @@ private fun ThumbnailItem(
         Box(
             modifier = Modifier
                 .size(if (pinkFrame) side * 0.9f else side)
-                .clip(RoundedCornerShape(if (pinkFrame) 18.dp else dimensions.cornerRadius))
+                .clip(RoundedCornerShape(if (pinkFrame) 18.dp else if (com.wavlin.music.ui.component.LocalInterfaceAppleMusic.current) 14.dp else dimensions.cornerRadius))
         ) {
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)

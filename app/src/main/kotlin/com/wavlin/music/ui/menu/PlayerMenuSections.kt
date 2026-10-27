@@ -1,5 +1,6 @@
 package com.wavlin.music.ui.menu
 
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,14 @@ import com.wavlin.music.utils.rememberEnumPreference
 import kotlin.math.roundToInt
 
 private val CardShape = RoundedCornerShape(28.dp)
+private val AppleCardShape = RoundedCornerShape(18.dp)
+
+/** Apple Music style: tighter cards, neutral translucent fill and trailing icons. */
+@Composable
+private fun appleMenu(): Boolean = LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current
+
+@Composable
+private fun cardShape(): RoundedCornerShape = if (appleMenu()) AppleCardShape else CardShape
 
 /** Card surface: tonal container normally, frosted rose glass in the Secret Pink theme. */
 @Composable
@@ -56,6 +65,8 @@ private fun Modifier.menuCard(): Modifier =
         this
             .background(Color.White.copy(alpha = 0.42f), CardShape)
             .border(1.dp, PinkSwoosh.copy(alpha = 0.6f), CardShape)
+    } else if (LocalInterfaceAppleMusic.current) {
+        this.background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
     } else {
         this.background(MaterialTheme.colorScheme.surfaceContainer)
     }
@@ -72,7 +83,7 @@ fun PlayerMenuNowPlayingCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CardShape)
+                .clip(cardShape())
                 .menuCard()
                 .padding(16.dp),
     ) {
@@ -150,7 +161,7 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CardShape)
+                .clip(cardShape())
                 .menuCard()
                 .padding(8.dp),
     ) {
@@ -166,12 +177,16 @@ fun PlayerMenuQuickActions(actions: List<PlayerQuickAction>) {
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(42.dp).clip(CircleShape).background(action.circleColor),
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (appleMenu()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f) else action.circleColor),
                 ) {
                     Icon(
                         painter = painterResource(action.iconRes),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        tint = if (appleMenu()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -199,14 +214,24 @@ fun PlayerMenuRowCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CardShape)
+                .clip(cardShape())
                 .menuCard()
                 .clickable(onClick = onClick)
                 .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
-        Icon(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(16.dp))
-        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (appleMenu()) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Normal,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(22.dp))
+        } else {
+            Icon(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(16.dp))
+            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -223,7 +248,7 @@ fun PlayerMenuSettingsCard() {
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CardShape)
+                .clip(cardShape())
                 .menuCard()
                 .padding(16.dp),
     ) {
@@ -331,7 +356,7 @@ fun PlayerMenuListCard(items: List<com.wavlin.music.ui.component.Material3MenuIt
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(CardShape)
+                .clip(cardShape())
                 .menuCard(),
     ) {
         items.forEachIndexed { index, item ->
@@ -349,12 +374,17 @@ fun PlayerMenuListCard(items: List<com.wavlin.music.ui.component.Material3MenuIt
                         .clickable(enabled = item.onClick != null) { item.onClick?.invoke() }
                         .padding(horizontal = 20.dp, vertical = 12.dp),
             ) {
-                item.icon?.let {
-                    Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) { it() }
-                    Spacer(Modifier.width(16.dp))
+                val appleRows = appleMenu()
+                if (!appleRows) {
+                    item.icon?.let {
+                        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) { it() }
+                        Spacer(Modifier.width(16.dp))
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)) {
+                    androidx.compose.material3.ProvideTextStyle(
+                        MaterialTheme.typography.titleSmall.copy(fontWeight = if (appleRows) FontWeight.Normal else FontWeight.SemiBold),
+                    ) {
                         item.title()
                     }
                     item.description?.let { desc ->
@@ -366,6 +396,12 @@ fun PlayerMenuListCard(items: List<com.wavlin.music.ui.component.Material3MenuIt
                 item.trailingContent?.let {
                     Spacer(Modifier.width(8.dp))
                     it()
+                }
+                if (appleRows) {
+                    item.icon?.let {
+                        Spacer(Modifier.width(16.dp))
+                        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) { it() }
+                    }
                 }
             }
         }

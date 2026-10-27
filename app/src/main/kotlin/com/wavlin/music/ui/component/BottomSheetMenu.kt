@@ -163,7 +163,8 @@ fun BottomSheetMenu(
     // The share sheet is only as tall as its card + buttons: the sheet itself stays full height (so its size never
     // depends on late-measured content) and the content sits at the bottom of it.
     val wrapContent = state.expandFully
-    val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else 28.dp, topEnd = if (pinkLily) 30.dp else 28.dp)
+    val appleSheet = LocalInterfaceAppleMusic.current && !pinkLily
+    val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else if (appleSheet) 22.dp else 28.dp, topEnd = if (pinkLily) 30.dp else if (appleSheet) 22.dp else 28.dp)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,

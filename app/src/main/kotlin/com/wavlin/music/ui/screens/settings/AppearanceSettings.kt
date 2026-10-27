@@ -61,6 +61,7 @@ import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.R
 import com.wavlin.music.constants.ChipSortTypeKey
 import com.wavlin.music.constants.CropAlbumArtKey
+import com.wavlin.music.constants.VideoCanvasEnabledKey
 import com.wavlin.music.constants.DefaultOpenTabKey
 import com.wavlin.music.constants.DensityScale
 import com.wavlin.music.constants.DensityScaleKey
@@ -181,6 +182,8 @@ fun AppearanceSettings(
             HidePlayerThumbnailKey,
             defaultValue = false,
         )
+    val (videoCanvasEnabled, onVideoCanvasEnabledChange) =
+        rememberPreference(VideoCanvasEnabledKey, defaultValue = true)
     val (cropAlbumArt, onCropAlbumArtChange) =
         rememberPreference(
             CropAlbumArtKey,
@@ -1261,6 +1264,27 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onCropAlbumArtChange(!cropAlbumArt) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.movie),
+                        title = { Text(stringResource(R.string.video_canvas)) },
+                        description = { Text(stringResource(R.string.video_canvas_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = videoCanvasEnabled,
+                                onCheckedChange = onVideoCanvasEnabledChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (videoCanvasEnabled) R.drawable.check else R.drawable.close,
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onVideoCanvasEnabledChange(!videoCanvasEnabled) },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),

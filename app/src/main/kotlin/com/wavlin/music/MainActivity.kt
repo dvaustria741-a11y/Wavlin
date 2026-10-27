@@ -1025,8 +1025,14 @@ class MainActivity : ComponentActivity() {
                     drawContent()
                 }
 
+                val playerGlassBackdrop = rememberLayerBackdrop {
+                    drawRect(Color.Black)
+                    drawContent()
+                }
+
                 CompositionLocalProvider(
                     LocalInterfaceAppleMusic provides appleStyle,
+                    com.wavlin.music.ui.component.LocalPlayerGlassBackdrop provides (if (appleStyle && appleGlassSupported()) playerGlassBackdrop else null),
                     LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported()) glassBackdrop else null),
                     LocalDatabase provides database,
                     LocalNavController provides navController,

@@ -34,6 +34,9 @@ val LocalInterfaceAppleMusic = staticCompositionLocalOf { false }
 /** Source layer that sibling glass surfaces refract. Null unless Apple Music style is on and supported. */
 val LocalGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
+/** Source layer for glass drawn on top of the expanded player (its blurred artwork background). Null unless Apple style is on. */
+val LocalPlayerGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
 /** Lens refraction runs on a RuntimeShader (AGSL), which needs Android 13+. Older devices fall back to Haze. */
 fun appleGlassSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
@@ -48,8 +51,8 @@ fun Modifier.appleGlass(
     fallbackStyle: HazeStyle? = null,
     /** Dark/light tint laid over the glass. Big surfaces (dialogs) pass a higher value so text stays readable. */
     tintAlpha: Float? = null,
+    backdrop: LayerBackdrop? = LocalGlassBackdrop.current,
 ): Modifier {
-    val backdrop = LocalGlassBackdrop.current
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val tint = tintAlpha ?: if (isDark) 0.22f else 0.28f
     if (backdrop == null || !appleGlassSupported()) {

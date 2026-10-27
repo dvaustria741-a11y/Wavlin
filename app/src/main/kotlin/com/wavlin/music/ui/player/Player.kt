@@ -6,6 +6,8 @@
 package com.wavlin.music.ui.player
 
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.activity.compose.BackHandler
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -917,10 +919,12 @@ fun BottomSheetPlayer(
         state = state,
         modifier = modifier,
         background = {
+            val playerGlassBackdrop = com.wavlin.music.ui.component.LocalPlayerGlassBackdrop.current
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .then(if (playerGlassBackdrop != null) Modifier.layerBackdrop(playerGlassBackdrop) else Modifier)
                         .background(bottomSheetBackgroundColor),
             ) {
                 if (LocalPinkNowPlaying.current) {
@@ -1063,6 +1067,10 @@ fun BottomSheetPlayer(
             )
         },
     ) {
+        CompositionLocalProvider(
+            com.wavlin.music.ui.component.LocalGlassBackdrop provides
+                (com.wavlin.music.ui.component.LocalPlayerGlassBackdrop.current ?: com.wavlin.music.ui.component.LocalGlassBackdrop.current),
+        ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
@@ -2338,6 +2346,8 @@ fun BottomSheetPlayer(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        }
+    
         }
     }
 }

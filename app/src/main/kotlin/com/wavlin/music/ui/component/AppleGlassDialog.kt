@@ -10,7 +10,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.wavlin.music.LocalNavController
 import com.wavlin.music.ui.screens.settings.AccountSettings
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
@@ -81,6 +92,83 @@ fun AppleGlassAccountOverlay(
                     onClose = onDismiss,
                     latestVersionName = latestVersionName,
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Apple Music style player menu (the 3-dots sheet).
+ *
+ * Same idea as [AppleGlassAccountOverlay]: a ModalBottomSheet is its own window and cannot sample anything,
+ * so this sheet is drawn in the main composition, above the expanded player, and refracts [backdrop]
+ * (the player's blurred artwork background).
+ */
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun AppleGlassMenuSheet(
+    state: MenuState,
+    backdrop: LayerBackdrop,
+) {
+    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    BackHandler(enabled = state.isVisible) { state.dismiss() }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = state.isVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { state.dismiss() },
+                    ),
+            )
+        }
+        AnimatedVisibility(
+            visible = state.isVisible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(state.heightFraction)
+                    .clip(shape)
+                    .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.4f, backdrop = backdrop)
+                    .border(1.dp, glassStrokeBrush(), shape)
+                    // Swallow taps so they don't reach the dismiss scrim.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 12.dp)
+                        .size(width = 40.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)),
+                )
+                // Content must not try to glass itself against the screen backdrop.
+                CompositionLocalProvider(LocalGlassBackdrop provides null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .navigationBarsPadding(),
+                    ) {
+                        state.content(this)
+                    }
+                }
             }
         }
     }

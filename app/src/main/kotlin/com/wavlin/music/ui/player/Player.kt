@@ -961,21 +961,23 @@ fun BottomSheetPlayer(
                         ) { thumbnailUrl ->
                             if (thumbnailUrl != null) {
                                 Box(modifier = Modifier.alpha(backgroundAlpha)) {
-                                    AsyncImage(
-                                        model =
-                                            ImageRequest
-                                                .Builder(context)
-                                                .data(thumbnailUrl)
-                                                .size(100, 100)
-                                                .allowHardware(false)
-                                                .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .blur(if (useDarkTheme) 150.dp else 100.dp),
-                                    )
+                                    com.wavlin.music.ui.component.DownscaledBlurBox(
+                                        radius = if (useDarkTheme) 150.dp else 100.dp,
+                                        modifier = Modifier.fillMaxSize(),
+                                    ) {
+                                        AsyncImage(
+                                            model =
+                                                ImageRequest
+                                                    .Builder(context)
+                                                    .data(thumbnailUrl)
+                                                    .size(100, 100)
+                                                    .allowHardware(false)
+                                                    .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                     Box(
                                         modifier =
                                             Modifier

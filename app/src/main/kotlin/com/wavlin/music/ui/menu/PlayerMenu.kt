@@ -124,7 +124,7 @@ fun PlayerMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val playerVolume = playerConnection.service.playerVolume.collectAsStateWithLifecycle()
+    val systemVolume = rememberSystemVolume()
 
     // Cast state for volume control - safely access castConnectionHandler to prevent crashes
     val castHandler =
@@ -303,12 +303,12 @@ fun PlayerMenu(
                 if (isQueueTrigger != true) {
                     PlayerMenuNowPlayingCard(
                         mediaMetadata = mediaMetadata,
-                        volumeProvider = { if (isCasting) castVolume else playerVolume.value },
+                        volumeProvider = { if (isCasting) castVolume else systemVolume.volume },
                         onVolumeChange = { volume ->
                             if (isCasting) {
                                 castHandler?.setVolume(volume)
                             } else {
-                                playerConnection.service.playerVolume.value = volume
+                                systemVolume.set(volume)
                             }
                         },
                         castDeviceName = if (isCasting) castDeviceName else null,

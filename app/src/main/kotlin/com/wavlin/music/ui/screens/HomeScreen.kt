@@ -223,7 +223,8 @@ fun CommunityPlaylistCard(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         }
 
-    val dbPlaylist by database.playlistByBrowseId(item.playlist.id).collectAsStateWithLifecycle(initialValue = null)
+    val dbPlaylistFlow = remember(item.playlist.id) { database.playlistByBrowseId(item.playlist.id) }
+    val dbPlaylist by dbPlaylistFlow.collectAsStateWithLifecycle(initialValue = null)
     val isBookmarked = dbPlaylist?.playlist?.bookmarkedAt != null
 
     Card(
@@ -503,7 +504,8 @@ fun DailyDiscoverCard(
 ) {
     val navController = LocalNavController.current
     val database = LocalDatabase.current
-    val playCount by database.getLifetimePlayCount(dailyDiscover.recommendation.id).collectAsStateWithLifecycle(initialValue = 0)
+    val playCountFlow = remember(dailyDiscover.recommendation.id) { database.getLifetimePlayCount(dailyDiscover.recommendation.id) }
+    val playCount by playCountFlow.collectAsStateWithLifecycle(initialValue = 0)
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
 
@@ -1183,6 +1185,10 @@ fun HomeScreen(
                     )
                 }
 
+            val quickPicksDistinct = remember(quickPicks) { quickPicks.distinctBy { it.id } }
+            val forgottenFavoritesDistinct = remember(forgottenFavorites) { forgottenFavorites.distinctBy { it.id } }
+            val keepListeningDistinct = remember(keepListening) { keepListening.distinctBy { it.id } }
+
             LazyColumn(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -1546,10 +1552,8 @@ fun HomeScreen(
                                                                 }
                                                             } else if (itemIndex < pageItems.size) {
                                                                 val item = pageItems[itemIndex]
-                                                                val isPinned by database.speedDialDao
-                                                                    .isPinned(
-                                                                        item.id,
-                                                                    ).collectAsStateWithLifecycle(initialValue = false)
+                                                                val isPinnedFlow = remember(item.id) { database.speedDialDao.isPinned(item.id) }
+                                                                val isPinned by isPinnedFlow.collectAsStateWithLifecycle(initialValue = false)
 
                                                                 Box(
                                                                     modifier =
@@ -1773,13 +1777,12 @@ fun HomeScreen(
                                                 .height(ListItemHeight * 4),
                                         ) {
                                             items(
-                                                items = quickPicks.distinctBy { it.id },
+                                                items = quickPicksDistinct,
                                                 key = { "home_quickpick_${it.id}" },
                                             ) { originalSong ->
                                             // fetch song from database to keep updated
-                                            val song by database
-                                                .song(originalSong.id)
-                                                .collectAsStateWithLifecycle(initialValue = originalSong)
+                                            val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
+                                            val song by songFlow.collectAsStateWithLifecycle(initialValue = originalSong)
 
                                             SongListItem(
                                                 song = song!!,
@@ -1990,7 +1993,7 @@ fun HomeScreen(
                                                     ) * rows,
                                                 ),
                                     ) {
-                                        items(keepListening.distinctBy { it.id }, key = { "home_keep_listening_${it.id}" }) {
+                                        items(keepListeningDistinct, key = { "home_keep_listening_${it.id}" }) {
                                             localGridItem(it)
                                         }
                                     }
@@ -2098,12 +2101,11 @@ fun HomeScreen(
                                                 .height(ListItemHeight * rows),
                                         ) {
                                             items(
-                                                items = forgottenFavorites.distinctBy { it.id },
+                                                items = forgottenFavoritesDistinct,
                                                 key = { "home_forgotten_${it.id}" },
                                             ) { originalSong ->
-                                            val song by database
-                                                .song(originalSong.id)
-                                                .collectAsStateWithLifecycle(initialValue = originalSong)
+                                            val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
+                                            val song by songFlow.collectAsStateWithLifecycle(initialValue = originalSong)
 
                                             SongListItem(
                                                 song = song!!,

@@ -1512,11 +1512,10 @@ class MainActivity : ComponentActivity() {
                             homeViewModel.refresh()
                         }
                         if (!pinkWallpaper) {
-                            // Small popover anchored top-right in both styles; real liquid glass only in Apple Music style.
+                            // Small glass popover anchored top-right in both styles (blur fallback when there is no layer backdrop).
                             com.wavlin.music.ui.component.AppleGlassAccountOverlay(
                                 onDismiss = dismissAccount,
                                 latestVersionName = latestVersionName,
-                                glass = appleStyle && appleGlassSupported() && !webViewRoute,
                             )
                         } else {
                             AccountSettingsDialog(

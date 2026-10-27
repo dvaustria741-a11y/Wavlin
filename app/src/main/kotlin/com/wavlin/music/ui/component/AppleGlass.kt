@@ -9,6 +9,7 @@
 package com.wavlin.music.ui.component
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import com.wavlin.music.constants.ThumbnailCornerRadius
@@ -47,10 +48,13 @@ fun Modifier.appleGlass(
     fallbackStyle: HazeStyle? = null,
 ): Modifier {
     val backdrop = LocalGlassBackdrop.current
-    if (backdrop == null || !appleGlassSupported()) {
-        return this.glassPanel(shape = shape, style = fallbackStyle)
-    }
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    if (backdrop == null || !appleGlassSupported()) {
+        // No sampleable backdrop (inside screen content, or pre-Android 13): Haze blur with the same tint.
+        return this
+            .legacyGlassPanel(shape = shape, style = fallbackStyle)
+            .background((if (isDark) Color.Black else Color.White).copy(alpha = if (isDark) 0.22f else 0.28f), shape)
+    }
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },

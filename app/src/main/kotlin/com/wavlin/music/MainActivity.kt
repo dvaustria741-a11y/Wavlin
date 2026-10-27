@@ -1358,6 +1358,8 @@ class MainActivity : ComponentActivity() {
                                     },
                                 ),
                         ) {
+                            // Glass inside the screens can't sample the layer it is drawn into, so use the lite look there.
+                            CompositionLocalProvider(LocalGlassBackdrop provides null) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->
@@ -1460,6 +1462,7 @@ class MainActivity : ComponentActivity() {
                                         snackbarHostState = snackbarHostState,
                                     )
                                 }
+                            }
                             }
                         }
                     }

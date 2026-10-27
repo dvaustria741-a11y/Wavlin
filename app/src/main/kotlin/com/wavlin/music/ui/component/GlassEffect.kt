@@ -106,8 +106,23 @@ fun glassStrokeBrush(): Brush = Brush.linearGradient(
  * via the shared [LocalHazeState] - plus a subtle glowing glass-edge stroke around the
  * given [shape]. Use on floating surfaces such as the mini-player, nav bar, or FABs.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
 fun Modifier.glassPanel(
+    shape: Shape = RoundedCornerShape(32.dp),
+    style: HazeStyle? = null,
+    strokeWidth: Dp = 1.dp,
+    drawStroke: Boolean = true,
+): Modifier =
+    if (LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current) {
+        // Apple Music style: every glass surface uses the shared liquid-glass backdrop.
+        this.appleGlass(shape, style)
+    } else {
+        this.legacyGlassPanel(shape, style, strokeWidth, drawStroke)
+    }
+
+/** The original Haze-based glass. Also the fallback for [appleGlass] when the backdrop is unavailable. */
+@OptIn(ExperimentalHazeMaterialsApi::class)
+fun Modifier.legacyGlassPanel(
     shape: Shape = RoundedCornerShape(32.dp),
     style: HazeStyle? = null,
     strokeWidth: Dp = 1.dp,
@@ -173,12 +188,21 @@ fun GlassIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pinkLily = LocalPinkLilyTheme.current
+    val appleGlassStyle = LocalInterfaceAppleMusic.current
     Box(
         modifier = modifier
             .size(size)
+            .let { base ->
+                if (appleGlassStyle && !pinkLily) {
+                    base.appleGlass(androidx.compose.foundation.shape.CircleShape)
+                } else {
+                    base
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
+                        .border(1.dp, if (pinkLily) Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)) else glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
+                }
+            }
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
-            .border(1.dp, if (pinkLily) Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)) else glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, radius = size / 2),

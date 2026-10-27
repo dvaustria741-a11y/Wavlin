@@ -862,6 +862,25 @@ class MusicService :
                     Timber.tag(TAG).i("QUALITY CHANGED: $oldQuality -> $newQuality")
 
                     val mediaId = player.currentMediaItem?.mediaId ?: return@collect
+
+                    // Offline: a fresh stream can't be fetched, so reloading would only break the
+                    // current song (and leave the bypass flag stuck). Keep playing from cache;
+                    // the new quality applies to the next stream that gets resolved online.
+                    if (!isNetworkConnected.value) {
+                        Timber.tag(TAG).i("QUALITY CHANGED offline: skipping reload for $mediaId")
+                        return@collect
+                    }
+
+                    // Fully downloaded songs play from local storage and don't depend on stream quality.
+                    val isFullyDownloaded = runBlocking(Dispatchers.IO) {
+                        val len = database.song(mediaId).first()?.format?.contentLength
+                        len != null && downloadCache.isCached(mediaId, 0, len)
+                    }
+                    if (isFullyDownloaded) {
+                        Timber.tag(TAG).i("QUALITY CHANGED: $mediaId is downloaded, skipping reload")
+                        return@collect
+                    }
+
                     val currentPosition = player.currentPosition
                     val wasPlaying = player.isPlaying
                     val currentIndex = player.currentMediaItemIndex
@@ -874,8 +893,7 @@ class MusicService :
                     runBlocking(Dispatchers.IO) {
                         try {
                             playerCache.removeResource(mediaId)
-                            downloadCache.removeResource(mediaId)
-                            Timber.tag(TAG).d("Cleared player and download cache for $mediaId")
+                            Timber.tag(TAG).d("Cleared player cache for $mediaId")
                         } catch (e: Exception) {
                             Timber.tag(TAG).e(e, "Failed to clear cache for $mediaId")
                         }
@@ -3749,6 +3767,9 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
+            // Never bypass the cache while offline — a fresh fetch is impossible and the stuck
+            // flag would keep the song broken until the connection returns.
+            if (!isNetworkConnected.value) bypassCacheForQualityChange.remove(mediaId)
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 
             if (!shouldBypassCache) {
@@ -3797,6 +3818,8 @@ class MusicService :
                         ),
                     )
                 }.getOrElse { throwable ->
+                    // Don't leave the bypass flag stuck after a failed fetch, or retries never hit the cache.
+                    bypassCacheForQualityChange.remove(mediaId)
                     when (throwable) {
                         is PlaybackException -> {
                             throw throwable

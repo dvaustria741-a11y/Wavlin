@@ -58,6 +58,17 @@ fun VideoCanvasPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
 ) {
+    // A fresh player, surface and fade-in per video: reusing one across songs left the next canvas invisible
+    androidx.compose.runtime.key(videoUrl) {
+        VideoCanvasPlayerContent(videoUrl = videoUrl, modifier = modifier)
+    }
+}
+
+@Composable
+private fun VideoCanvasPlayerContent(
+    videoUrl: String,
+    modifier: Modifier = Modifier,
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var firstFrameShown by remember(videoUrl) { mutableStateOf(false) }
     val videoAlpha by animateFloatAsState(

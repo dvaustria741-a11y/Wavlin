@@ -10,6 +10,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.Spatializer
 import android.os.Build
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -54,6 +55,8 @@ object DolbyAtmosManager {
     private var audioDeviceCallback: AudioDeviceCallback? = null
     private var spatializerListener: Any? = null
     private var noisyReceiver: BroadcastReceiver? = null
+    private var volumeReceiver: BroadcastReceiver? = null
+    private var volumeFraction = 0.5f
 
     private val _liveDiagnostics = MutableStateFlow(DolbyAtmosDiagnostics())
     val liveDiagnostics: StateFlow<DolbyAtmosDiagnostics> = _liveDiagnostics.asStateFlow()
@@ -95,6 +98,7 @@ object DolbyAtmosManager {
 
         audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         _isHeadphoneRoute.value = detectHeadphoneRoute()
+        volumeFraction = readVolumeFraction()
 
         registerListeners(app)
         refreshCapabilities()
@@ -155,6 +159,35 @@ object DolbyAtmosManager {
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         context.registerReceiver(receiver, filter)
         noisyReceiver = receiver
+
+        // 4. System music volume (drives the audio regulator: tighter limits at high volume).
+        val volReceiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                volumeFraction = readVolumeFraction()
+                syncProcessors()
+            }
+        }
+        try {
+            ContextCompat.registerReceiver(
+                context,
+                volReceiver,
+                IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            volumeReceiver = volReceiver
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed registering volume receiver", e)
+        }
+    }
+
+    private fun readVolumeFraction(): Float {
+        val am = audioManager ?: return 0.5f
+        return try {
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            am.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max
+        } catch (e: Exception) {
+            0.5f
+        }
     }
 
     /**
@@ -179,6 +212,7 @@ object DolbyAtmosManager {
                 updatedDiag.capability != DolbyAtmosCapability.DISABLED
             _isAtmosActive.value = active
             _isHeadphoneRoute.value = detectHeadphoneRoute()
+            volumeFraction = readVolumeFraction()
             applyVirtualizerState(isPreferred)
             syncProcessors()
         }
@@ -223,6 +257,7 @@ object DolbyAtmosManager {
             enabled = _isAtmosEnabledByUser.value,
             dialogueLevel = ENHANCED_DIALOGUE_LEVEL,
             stereoLevel = effectiveStereoLevel(),
+            volume = volumeFraction,
         )
     }
 
@@ -342,6 +377,13 @@ object DolbyAtmosManager {
                 }
             } catch (_: Exception) {}
             spatializerListener = null
+        }
+
+        volumeReceiver?.let {
+            try {
+                context.unregisterReceiver(it)
+            } catch (_: Exception) {}
+            volumeReceiver = null
         }
 
         noisyReceiver?.let {

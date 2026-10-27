@@ -40,14 +40,25 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private val EMPTY: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
 
         /** Peaking gain (dB) on the mid channel for dialogue level 0..3. */
-        private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 0.8f, 1.6f, 2.4f)
+        private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 0.2f, 0.4f, 0.6f)
 
         /** Extra side-channel gain (above the high-pass corner) for expanded stereo level 0..3. */
-        private val WIDEN_GAIN = floatArrayOf(0f, 0.45f, 0.95f, 1.5f)
+        private val WIDEN_GAIN = floatArrayOf(0f, 0.7f, 1.4f, 2.2f)
 
         private const val DIALOGUE_FREQ_HZ = 2500.0
         private const val DIALOGUE_Q = 0.7
         private const val SIDE_HP_HZ = 250.0
+
+        /** Pseudo-stereo: delayed, high-passed mid signal injected out-of-phase into L/R (works on near-mono music). */
+        private val DECOR_GAIN = floatArrayOf(0f, 0.12f, 0.25f, 0.4f)
+        private const val DECOR_DELAY_S = 0.015
+        private const val DECOR_HP_HZ = 300.0
+
+        /** Always-on "Dolby" body: low-mid lift (guitars, vocals) plus a loudness boost, tamed by the limiter. */
+        private const val BODY_HZ = 300.0
+        private const val BODY_GAIN_DB = 3.0
+        private const val BODY_Q = 0.7
+        private const val PRE_GAIN_DB = 2.5
 
         /** Gentle high shelf that takes the edge off treble so loud playback is less fatiguing. */
         private const val SHELF_HZ = 7000.0
@@ -84,6 +95,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
 
+    private val bodyL = Biquad()
+    private val bodyR = Biquad()
+    private var decBuf = FloatArray(1)
+    private var decIdx = 0
+    private var decHpCoef = 0f
+    private var decPrevIn = 0f
+    private var decPrevOut = 0f
     private val shelfL = Biquad()
     private val shelfR = Biquad()
     private var env = 0f
@@ -120,6 +138,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         appliedDialogue = -1 // force coefficient rebuild for the new sample rate
         hpCoef = (1.0 / (2.0 * PI * SIDE_HP_HZ)).let { rc -> (rc / (rc + 1.0 / sampleRate)).toFloat() }
         updateShelf()
+        updateBody()
+        decBuf = FloatArray((DECOR_DELAY_S * sampleRate).toInt().coerceAtLeast(8))
+        decIdx = 0
+        decHpCoef = (1.0 / (2.0 * PI * DECOR_HP_HZ)).let { rc -> (rc / (rc + 1.0 / sampleRate)).toFloat() }
         atkCoef = (1.0 - exp(-1.0 / (LIMIT_ATTACK_S * sampleRate))).toFloat()
         relCoef = (1.0 - exp(-1.0 / (LIMIT_RELEASE_S * sampleRate))).toFloat()
         clearState()
@@ -150,6 +172,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         val dLevel = dialogueLevel
         val widen = WIDEN_GAIN[stereoLevel]
+        val decor = DECOR_GAIN[stereoLevel]
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
 
         val frames = remaining / (bytesPerSample * 2)
@@ -159,7 +182,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             repeat(frames) {
                 val l = inFB.get()
                 val r = inFB.get()
-                processFrame(l, r, widen, target)
+                processFrame(l, r, widen, decor, target)
                 outFB.put(outL)
                 outFB.put(outR)
             }
@@ -169,7 +192,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             repeat(frames) {
                 val l = inSB.get() / 32768f
                 val r = inSB.get() / 32768f
-                processFrame(l, r, widen, target)
+                processFrame(l, r, widen, decor, target)
                 outSB.put((outL * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
                 outSB.put((outR * 32768f).coerceIn(-32768f, 32767f).toInt().toShort())
             }
@@ -182,7 +205,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     }
 
     /** Writes the processed (dry/wet mixed) frame into [outL]/[outR]. */
-    private fun processFrame(l: Float, r: Float, widen: Float, target: Float) {
+    private fun processFrame(l: Float, r: Float, widen: Float, decor: Float, target: Float) {
         mix += (target - mix) * MIX_SMOOTHING
         if (target == 0f && mix < 0.0005f) mix = 0f
 
@@ -201,8 +224,17 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         hpPrevOut = sHp
         s += widen * sHp
 
-        var wl = shelfL.process((m + s) * outGain)
-        var wr = shelfR.process((m - s) * outGain)
+        // Pseudo-stereo decorrelation from the (high-passed) mid signal.
+        val mHp = decHpCoef * (decPrevOut + m - decPrevIn)
+        decPrevIn = m
+        decPrevOut = mHp
+        val delayed = decBuf[decIdx]
+        decBuf[decIdx] = mHp
+        if (++decIdx >= decBuf.size) decIdx = 0
+        s += decor * delayed
+
+        var wl = shelfL.process(bodyL.process((m + s) * outGain))
+        var wr = shelfR.process(bodyR.process((m - s) * outGain))
 
         // Soft limiter + soft clip: keeps loud passages from getting harsh at high volume.
         val peak = max(abs(wl), abs(wr))
@@ -224,6 +256,21 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         if (a <= CLIP_KNEE) return x
         val y = CLIP_KNEE + (1f - CLIP_KNEE) * tanh((a - CLIP_KNEE) / (1f - CLIP_KNEE))
         return if (x < 0f) -y else y
+    }
+
+    /** RBJ peaking EQ at [BODY_HZ]. */
+    private fun updateBody() {
+        val a = 10.0.pow(BODY_GAIN_DB / 40.0)
+        val w0 = 2.0 * PI * BODY_HZ / sampleRate
+        val alpha = sin(w0) / (2.0 * BODY_Q)
+        val cosW = cos(w0)
+        val a0 = 1.0 + alpha / a
+        val nb0 = ((1.0 + alpha * a) / a0).toFloat()
+        val nb1 = ((-2.0 * cosW) / a0).toFloat()
+        val nb2 = ((1.0 - alpha * a) / a0).toFloat()
+        val na2 = ((1.0 - alpha / a) / a0).toFloat()
+        bodyL.set(nb0, nb1, nb2, nb1, na2)
+        bodyR.set(nb0, nb1, nb2, nb1, na2)
     }
 
     /** RBJ high shelf at [SHELF_HZ] (slope 1). */
@@ -276,7 +323,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         b2 = ((1.0 - alpha * a) / a0).toFloat()
         a1 = ((-2.0 * cosW) / a0).toFloat()
         a2 = ((1.0 - alpha / a) / a0).toFloat()
-        outGain = 10.0.pow(-gainDb * 0.5 / 20.0).toFloat()
+        outGain = 10.0.pow((PRE_GAIN_DB - gainDb * 0.5) / 20.0).toFloat()
     }
 
     override fun queueEndOfStream() { inputEnded = true }
@@ -306,6 +353,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         z1 = 0f; z2 = 0f
         hpPrevIn = 0f; hpPrevOut = 0f
         shelfL.reset(); shelfR.reset()
+        bodyL.reset(); bodyR.reset()
+        decBuf.fill(0f); decIdx = 0
+        decPrevIn = 0f; decPrevOut = 0f
         env = 0f
     }
 }

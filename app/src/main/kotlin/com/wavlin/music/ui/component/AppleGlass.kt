@@ -46,14 +46,17 @@ fun appleGlassSupported(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODE
 fun Modifier.appleGlass(
     shape: Shape,
     fallbackStyle: HazeStyle? = null,
+    /** Dark/light tint laid over the glass. Big surfaces (dialogs) pass a higher value so text stays readable. */
+    tintAlpha: Float? = null,
 ): Modifier {
     val backdrop = LocalGlassBackdrop.current
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val tint = tintAlpha ?: if (isDark) 0.22f else 0.28f
     if (backdrop == null || !appleGlassSupported()) {
         // No sampleable backdrop (inside screen content, or pre-Android 13): Haze blur with the same tint.
         return this
             .legacyGlassPanel(shape = shape, style = fallbackStyle)
-            .background((if (isDark) Color.Black else Color.White).copy(alpha = if (isDark) 0.22f else 0.28f), shape)
+            .background((if (isDark) Color.Black else Color.White).copy(alpha = tint), shape)
     }
     return this.drawBackdrop(
         backdrop = backdrop,
@@ -66,11 +69,11 @@ fun Modifier.appleGlass(
                 saturation = 1.5f,
             )
             blur(10f.dp.toPx())
-            lens(size.minDimension / 4f, size.minDimension / 2f, false)
+            lens(minOf(size.minDimension / 4f, 24.dp.toPx()), minOf(size.minDimension / 2f, 32.dp.toPx()), false)
         },
         onDrawBackdrop = { drawBackdrop -> drawBackdrop() },
         onDrawSurface = {
-            drawRect((if (isDark) Color.Black else Color.White).copy(alpha = if (isDark) 0.22f else 0.28f))
+            drawRect((if (isDark) Color.Black else Color.White).copy(alpha = tint))
         },
     )
 }

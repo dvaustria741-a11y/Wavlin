@@ -1498,13 +1498,22 @@ class MainActivity : ComponentActivity() {
                     )
 
                     if (showAccountDialog) {
-                        AccountSettingsDialog(
-                            onDismiss = {
-                                showAccountDialog = false
-                                homeViewModel.refresh()
-                            },
-                            latestVersionName = latestVersionName,
-                        )
+                        val dismissAccount = {
+                            showAccountDialog = false
+                            homeViewModel.refresh()
+                        }
+                        if (appleStyle && appleGlassSupported() && !pinkWallpaper) {
+                            // Real liquid glass: must live in this composition (not a Dialog window) to sample the backdrop.
+                            com.wavlin.music.ui.component.AppleGlassAccountOverlay(
+                                onDismiss = dismissAccount,
+                                latestVersionName = latestVersionName,
+                            )
+                        } else {
+                            AccountSettingsDialog(
+                                onDismiss = dismissAccount,
+                                latestVersionName = latestVersionName,
+                            )
+                        }
                     }
 
                     sharedSong?.let { song ->

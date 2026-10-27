@@ -1266,7 +1266,7 @@ fun AppearanceSettings(
                         onClick = { onCropAlbumArtChange(!cropAlbumArt) },
                     ),
                     Material3SettingsItem(
-                        icon = painterResource(R.drawable.movie),
+                        icon = painterResource(R.drawable.slow_motion_video),
                         title = { Text(stringResource(R.string.video_canvas)) },
                         description = { Text(stringResource(R.string.video_canvas_desc)) },
                         trailingContent = {

@@ -51,6 +51,7 @@ fun BoxScope.HideOnScrollFAB(
     onClick: () -> Unit,
     onRecognitionClick: (() -> Unit)? = null,
 ) {
+    GlassOverlay {
     AnimatedVisibility(
         visible = visible && lazyListState.isScrollingUp(),
         enter = slideInVertically { it },
@@ -93,6 +94,7 @@ fun BoxScope.HideOnScrollFAB(
                 )
             }
         }
+    }
     }
 }
 
@@ -104,6 +106,7 @@ fun BoxScope.HideOnScrollFAB(
     onClick: () -> Unit,
     onRecognitionClick: (() -> Unit)? = null,
 ) {
+    GlassOverlay {
     AnimatedVisibility(
         visible = visible && lazyListState.isScrollingUp(),
         enter = slideInVertically { it },
@@ -147,6 +150,7 @@ fun BoxScope.HideOnScrollFAB(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -157,6 +161,7 @@ fun BoxScope.HideOnScrollFAB(
     onClick: () -> Unit,
     onRecognitionClick: (() -> Unit)? = null,
 ) {
+    GlassOverlay {
     AnimatedVisibility(
         visible = visible && scrollState.isScrollingUp(),
         enter = slideInVertically { it },
@@ -199,5 +204,6 @@ fun BoxScope.HideOnScrollFAB(
                 )
             }
         }
+    }
     }
 }

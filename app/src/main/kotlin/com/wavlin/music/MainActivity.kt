@@ -1023,6 +1023,7 @@ class MainActivity : ComponentActivity() {
                 // A WebView can't be recorded into the glass backdrop layer (it crashes the page or the app),
                 // so the screens that host one run without the liquid-glass backdrop.
                 val webViewRoute = currentRoute == "login" || currentRoute == "spotify_signin"
+                val glassOverlayHost = remember { com.wavlin.music.ui.component.GlassOverlayHostState() }
                 val glassBackdrop = rememberLayerBackdrop {
                     drawRect(baseBg)
                     drawContent()
@@ -1037,6 +1038,7 @@ class MainActivity : ComponentActivity() {
                     LocalInterfaceAppleMusic provides appleStyle,
                     com.wavlin.music.ui.component.LocalPlayerGlassBackdrop provides (if (appleStyle && appleGlassSupported()) playerGlassBackdrop else null),
                     LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported() && !webViewRoute) glassBackdrop else null),
+                    com.wavlin.music.ui.component.LocalGlassOverlayHost provides (if (appleStyle && appleGlassSupported() && !webViewRoute) glassOverlayHost else null),
                     LocalDatabase provides database,
                     LocalNavController provides navController,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
@@ -1349,6 +1351,7 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
+                        Box(Modifier.fillMaxSize()) {
                         Row(
                             Modifier
                                 .fillMaxSize()
@@ -1483,6 +1486,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             }
+                        }
+                        com.wavlin.music.ui.component.GlassOverlayHost(glassOverlayHost)
                         }
                     }
 

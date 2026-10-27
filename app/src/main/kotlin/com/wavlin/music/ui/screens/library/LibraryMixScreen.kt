@@ -87,6 +87,7 @@ import com.wavlin.music.extensions.toMediaItem
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.AlbumGridItem
 import com.wavlin.music.ui.component.GlassIconButton
+import com.wavlin.music.ui.component.GlassOverlay
 import com.wavlin.music.ui.component.AlbumListItem
 import com.wavlin.music.ui.component.ArtistGridItem
 import com.wavlin.music.ui.component.ArtistListItem
@@ -1063,6 +1064,7 @@ fun LibraryMixScreen(
         }
 
         // Always visible + button (no scroll hiding)
+        GlassOverlay {
         GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
             size = 56.dp,
@@ -1079,6 +1081,7 @@ fun LibraryMixScreen(
                 painter = painterResource(R.drawable.add),
                 contentDescription = null,
             )
+        }
         }
 
         Indicator(

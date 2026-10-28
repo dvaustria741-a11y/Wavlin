@@ -1921,7 +1921,7 @@ fun BottomSheetPlayer(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             FilledIconButton(
-                                onClick = playerConnection::seekToNext,
+                                onClick = rememberNextClickHandler(playerConnection),
                                 enabled = canSkipNext && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = nextInteractionSource,
@@ -2051,7 +2051,7 @@ fun BottomSheetPlayer(
                                             .size(32.dp)
                                             .align(Alignment.Center)
                                             .alpha(if (isListenTogetherGuest) 0.5f else 1f),
-                                    onClick = playerConnection::seekToNext,
+                                    onClick = rememberNextClickHandler(playerConnection),
                                 )
                             }
 

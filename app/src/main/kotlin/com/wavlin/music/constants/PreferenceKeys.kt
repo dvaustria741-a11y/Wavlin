@@ -132,6 +132,7 @@ val PersistentShuffleAcrossQueuesKey = booleanPreferencesKey("persistentShuffleA
 val RememberShuffleAndRepeatKey = booleanPreferencesKey("rememberShuffleAndRepeat")
 val ShuffleModeKey = booleanPreferencesKey("shuffleMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
+val DoubleTapToSkipNextKey = booleanPreferencesKey("doubleTapToSkipNext")
 val SkipSilenceInstantKey = booleanPreferencesKey("skipSilenceInstant")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")
 

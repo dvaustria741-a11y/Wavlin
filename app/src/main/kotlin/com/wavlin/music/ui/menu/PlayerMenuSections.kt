@@ -89,7 +89,7 @@ fun PlayerMenuNowPlayingCard(
         animationSpec =
             if (animateProvider()) {
                 androidx.compose.animation.core.tween(
-                    durationMillis = 320,
+                    durationMillis = 200,
                     easing = androidx.compose.animation.core.FastOutSlowInEasing,
                 )
             } else {

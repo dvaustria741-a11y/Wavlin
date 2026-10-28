@@ -1148,6 +1148,8 @@
     <string name="account_good_morning">Good morning</string>
     <string name="account_good_afternoon">Good afternoon</string>
     <string name="account_good_evening">Good evening</string>
+    <string name="double_tap_to_skip_next">Double tap to skip</string>
+    <string name="double_tap_to_skip_next_desc">Tap the next button twice to skip to the next song</string>
     <string name="connected_accounts">Connected accounts</string>
     <string name="sign_in">Sign in</string>
     <string name="account_not_logged_in">Not logged in</string>

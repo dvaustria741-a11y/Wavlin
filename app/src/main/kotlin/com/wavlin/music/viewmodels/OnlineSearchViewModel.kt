@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wavlin.innertube.YouTube
 import com.wavlin.innertube.models.SongItem
+import com.wavlin.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.wavlin.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.wavlin.innertube.models.filterExplicit
 import com.wavlin.innertube.models.filterVideoSongs
@@ -31,6 +32,9 @@ import com.wavlin.music.utils.get
 import com.wavlin.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -162,19 +166,41 @@ constructor(
             }
         }
 
+        const val MAX_POPULARITY_CANDIDATES = 5
+
+        suspend fun SongItem.viewCount(): Long =
+            YouTube
+                .player(id, client = WEB_REMIX)
+                .getOrNull()
+                ?.videoDetails
+                ?.viewCount
+                ?.toLongOrNull() ?: -1L
+
         /**
          * YouTube's top card often leads with covers, remixes or fan videos. When that happens and
-         * an official song matching the query exists in the results, move it to the top.
+         * official songs matching the query exist in the results, the most played one is moved to
+         * the top. Play counts are only fetched when there is more than one candidate.
          */
-        fun SearchSummaryPage.withOriginalSongOnTop(query: String): SearchSummaryPage {
+        suspend fun SearchSummaryPage.withOriginalSongOnTop(query: String): SearchSummaryPage {
             val top = summaries.firstOrNull() ?: return this
             val normalizedQuery = query.normalized()
             if ((top.items.firstOrNull() as? SongItem)?.isOriginalFor(normalizedQuery) == true) return this
-            val original = summaries
+            val candidates = summaries
                 .flatMap { it.items }
                 .filterIsInstance<SongItem>()
-                .firstOrNull { it.isOriginalFor(normalizedQuery) }
-                ?: return this
+                .filter { it.isOriginalFor(normalizedQuery) }
+                .distinctBy { it.id }
+                .take(MAX_POPULARITY_CANDIDATES)
+            val original = when (candidates.size) {
+                0 -> return this
+                1 -> candidates.first()
+                else -> coroutineScope {
+                    candidates.map { song -> async { song to song.viewCount() } }
+                        .awaitAll()
+                        .maxByOrNull { it.second }
+                        ?.first
+                } ?: candidates.first()
+            }
             val reorderedTop = SearchSummary(
                 title = top.title,
                 items = (listOf(original) + top.items).distinctBy { it.id },

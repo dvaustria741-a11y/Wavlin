@@ -7,6 +7,8 @@ package com.wavlin.music.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,3 +70,33 @@ fun Modifier.pinkGlassEdge(
             ),
         shape = shape,
     )
+
+/**
+ * A solid Secret Pink glass card for surfaces that cannot sample the screen (dialogs, list rows, panels).
+ * Apple Music gets a stronger rose body with a soft top sheen, Material 3 gets the lighter milky pink.
+ */
+@Composable
+fun Modifier.pinkGlassPanel(shape: Shape): Modifier {
+    val apple = LocalInterfaceAppleMusic.current
+    return this
+        .clip(shape)
+        .background(Color(0xFFFFF1F6))
+        .background(
+            Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = if (apple) 0.55f else 0.70f),
+                    PinkGlassTint.copy(alpha = if (apple) 0.34f else 0.26f),
+                ),
+            ),
+        ).then(
+            if (apple) {
+                Modifier.background(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.5f), 0.4f to Color.Transparent))
+            } else {
+                Modifier
+            },
+        ).pinkGlassEdge(shape, strong = apple)
+}
+
+/** Dialog corner shape that follows the chosen interface style. */
+@Composable
+fun pinkDialogShape(): Shape = if (LocalInterfaceAppleMusic.current) RoundedCornerShape(32.dp) else MaterialTheme.shapes.large

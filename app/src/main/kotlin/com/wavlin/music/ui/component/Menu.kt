@@ -52,8 +52,7 @@ fun Material3MenuGroup(
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateContentSize()
-                        .clip(RoundedCornerShape(percent = 50))
-                        .lilySliced(res = R.drawable.lily_row_glass, leftCapPx = 66, rightCapPx = 66, alpha = 0.9f),
+                        .pinkGlassPanel(RoundedCornerShape(percent = 50)),
                 ) {
                     Material3MenuItemRow(item = item)
                 }

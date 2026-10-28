@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens
 
+import com.wavlin.music.ui.component.pinkGlassPanel
 import com.wavlin.music.ui.component.pinkTopBarColors
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.ScriptTitle
@@ -1492,7 +1493,7 @@ private fun Card(
 ) {
     if (LocalPinkLilyTheme.current) {
         androidx.compose.material3.Card(
-            modifier = modifier.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 34.dp),
+            modifier = modifier.pinkGlassPanel(RoundedCornerShape(28.dp)),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
             content = content,

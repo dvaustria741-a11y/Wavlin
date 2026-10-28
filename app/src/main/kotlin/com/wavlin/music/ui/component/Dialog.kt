@@ -85,9 +85,9 @@ fun DefaultDialog(
                 Modifier
                     .padding(24.dp)
                     .let { base ->
-                        if (pinkLily) base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp) else base
+                        if (pinkLily) base.pinkGlassPanel(pinkDialogShape()) else base
                     },
-            shape = if (pinkLily) MaterialTheme.shapes.large else AlertDialogDefaults.shape,
+            shape = if (pinkLily) pinkDialogShape() else AlertDialogDefaults.shape,
             color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor,
             tonalElevation = if (pinkLily) 0.dp else AlertDialogDefaults.TonalElevation,
         ) {
@@ -219,13 +219,12 @@ fun ListDialog(
                 .padding(24.dp)
                 .let { base ->
                     if (pinkLily) {
-                        // Secret Pink: the frosted lily panel (solid, so nothing ghosts through the list)
-                        base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp)
+                        base.pinkGlassPanel(pinkDialogShape())
                     } else {
                         base.border(1.dp, glassStrokeBrush(), AlertDialogDefaults.shape)
                     }
                 },
-            shape = if (pinkLily) MaterialTheme.shapes.large else AlertDialogDefaults.shape,
+            shape = if (pinkLily) pinkDialogShape() else AlertDialogDefaults.shape,
             color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor.copy(alpha = 0.85f),
             tonalElevation = if (pinkLily) 0.dp else AlertDialogDefaults.TonalElevation,
         ) {

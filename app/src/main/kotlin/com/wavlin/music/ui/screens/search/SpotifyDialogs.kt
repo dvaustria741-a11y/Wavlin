@@ -1,5 +1,7 @@
 package com.wavlin.music.ui.screens.search
 
+import com.wavlin.music.ui.component.pinkDialogShape
+import com.wavlin.music.ui.component.pinkGlassPanel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -144,9 +146,9 @@ fun SpotifyPlaylistPreviewDialog(
                     .fillMaxHeight(0.9f)
                     .padding(horizontal = 12.dp)
                     .let { base ->
-                        if (pinkLily) base.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp) else base
+                        if (pinkLily) base.pinkGlassPanel(pinkDialogShape()) else base
                     },
-            shape = if (pinkLily) MaterialTheme.shapes.large else RoundedCornerShape(28.dp),
+            shape = if (pinkLily) pinkDialogShape() else RoundedCornerShape(28.dp),
             color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor,
         ) {
             Column(

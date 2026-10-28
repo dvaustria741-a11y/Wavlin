@@ -74,7 +74,7 @@ fun FilledIconButton(
                 if (round) {
                     modifier.lilyGlassAuto()
                 } else {
-                    modifier.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 16.dp)
+                    modifier.pinkGlassPanel(RoundedCornerShape(16.dp))
                 },
             enabled = enabled,
             shape = if (round) shape else RoundedCornerShape(16.dp),

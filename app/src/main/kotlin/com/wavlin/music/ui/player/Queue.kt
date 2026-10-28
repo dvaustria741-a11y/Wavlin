@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.player
 
+import com.wavlin.music.ui.component.pinkGlassPanel
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -1156,7 +1157,7 @@ fun PlayerQueueButton(
     val appliedModifier =
         if (pinkGlass) {
             modifier
-                .then(Modifier.lilyNinePatch(res = R.drawable.lily_panel, srcCap = 150, dstCap = 16.dp))
+                .then(Modifier.pinkGlassPanel(RoundedCornerShape(16.dp)))
                 .then(Modifier.clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, onClick = onClick))
                 .alpha(alphaFactor)
         } else if (isActive) {

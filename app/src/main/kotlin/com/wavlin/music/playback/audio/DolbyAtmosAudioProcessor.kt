@@ -51,7 +51,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // ── Dialogue / presence (mid signal) ─────────────────────────────────
         private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 0.2f, 0.4f, 0.6f)
-        private const val BASE_PRESENCE_DB = 2.0
+        private const val BASE_PRESENCE_DB = 2.5
         private const val DIALOGUE_FREQ_HZ = 2500.0
         private const val DIALOGUE_Q = 0.7
 
@@ -61,6 +61,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BASE_WIDEN = 0.5f
         private const val BASE_DECOR = 0.1f
         private const val SIDE_HP_HZ = 250.0
+
+        /** Widening only boosts the side signal up to here, so the background gets wider but not brighter/clearer. */
+        private const val SIDE_WIDEN_LP_HZ = 1500.0
         private const val DECOR_DELAY_S = 0.015
         private const val DECOR_HP_HZ = 300.0
 
@@ -86,8 +89,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val IMM_MAX_S = 0.045
 
         /** Only the side (background) signal is darkened → vocals stay clear, instruments recede. */
-        private const val SIDE_SHELF_HZ = 3000.0
-        private const val SIDE_SHELF_DB = -4.0
+        private const val SIDE_SHELF_HZ = 2200.0
+        private const val SIDE_SHELF_DB = -9.0
 
         // ── Graphic equalizer (10 bands, like the system Dolby "Graphic equalizer") ──
         private val GEQ_FREQS = doubleArrayOf(31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
@@ -175,6 +178,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var hpCoef = 0f
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
+    private var sBand = 0f
+    private var sLpCoef = 0.2f
     private var decBuf = FloatArray(1)
     private var decIdx = 0
     private var decHpCoef = 0f
@@ -282,6 +287,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         appliedDialogue = -1 // force coefficient rebuild for the new sample rate
 
         hpCoef = onePoleHp(SIDE_HP_HZ)
+        sLpCoef = (1.0 - exp(-2.0 * PI * SIDE_WIDEN_LP_HZ / sr)).toFloat()
         decHpCoef = onePoleHp(DECOR_HP_HZ)
         decBuf = FloatArray((DECOR_DELAY_S * sr).toInt().coerceAtLeast(8))
         decIdx = 0
@@ -398,7 +404,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val sHp = hpCoef * (hpPrevOut + s - hpPrevIn)
         hpPrevIn = s
         hpPrevOut = sHp
-        s += widen * sHp
+        sBand += (sHp - sBand) * sLpCoef
+        s += widen * sBand
 
         val mHp = decHpCoef * (decPrevOut + m - decPrevIn)
         decPrevIn = m
@@ -633,7 +640,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     /** Clears audio state only (filters, envelopes, delay lines); user settings are kept. */
     private fun clearState() {
         z1 = 0f; z2 = 0f
-        hpPrevIn = 0f; hpPrevOut = 0f
+        hpPrevIn = 0f; hpPrevOut = 0f; sBand = 0f
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f

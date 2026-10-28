@@ -14,9 +14,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wavlin.innertube.YouTube
+import com.wavlin.innertube.models.SongItem
+import com.wavlin.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.wavlin.innertube.models.filterExplicit
 import com.wavlin.innertube.models.filterVideoSongs
 import com.wavlin.innertube.models.filterYoutubeShorts
+import com.wavlin.innertube.pages.SearchSummary
 import com.wavlin.innertube.pages.SearchSummaryPage
 import com.wavlin.music.constants.HideExplicitKey
 import com.wavlin.music.constants.HideVideoSongsKey
@@ -52,7 +55,7 @@ constructor(
                             val resolvedSummaries = page.summaries.map { summary ->
                                 summary.copy(items = YouTube.resolveArtistIds(summary.items))
                             }
-                            val resolvedPage = page.copy(summaries = resolvedSummaries)
+                            val resolvedPage = page.copy(summaries = resolvedSummaries).withOriginalSongOnTop(query)
                             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                             val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
                             val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
@@ -135,6 +138,48 @@ constructor(
                 (viewState.items + newItems).distinctBy { it.id },
                 searchResult.continuation
             )
+        }
+    }
+
+    private companion object {
+        val NON_ALNUM = Regex("[^\\p{L}\\p{N}]+")
+
+        fun String.normalized() = lowercase().replace(NON_ALNUM, " ").trim()
+
+        /**
+         * A song is the original release when it is an official audio track (not a video upload)
+         * whose title is exactly what was searched, optionally followed by one of its own artists.
+         * Titles carrying extra text such as "(Male Cover Version)" never match.
+         */
+        fun SongItem.isOriginalFor(normalizedQuery: String): Boolean {
+            if (isEpisode || musicVideoType != MUSIC_VIDEO_TYPE_ATV) return false
+            val normalizedTitle = title.normalized()
+            if (normalizedTitle.isEmpty() || !normalizedQuery.contains(normalizedTitle)) return false
+            val rest = normalizedQuery.replace(normalizedTitle, " ").trim()
+            return rest.isEmpty() || artists.any { artist ->
+                val name = artist.name.normalized()
+                name.isNotEmpty() && (rest.contains(name) || name.contains(rest))
+            }
+        }
+
+        /**
+         * YouTube's top card often leads with covers, remixes or fan videos. When that happens and
+         * an official song matching the query exists in the results, move it to the top.
+         */
+        fun SearchSummaryPage.withOriginalSongOnTop(query: String): SearchSummaryPage {
+            val top = summaries.firstOrNull() ?: return this
+            val normalizedQuery = query.normalized()
+            if ((top.items.firstOrNull() as? SongItem)?.isOriginalFor(normalizedQuery) == true) return this
+            val original = summaries
+                .flatMap { it.items }
+                .filterIsInstance<SongItem>()
+                .firstOrNull { it.isOriginalFor(normalizedQuery) }
+                ?: return this
+            val reorderedTop = SearchSummary(
+                title = top.title,
+                items = (listOf(original) + top.items).distinctBy { it.id },
+            )
+            return SearchSummaryPage(listOf(reorderedTop) + summaries.drop(1))
         }
     }
 }

@@ -5,6 +5,18 @@
 
 package com.wavlin.music.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,16 +37,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +58,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -53,7 +77,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.Morph
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -287,19 +314,25 @@ private fun AccountAvatar(
     apple: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.size(176.dp), contentAlignment = Alignment.Center) {
-        if (!apple) {
-            // Soft scalloped halo behind the avatar (Material 3 expressive look).
-            repeat(2) { index ->
-                Box(
-                    modifier =
-                        Modifier
-                            .size(150.dp)
-                            .rotate(45f * index)
-                            .clip(RoundedCornerShape(44.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
-                )
-            }
+    val appear = remember { Animatable(0.6f) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow))
+    }
+    Box(
+        modifier =
+            modifier
+                .size(176.dp)
+                .graphicsLayer {
+                    scaleX = appear.value
+                    scaleY = appear.value
+                    alpha = appear.value.coerceIn(0f, 1f)
+                },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (apple) {
+            AppleAvatarEffect(modifier = Modifier.fillMaxSize())
+        } else {
+            MorphingAvatarHalo(modifier = Modifier.fillMaxSize())
         }
         Box(
             modifier =
@@ -330,6 +363,147 @@ private fun AccountAvatar(
                     modifier = Modifier.size(56.dp),
                 )
             }
+        }
+    }
+}
+
+private class MorphShape(
+    private val morph: Morph,
+    private val progress: Float,
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val path = morph.toPath(progress).asComposePath()
+        path.transform(Matrix().apply { scale(size.width, size.height) })
+        return Outline.Generic(path)
+    }
+}
+
+private val HaloMorphEasing = CubicBezierEasing(0.34f, 1.3f, 0.64f, 1f)
+private const val HaloStepMillis = 2600
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MorphingAvatarHalo(modifier: Modifier = Modifier) {
+    val morphs =
+        remember {
+            val shapes = listOf(MaterialShapes.Cookie9Sided, MaterialShapes.Cookie4Sided, MaterialShapes.Cookie12Sided)
+            shapes.indices.map { Morph(shapes[it], shapes[(it + 1) % shapes.size]) }
+        }
+    val transition = rememberInfiniteTransition(label = "avatarHalo")
+    val cycle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = morphs.size.toFloat(),
+        animationSpec = infiniteRepeatable(tween(morphs.size * HaloStepMillis, easing = LinearEasing)),
+        label = "haloCycle",
+    )
+    val spin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(22000, easing = LinearEasing)),
+        label = "haloSpin",
+    )
+    val breath by transition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(tween(2800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "haloBreath",
+    )
+    val colors = MaterialTheme.colorScheme
+    val outerBrush =
+        Brush.linearGradient(listOf(colors.primaryContainer.copy(alpha = 0.8f), colors.secondaryContainer.copy(alpha = 0.55f)))
+    val innerBrush =
+        Brush.linearGradient(listOf(colors.tertiaryContainer.copy(alpha = 0.5f), colors.primaryContainer.copy(alpha = 0.3f)))
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(168.dp)
+                .graphicsLayer {
+                    val position = (cycle + 1f) % morphs.size
+                    val index = position.toInt()
+                    shape = MorphShape(morphs[index], HaloMorphEasing.transform(position - index))
+                    clip = true
+                    rotationZ = -spin * 0.6f
+                    scaleX = 2f - breath
+                    scaleY = 2f - breath
+                }.background(innerBrush),
+        )
+        Box(
+            Modifier
+                .size(150.dp)
+                .graphicsLayer {
+                    val position = cycle % morphs.size
+                    val index = position.toInt()
+                    shape = MorphShape(morphs[index], HaloMorphEasing.transform(position - index))
+                    clip = true
+                    rotationZ = spin
+                    scaleX = breath
+                    scaleY = breath
+                }.background(outerBrush),
+        )
+    }
+}
+
+@Composable
+private fun AppleAvatarEffect(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "appleAvatar")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing)),
+        label = "applePulse",
+    )
+    val spin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(5200, easing = LinearEasing)),
+        label = "appleSpin",
+    )
+    val glow by transition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "appleGlow",
+    )
+    val accent = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.tertiary
+
+    Canvas(modifier = modifier) {
+        val avatarRadius = 64.dp.toPx()
+        drawCircle(
+            brush =
+                Brush.radialGradient(
+                    colors = listOf(accent.copy(alpha = 0.3f * glow), Color.Transparent),
+                    center = center,
+                    radius = avatarRadius + 24.dp.toPx(),
+                ),
+            radius = avatarRadius + 24.dp.toPx(),
+            center = center,
+        )
+        repeat(3) { i ->
+            val p = (pulse + i / 3f) % 1f
+            drawCircle(
+                color = accent.copy(alpha = 0.32f * (1f - p) * (1f - p)),
+                radius = avatarRadius + 4.dp.toPx() + p * 20.dp.toPx(),
+                center = center,
+                style = Stroke(width = 1.5.dp.toPx()),
+            )
+        }
+        rotate(spin, center) {
+            drawCircle(
+                brush =
+                    Brush.sweepGradient(
+                        colors = listOf(Color.Transparent, accent.copy(alpha = 0.2f), accent, secondary, Color.Transparent),
+                        center = center,
+                    ),
+                radius = avatarRadius + 6.dp.toPx(),
+                center = center,
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+            )
         }
     }
 }

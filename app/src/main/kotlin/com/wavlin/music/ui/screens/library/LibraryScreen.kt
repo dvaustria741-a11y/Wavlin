@@ -48,6 +48,7 @@ fun LibraryScreen() {
                     filterType = if (filterType == it) LibraryFilter.LIBRARY else it
                 },
                 modifier = Modifier.weight(1f),
+                showCloseOnSelected = true,
             )
         }
     }

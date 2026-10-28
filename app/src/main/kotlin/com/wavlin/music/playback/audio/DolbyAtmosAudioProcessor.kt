@@ -83,10 +83,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // (like the system Dolby): if the vocal sits far above the background it is eased down and the background lifted.
         // Neither side may get further than BAL_WINDOW_DB above the other: inside the window nothing is touched,
         // beyond it the louder one is pulled back and the quieter one lifted (a limit on both, like the system Dolby).
-        private const val BAL_WINDOW_DB = 3.0f
+        private const val BAL_WINDOW_DB = 1.0f
+
+        /** The background also gets extra body downstream (diffuse cloud, widening), so aim the vocal slightly above it. */
+        private const val BAL_CENTER_DB = 4.0f
         private const val BAL_STRENGTH = 1.0f   // how much of the overshoot is corrected (1 = all)
-        private const val BAL_MAX_DB = 12.0f    // max total correction (split between vocal and background)
-        private const val BAL_TAU_S = 0.2
+        private const val BAL_MAX_DB = 16.0f    // max total correction (split between vocal and background)
+        private const val BAL_TAU_S = 0.12
         private const val BAL_UPDATE_FRAMES = 64
 
         // ── Vocal spread ("makalat" vocals): two slowly wobbling micro-delays of the vocal band are fed to the side ──
@@ -185,11 +188,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val EQ_UPDATE_FRAMES = 2048
 
         // ── Volume maximizer ─────────────────────────────────────────────────
-        private const val MASTER_GAIN_DB = 7.0
-        private const val LIM_CEIL = 0.93f
+        private const val MASTER_GAIN_DB = 8.5
+        private const val LIM_CEIL = 0.97f
         private const val LIM_LOOKAHEAD_S = 0.0015
-        private const val LIM_RELEASE_S = 0.6
-        private const val CLIP_KNEE = 0.95f
+        private const val LIM_RELEASE_S = 0.3
+        private const val CLIP_KNEE = 0.97f
 
         private const val MIX_SMOOTHING = 0.0015f
     }
@@ -547,7 +550,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         if (++balCounter >= BAL_UPDATE_FRAMES) {
             balCounter = 0
             if (balEnvM > 0.0005f || balEnvS > 0.0005f) {
-                val ratioDb = 20f * log10((balEnvM + 1e-5f) / (balEnvS + 1e-5f))
+                val ratioDb = 20f * log10((balEnvM + 1e-5f) / (balEnvS + 1e-5f)) - BAL_CENTER_DB
                 val over = when {
                     ratioDb > BAL_WINDOW_DB -> ratioDb - BAL_WINDOW_DB
                     ratioDb < -BAL_WINDOW_DB -> ratioDb + BAL_WINDOW_DB
@@ -558,8 +561,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
                 balTargetS = 10.0.pow(-corr / 40.0).toFloat()   // background: up by the same amount
             }
         }
-        balGainM += (balTargetM - balGainM) * 0.002f
-        balGainS += (balTargetS - balGainS) * 0.002f
+        balGainM += (balTargetM - balGainM) * 0.004f
+        balGainS += (balTargetS - balGainS) * 0.004f
         m += (balGainM - 1f) * voxLp
         s += (balGainS - 1f) * sHp
         voxBuf[voxIdx] = voxLp

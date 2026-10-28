@@ -28,6 +28,8 @@ import kotlin.math.tanh
  * - **Dialogue enhancer / presence**: peaking lift on the mid (centre) signal. Level 0..3 only adds a little.
  * - **Surround virtualizer feel**: always-on base widening + pseudo-stereo; Expanded stereo (0..3, earphones only) adds more.
  *   Only the side (background) signal is darkened, so vocals stay clear while instruments sit behind them.
+ * - **Immersive sound**: three soft, darkened early reflections per ear (room-like space around the listener);
+ *   gets a little stronger with Expanded stereo.
  * - **Graphic equalizer**: 10-band EQ (default = the "Custom" curve from the user's system Dolby: bass up, highs down).
  * - **Intelligent equalizer**: slowly measures the low/mid/high balance of the song and nudges it toward a target tone
  *   (leaves already-balanced songs alone).
@@ -59,6 +61,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val SIDE_HP_HZ = 250.0
         private const val DECOR_DELAY_S = 0.015
         private const val DECOR_HP_HZ = 300.0
+
+        // ── Immersive sound: soft early reflections that place the music in a small "room" around you ──
+        private val IMM_TAPS_L_S = doubleArrayOf(0.0073, 0.0191, 0.0310)
+        private val IMM_TAPS_R_S = doubleArrayOf(0.0117, 0.0233, 0.0379)
+        private val IMM_TAP_GAIN = floatArrayOf(0.14f, 0.09f, 0.06f)
+        private const val IMM_BASE = 0.6f
+        private const val IMM_PER_LEVEL = 0.13f
+        private const val IMM_LP_HZ = 5500.0
+        private const val IMM_MAX_S = 0.045
 
         /** Only the side (background) signal is darkened → vocals stay clear, instruments recede. */
         private const val SIDE_SHELF_HZ = 3000.0
@@ -143,6 +154,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var decPrevOut = 0f
     private val sideShelf = Biquad()
 
+    // ── Immersive reflections ────────────────────────────────────────────────
+    private var immBuf = FloatArray(1)
+    private var immIdx = 0
+    private var immLp = 0f
+    private var immLpCoef = 0.5f
+    private var immTapL = IntArray(3)
+    private var immTapR = IntArray(3)
+    private var immGain = IMM_BASE
+
     // ── Graphic equalizer ────────────────────────────────────────────────────
     private val geqL = Array(GEQ_FREQS.size) { Biquad() }
     private val geqR = Array(GEQ_FREQS.size) { Biquad() }
@@ -219,6 +239,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf = FloatArray((DECOR_DELAY_S * sr).toInt().coerceAtLeast(8))
         decIdx = 0
 
+        immBuf = FloatArray((IMM_MAX_S * sr).toInt().coerceAtLeast(64))
+        immIdx = 0
+        immLpCoef = (1.0 - exp(-2.0 * PI * IMM_LP_HZ / sr)).toFloat()
+        for (i in 0 until 3) {
+            immTapL[i] = (IMM_TAPS_L_S[i] * sr).toInt().coerceIn(1, immBuf.size - 1)
+            immTapR[i] = (IMM_TAPS_R_S[i] * sr).toInt().coerceIn(1, immBuf.size - 1)
+        }
+
         applyHighShelf(SIDE_SHELF_HZ, SIDE_SHELF_DB, sideShelf)
         appliedGeqVersion = -1 // rebuild graphic EQ for the new sample rate
         applyLowpass(XOVER_LOW_HZ, lp1L, lp1R)
@@ -268,6 +296,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val widen = BASE_WIDEN + WIDEN_GAIN[stereoLevel]
         val decor = BASE_DECOR + DECOR_GAIN[stereoLevel]
         regScale = 1f - REG_VOLUME_TIGHTEN * systemVolume
+        immGain = IMM_BASE + IMM_PER_LEVEL * stereoLevel
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
         if (geqVersion != appliedGeqVersion) updateGraphicEq()
 
@@ -329,9 +358,26 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         s += decor * delayed
         s = sideShelf.process(s)
 
+        // Immersive sound: darkened, delayed copies of the mid signal arrive from different sides (early reflections).
+        immLp += (mHp - immLp) * immLpCoef
+        immBuf[immIdx] = immLp
+        var refL = 0f
+        var refR = 0f
+        for (i in 0 until 3) {
+            var il = immIdx - immTapL[i]
+            if (il < 0) il += immBuf.size
+            var ir = immIdx - immTapR[i]
+            if (ir < 0) ir += immBuf.size
+            refL += immBuf[il] * IMM_TAP_GAIN[i]
+            refR += immBuf[ir] * IMM_TAP_GAIN[i]
+        }
+        if (++immIdx >= immBuf.size) immIdx = 0
+        refL *= immGain
+        refR *= immGain
+
         // Graphic equalizer (10 bands).
-        var tl = (m + s) * outGain
-        var tr = (m - s) * outGain
+        var tl = (m + s) * outGain + refL
+        var tr = (m - s) * outGain + refR
         for (i in geqL.indices) {
             tl = geqL[i].process(tl)
             tr = geqR[i].process(tr)
@@ -530,6 +576,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         hpPrevIn = 0f; hpPrevOut = 0f
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
+        immBuf.fill(0f); immIdx = 0; immLp = 0f
         sideShelf.reset()
         geqL.forEach { it.reset() }
         geqR.forEach { it.reset() }

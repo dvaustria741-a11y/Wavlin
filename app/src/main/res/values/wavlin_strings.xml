@@ -1161,4 +1161,5 @@
     <string name="theme_mode_dark">Dark</string>
     <string name="theme_mode_black">Black</string>
     <string name="palette_locked_label">Secret</string>
+    <string name="library_collections_title">Collections</string>
 </resources>

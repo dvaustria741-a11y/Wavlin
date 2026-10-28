@@ -562,6 +562,8 @@ private fun AppleFloatingTabBar(
                             .fillMaxHeight()
                             .clip(CircleShape)
                             .combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
                                 onClick = {
                                     if (routeSelected) {
                                         onItemClick(screen, true)

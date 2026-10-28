@@ -22,8 +22,10 @@ import com.wavlin.innertube.models.filterExplicit
 import com.wavlin.innertube.models.filterVideoSongs
 import com.wavlin.innertube.models.filterYoutubeShorts
 import com.wavlin.innertube.pages.ExplorePage
+import com.wavlin.innertube.pages.ChartsPage
 import com.wavlin.innertube.pages.HomePage
 import com.wavlin.innertube.utils.completed
+import com.wavlin.music.R
 import com.wavlin.music.constants.HideExplicitKey
 import com.wavlin.music.constants.HideVideoSongsKey
 import com.wavlin.music.constants.HideYoutubeShortsKey
@@ -94,7 +96,7 @@ class HomeViewModel @Inject constructor(
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
-    val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
+    val trendingNewSongs = MutableStateFlow<HomePage.Section?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
     val similarRecommendations = MutableStateFlow<List<SimilarRecommendation>?>(null)
     val accountPlaylists = MutableStateFlow<List<PlaylistItem>?>(null)
@@ -342,7 +344,6 @@ class HomeViewModel @Inject constructor(
         when (quickPicksEnum.first()) {
             QuickPicks.QUICK_PICKS -> {
                 val relatedSongs = database.quickPicks().first().filterVideoSongs(hideVideoSongs)
-                val forgotten = database.forgottenFavorites().first().filterVideoSongs(hideVideoSongs).take(8)
 
                 // Get similar songs from YouTube based on recent listening
                 val recentSong = database.events().first().firstOrNull()?.song
@@ -365,7 +366,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 // Combine all sources and remove duplicates
-                val combined = (relatedSongs + forgotten + ytSimilarSongs)
+                val combined = (relatedSongs + ytSimilarSongs)
                     .distinctBy { it.id }
                     .shuffled()
                     .take(20)
@@ -379,6 +380,32 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun getTrendingNewSongs() {
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+        val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+        YouTube.getChartsPage().onSuccess { page ->
+            val songs = page.sections
+                .filter { it.chartType == ChartsPage.ChartType.TRENDING || it.chartType == ChartsPage.ChartType.NEW_RELEASES }
+                .flatMap { it.items }
+                .filterIsInstance<SongItem>()
+                .distinctBy { it.id }
+                .filterExplicit(hideExplicit)
+                .filterVideoSongs(hideVideoSongs)
+                .filterYoutubeShorts(hideYoutubeShorts)
+                .take(20)
+            trendingNewSongs.value = songs.takeIf { it.isNotEmpty() }?.let {
+                HomePage.Section(
+                    title = context.getString(R.string.trending_new_songs),
+                    label = null,
+                    thumbnail = null,
+                    endpoint = null,
+                    items = it,
+                )
+            }
+        }.onFailure { reportException(it) }
     }
 
     private suspend fun getCommunityPlaylists() {
@@ -469,11 +496,6 @@ class HomeViewModel @Inject constructor(
             launch(Dispatchers.IO) { getQuickPicks() }
 
             launch(Dispatchers.IO) {
-                forgottenFavorites.value = database.forgottenFavorites().first()
-                    .filterVideoSongs(hideVideoSongs).shuffled().take(20)
-            }
-
-            launch(Dispatchers.IO) {
                 val songs = database.mostPlayedSongs(fromTimeStamp = fromTimeStamp, limit = 15, offset = 5, toTimeStamp = LocalDateTime.now()).first()
                     .filterVideoSongs(hideVideoSongs).shuffled().take(10)
                 val albums = database.mostPlayedAlbums(fromTimeStamp, limit = 8, offset = 2).first()
@@ -503,7 +525,7 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
+        allLocalItems.value = (quickPicks.value.orEmpty() + keepListening.value.orEmpty())
             .filter { it is Song || it is Album }
         isLoading.value = false
 
@@ -511,6 +533,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { getDailyDiscover() }
 
         viewModelScope.launch(Dispatchers.IO) { getCommunityPlaylists() }
+
+        viewModelScope.launch(Dispatchers.IO) { getTrendingNewSongs() }
 
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.explore().onSuccess { page ->

@@ -1131,6 +1131,7 @@
     <string name="reverb_preset_spring">Spring</string>
     <string name="categories">Categories</string>
     <string name="new_releases">New Releases</string>
+    <string name="trending_new_songs">Trending new songs</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="clear_all">Clear all</string>
     <string name="hub_collections">%1$d collections</string>

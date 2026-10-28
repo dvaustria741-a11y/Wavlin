@@ -187,8 +187,6 @@ sealed class HomeSection(
 
     data object AccountPlaylists : HomeSection("account_playlists", 40)
 
-    data object ForgottenFavorites : HomeSection("forgotten_favorites", 30)
-
     data object FromTheCommunity : HomeSection("from_the_community", 20)
 
     data class SimilarRecommendation(
@@ -653,14 +651,13 @@ fun HomeScreen(
     // the "now playing" highlight from lighting up here for songs playing from
     // somewhere else in the app.
     var quickPicksPlayGeneration by remember { mutableStateOf<Long?>(null) }
-    var forgottenFavoritesPlayGeneration by remember { mutableStateOf<Long?>(null) }
     var keepListeningPlayGeneration by remember { mutableStateOf<Long?>(null) }
     // Per-section-index generation tracking for the dynamic Home mix sections below,
     // since remember() can't be called directly inside the LazyListScope builder body.
     val sectionPlayGenerations = remember { mutableStateMapOf<Int, Long?>() }
 
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
-    val forgottenFavorites by viewModel.forgottenFavorites.collectAsStateWithLifecycle()
+    val trendingNewSongs by viewModel.trendingNewSongs.collectAsStateWithLifecycle()
     val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
     val similarRecommendations by viewModel.similarRecommendations.collectAsStateWithLifecycle()
     val accountPlaylists by viewModel.accountPlaylists.collectAsStateWithLifecycle()
@@ -686,7 +683,6 @@ fun HomeScreen(
     val pullRefreshState = rememberPullToRefreshState()
 
     val quickPicksLazyGridState = rememberLazyGridState()
-    val forgottenFavoritesLazyGridState = rememberLazyGridState()
 
     val accountName by viewModel.accountName.collectAsStateWithLifecycle()
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
@@ -1023,6 +1019,11 @@ fun HomeScreen(
         )
     }
 
+    val pageSections =
+        remember(trendingNewSongs, homePage?.sections) {
+            listOfNotNull(trendingNewSongs) + homePage?.sections.orEmpty()
+        }
+
     val homeSections =
         remember(
             randomizeHomeOrder,
@@ -1033,10 +1034,10 @@ fun HomeScreen(
             dailyDiscover,
             keepListening,
             accountPlaylists,
-            forgottenFavorites,
+            trendingNewSongs,
             communityPlaylists,
             similarRecommendations,
-            homePage?.sections,
+            pageSections,
             explorePage?.moodAndGenres,
         ) {
             val list = mutableListOf<HomeSection>()
@@ -1048,7 +1049,6 @@ fun HomeScreen(
             if (!chipActive && dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
             if (!chipActive && keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
             if (!chipActive && accountPlaylists?.isNotEmpty() == true) list.add(HomeSection.AccountPlaylists)
-            if (!chipActive && forgottenFavorites?.isNotEmpty() == true) list.add(HomeSection.ForgottenFavorites)
 
             if (!chipActive) {
                 similarRecommendations?.indices?.forEach { i ->
@@ -1056,7 +1056,7 @@ fun HomeScreen(
                 }
             }
 
-            homePage?.sections?.indices?.forEach { i ->
+            pageSections.indices.forEach { i ->
                 list.add(HomeSection.HomePageSection(i))
             }
 
@@ -1082,11 +1082,13 @@ fun HomeScreen(
 
                             HomeSection.KeepListening,
                             HomeSection.AccountPlaylists,
-                            HomeSection.ForgottenFavorites,
                             HomeSection.FromTheCommunity,
                             -> 300
 
                             // Middle tier starts equal
+
+                            is HomeSection.HomePageSection ->
+                                if (section.index == 0 && trendingNewSongs != null) 300 else 100
 
                             else -> 100 // Bottom tier
                         }
@@ -1105,7 +1107,6 @@ fun HomeScreen(
                             // This allows them to occasionally appear above a "bad roll" top tier item
                             HomeSection.KeepListening,
                             HomeSection.AccountPlaylists,
-                            HomeSection.ForgottenFavorites,
                             HomeSection.FromTheCommunity,
                             -> sectionRandom.nextInt(-100, 400)
 
@@ -1123,14 +1124,14 @@ fun HomeScreen(
                         HomeSection.DailyDiscover to 70,
                         HomeSection.KeepListening to 60,
                         HomeSection.AccountPlaylists to 50,
-                        HomeSection.ForgottenFavorites to 40,
                         HomeSection.MoodAndGenres to 10,
                     )
 
                 list.sortedByDescending { section ->
                     when (section) {
                         is HomeSection.SimilarRecommendation -> 30 - section.index
-                        is HomeSection.HomePageSection -> 20 - section.index
+                        is HomeSection.HomePageSection ->
+                            if (section.index == 0 && trendingNewSongs != null) 85 else 20 - section.index
                         else -> defaultOrder[section] ?: 0
                     }
                 }
@@ -1141,9 +1142,6 @@ fun HomeScreen(
         quickPicksLazyGridState.scrollToItem(0)
     }
 
-    LaunchedEffect(forgottenFavorites) {
-        forgottenFavoritesLazyGridState.scrollToItem(0)
-    }
 
     PullToRefreshBox(
         state = pullRefreshState,
@@ -1175,18 +1173,7 @@ fun HomeScreen(
                         },
                     )
                 }
-            val forgottenFavoritesSnapLayoutInfoProvider =
-                remember(forgottenFavoritesLazyGridState) {
-                    SnapLayoutInfoProvider(
-                        lazyGridState = forgottenFavoritesLazyGridState,
-                        positionInLayout = { layoutSize, itemSize ->
-                            (layoutSize * horizontalLazyGridItemWidthFactor / 2f - itemSize / 2f)
-                        },
-                    )
-                }
-
             val quickPicksDistinct = remember(quickPicks) { quickPicks?.distinctBy { it.id }.orEmpty() }
-            val forgottenFavoritesDistinct = remember(forgottenFavorites) { forgottenFavorites?.distinctBy { it.id }.orEmpty() }
             val keepListeningDistinct = remember(keepListening) { keepListening?.distinctBy { it.id }.orEmpty() }
 
             LazyColumn(
@@ -1281,7 +1268,7 @@ fun HomeScreen(
                     // Use key prefix "1_" to ensure episodes sort after channels "0_"
                     // Skip sections that duplicate official API sections (Your Shows, Episodes for Later)
                     homeSections.filterIsInstance<HomeSection.HomePageSection>().forEach { section ->
-                        val sectionData = homePage?.sections?.getOrNull(section.index)
+                        val sectionData = pageSections.getOrNull(section.index)
                         // Skip if this section duplicates an official API section
                         val skipTitles = listOf("your shows", "episodes for later", "podcast channels", "new episodes")
                         if (sectionData?.title?.lowercase()?.let { title -> skipTitles.any { title.contains(it) } } == true) {
@@ -2059,120 +2046,6 @@ fun HomeScreen(
                             }
                         }
 
-                        HomeSection.ForgottenFavorites -> {
-                            forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
-                                item(key = "forgotten_favorites_title", contentType = "title") {
-                                    val forgottenFavoritesTitle = stringResource(R.string.forgotten_favorites)
-                                    NavigationTitle(
-                                        title = forgottenFavoritesTitle,
-                                        onPlayAllClick =
-                                            if (!isListenTogetherGuest) {
-                                                {
-                                                    playerConnection.playQueue(
-                                                        ListQueue(
-                                                            title = forgottenFavoritesTitle,
-                                                            items = forgottenFavorites.distinctBy { it.id }.map { it.toMediaItem() },
-                                                        ),
-                                                    )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                    )
-                                }
-
-                                item(key = "forgotten_favorites_list", contentType = "row") {
-                                    // take min in case list size is less than 4
-                                    val rows = min(4, forgottenFavorites.size)
-                                    LazyHorizontalGrid(
-                                        state = forgottenFavoritesLazyGridState,
-                                        rows = GridCells.Fixed(rows),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        flingBehavior =
-                                            rememberSnapFlingBehavior(
-                                                forgottenFavoritesSnapLayoutInfoProvider,
-                                            ),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(ListItemHeight * rows),
-                                        ) {
-                                            items(
-                                                items = forgottenFavoritesDistinct,
-                                                key = { "home_forgotten_${it.id}" },
-                                            ) { originalSong ->
-                                            val songFlow = remember(originalSong.id) { database.song(originalSong.id) }
-                                            val song by songFlow.collectAsStateWithLifecycle(initialValue = originalSong)
-
-                                            SongListItem(
-                                                song = song!!,
-                                                showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id && queueGeneration == forgottenFavoritesPlayGeneration,
-                                                isPlaying = isPlaying,
-                                                isSwipeable = false,
-                                                trailingContent = {
-                                                    IconButton(
-                                                        onClick = {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            menuState.show {
-                                                                SongMenu(
-                                                                    originalSong = song!!,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                            }
-                                                        },
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.more_vert),
-                                                            contentDescription = null,
-                                                        )
-                                                    }
-                                                },
-                                                modifier =
-                                                    Modifier
-                                                        .width(horizontalLazyGridItemWidth)
-                                                        .combinedClickable(
-                                                            onClick = {
-                                                                if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id && queueGeneration == forgottenFavoritesPlayGeneration) {
-                                                                        playerConnection.togglePlayPause()
-                                                                    } else {
-                                                                        playerConnection.playQueue(
-                                                                            if (autoRadioQueue) {
-                                                                                YouTubeQueue.radio(
-                                                                                    song!!.toMediaMetadata(),
-                                                                                )
-                                                                            } else {
-                                                                                ListQueue(
-                                                                                    title = song!!.title,
-                                                                                    items = listOf(song!!.toMediaItem())
-                                                                                )
-                                                                            }
-                                                                        )
-                                                                        forgottenFavoritesPlayGeneration = playerConnection.service.queueGeneration.value
-                                                                    }
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
-                                                        ),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         is HomeSection.SimilarRecommendation -> {
                             val recommendation = similarRecommendations?.getOrNull(section.index)
                             recommendation?.let {
@@ -2242,7 +2115,7 @@ fun HomeScreen(
                             if (selectedChip?.title?.contains("Podcast", ignoreCase = true) == true) {
                                 return@forEach
                             }
-                            val sectionData = homePage?.sections?.getOrNull(section.index)
+                            val sectionData = pageSections.getOrNull(section.index)
                             sectionData?.let {
                                 // Check if section contains songs for Play All functionality
                                 val sectionSongs = sectionData.items.filterIsInstance<SongItem>()

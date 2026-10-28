@@ -75,6 +75,10 @@ fun SettingsScreen(
             )
         )
 
+        SettingsHeroCard(onClick = { navController.navigate("settings/about") })
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // User Interface Section
         Material3SettingsGroup(
             title = stringResource(R.string.settings_section_ui),
@@ -82,11 +86,13 @@ fun SettingsScreen(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.palette),
                     title = { Text(stringResource(R.string.appearance)) },
+                    description = { Text(stringResource(R.string.settings_desc_appearance)) },
                     onClick = { navController.navigate("settings/appearance") }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.palette),
+                    icon = painterResource(R.drawable.app_logo),
                     title = { Text(stringResource(R.string.app_icon)) },
+                    description = { Text(stringResource(R.string.settings_desc_app_icon)) },
                     onClick = { navController.navigate("settings/app_icon") }
                 )
             )
@@ -94,77 +100,77 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Player & Content Section (moved up and combined with content)
+        // Player & Content Section (Android Auto is only listed when it is installed)
         Material3SettingsGroup(
             title = stringResource(R.string.settings_section_player_content),
-            items = listOf(
+            items = buildList {
+                add(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.play),
                     title = { Text(stringResource(R.string.player_and_audio)) },
+                    description = { Text(stringResource(R.string.settings_desc_player)) },
                     onClick = { navController.navigate("settings/player") }
-                ),
+                )
+                )
+                add(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.radio),
                     title = { Text(stringResource(R.string.stream_sources)) },
+                    description = { Text(stringResource(R.string.settings_desc_stream_sources)) },
                     onClick = { navController.navigate("settings/stream_sources") }
-                ),
+                )
+                )
+                add(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.language),
                     title = { Text(stringResource(R.string.content)) },
+                    description = { Text(stringResource(R.string.settings_desc_content)) },
                     onClick = { navController.navigate("settings/content") }
-                ),
+                )
+                )
+                add(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.translate),
                     title = { Text(stringResource(R.string.ai_lyrics_translation)) },
+                    description = { Text(stringResource(R.string.settings_desc_ai)) },
                     onClick = { navController.navigate("settings/ai") }
                 )
-            )
+                )
+                if (hasAndroidAuto) {
+                    add(
+                    Material3SettingsItem(
+                    icon = painterResource(R.drawable.ic_android_auto),
+                    title = { Text(stringResource(R.string.android_auto)) },
+                    description = { Text(stringResource(R.string.settings_desc_android_auto)) },
+                    onClick = { navController.navigate("settings/android_auto") }
+                )
+                    )
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Android Auto Section — only shown if Android Auto is installed
-        if (hasAndroidAuto) {
-            Material3SettingsGroup(
-                title = "Android Auto",
-                items = listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.ic_android_auto),
-                        title = { Text(stringResource(R.string.android_auto)) },
-                        onClick = { navController.navigate("settings/android_auto") }
-                    )
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-        
-        // Privacy & Security Section
+        // Privacy & Data Section
         Material3SettingsGroup(
-            title = stringResource(R.string.settings_section_privacy),
+            title = stringResource(R.string.settings_section_privacy_data),
             items = listOf(
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.security),
                     title = { Text(stringResource(R.string.privacy)) },
+                    description = { Text(stringResource(R.string.settings_desc_privacy)) },
                     onClick = { navController.navigate("settings/privacy") }
-                )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Storage & Data Section
-        Material3SettingsGroup(
-            title = stringResource(R.string.settings_section_storage),
-            items = listOf(
+                ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.storage),
                     title = { Text(stringResource(R.string.storage)) },
+                    description = { Text(stringResource(R.string.settings_desc_storage)) },
                     onClick = { navController.navigate("settings/storage") }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.restore),
                     title = { Text(stringResource(R.string.backup_restore)) },
+                    description = { Text(stringResource(R.string.settings_desc_backup)) },
                     onClick = { navController.navigate("settings/backup_restore") }
                 )
             )
@@ -181,6 +187,7 @@ fun SettingsScreen(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.link),
                             title = { Text(stringResource(R.string.default_links)) },
+                            description = { Text(stringResource(R.string.settings_desc_links)) },
                             onClick = {
                                 try {
                                     val intent = Intent(
@@ -225,6 +232,7 @@ fun SettingsScreen(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.update),
                             title = { Text(stringResource(R.string.updater)) },
+                            description = { Text(stringResource(R.string.settings_desc_updater)) },
                             onClick = { navController.navigate("settings/updater") }
                         )
                     )
@@ -234,6 +242,7 @@ fun SettingsScreen(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.newspaper),
                         title = { Text(stringResource(R.string.changelog)) },
+                            description = { Text(stringResource(R.string.settings_desc_changelog)) },
                         onClick = { showChangelog.value = true }
                     )
                 )
@@ -241,6 +250,7 @@ fun SettingsScreen(
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.info),
                         title = { Text(stringResource(R.string.about)) },
+                            description = { Text(stringResource(R.string.settings_desc_about)) },
                         onClick = { navController.navigate("settings/about") }
                     )
                 )

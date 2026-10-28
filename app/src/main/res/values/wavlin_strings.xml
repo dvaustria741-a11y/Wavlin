@@ -1166,4 +1166,19 @@
     <string name="stats_plays">Plays</string>
     <string name="stats_duration_hours_minutes">%1$dh %2$dm</string>
     <string name="stats_duration_minutes">%1$dm</string>
+    <string name="settings_section_privacy_data">Privacy &amp; Data</string>
+    <string name="settings_desc_appearance">Theme, layout and interface style</string>
+    <string name="settings_desc_app_icon">Change the launcher icon</string>
+    <string name="settings_desc_player">Audio quality, normalization and playback</string>
+    <string name="settings_desc_stream_sources">Choose and order streaming clients</string>
+    <string name="settings_desc_content">Language, region, lyrics providers and proxy</string>
+    <string name="settings_desc_ai">Provider, model and API key</string>
+    <string name="settings_desc_android_auto">Sections and playlists shown in the car</string>
+    <string name="settings_desc_privacy">Listen and search history, screenshots</string>
+    <string name="settings_desc_storage">Song cache, downloads and image cache</string>
+    <string name="settings_desc_backup">Save or restore your data</string>
+    <string name="settings_desc_links">Open music links in Wavlin</string>
+    <string name="settings_desc_updater">Check for new versions</string>
+    <string name="settings_desc_changelog">View recent changes</string>
+    <string name="settings_desc_about">App information and credits</string>
 </resources>

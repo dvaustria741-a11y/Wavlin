@@ -548,6 +548,50 @@ fun OnlineSearchResult(
                         }
                     }
 
+                    // ── Spotify results — shown first, before YouTube sections ──────────
+                    if (searchFilter == null) {
+                        val spotifyTracks = spotifyResults
+                        if (!spotifyTracks.isNullOrEmpty()) {
+                            item(key = "spotify_results_header") {
+                                NavigationTitle(title = "Songs on Spotify")
+                            }
+                            items(
+                                items = spotifyTracks,
+                                key = { "spotify_track_${it.id}" },
+                            ) { track ->
+                                SpotifyTrackListItem(
+                                    track = track,
+                                    onClick = {
+                                        val ytQuery = track.query
+                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                            com.wavlin.innertube.YouTube.search(
+                                                ytQuery,
+                                                com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG,
+                                            ).onSuccess { result ->
+                                                result.items.firstOrNull()?.let { ytSong ->
+                                                    if (ytSong is com.wavlin.innertube.models.SongItem) {
+                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                            playerConnection.playQueue(
+                                                                com.wavlin.music.playback.queues.YouTubeQueue(
+                                                                    com.wavlin.innertube.models.WatchEndpoint(videoId = ytSong.id),
+                                                                    ytSong.toMediaMetadata(),
+                                                                )
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        } else if (spotifyTracks == null) {
+                            item(key = "spotify_loading") {
+                                ShimmerHost { ListItemPlaceHolder(); ListItemPlaceHolder() }
+                            }
+                        }
+                    }
+
                     if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
                         item {
                             ShimmerHost {

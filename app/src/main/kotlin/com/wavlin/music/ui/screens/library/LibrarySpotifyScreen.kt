@@ -178,11 +178,14 @@ private fun SpotifyTabs(
     selected: Int,
     onSelect: (Int) -> Unit,
 ) {
-    PrimaryTabRow(selectedTabIndex = selected, containerColor = androidx.compose.ui.graphics.Color.Transparent) {
-        listOf(R.string.spotify_playlists_tab, R.string.spotify_liked_songs_tab).forEachIndexed { index, title ->
-            Tab(selected = selected == index, onClick = { onSelect(index) }, text = { Text(stringResource(title)) })
-        }
-    }
+    LibrarySegmentedFilter(
+        options = listOf(
+            0 to stringResource(R.string.spotify_playlists_tab),
+            1 to stringResource(R.string.spotify_liked_songs_tab),
+        ),
+        selected = selected,
+        onSelect = onSelect,
+    )
 }
 
 @Composable

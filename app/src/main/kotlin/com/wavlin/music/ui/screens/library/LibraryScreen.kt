@@ -17,7 +17,6 @@ import com.wavlin.music.LocalNavController
 import com.wavlin.music.R
 import com.wavlin.music.constants.ChipSortTypeKey
 import com.wavlin.music.constants.LibraryFilter
-import com.wavlin.music.ui.component.ChipsRow
 import com.wavlin.music.utils.rememberEnumPreference
 
 @Composable
@@ -40,15 +39,10 @@ fun LibraryScreen() {
                 categories = categories,
                 onSelect = { filterType = it },
             )
-        } else Row {
-            ChipsRow(
-                chips = categories.map { it.filter to it.label },
-                currentValue = filterType,
-                onValueUpdate = {
-                    filterType = if (filterType == it) LibraryFilter.LIBRARY else it
-                },
-                modifier = Modifier.weight(1f),
-                showCloseOnSelected = true,
+        } else {
+            LibrarySectionHeader(
+                title = categories.firstOrNull { it.filter == filterType }?.label.orEmpty(),
+                onClose = { filterType = LibraryFilter.LIBRARY },
             )
         }
     }

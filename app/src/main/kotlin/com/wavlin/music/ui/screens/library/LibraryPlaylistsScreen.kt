@@ -218,57 +218,6 @@ fun LibraryPlaylistsScreen(
         topSize,
     ) {
         buildList {
-            if (showLikedPlaylist) {
-                add(
-                    VisiblePlaylistItem(
-                        key = "likedPlaylist",
-                        playlist = likedPlaylist,
-                        autoPlaylist = true,
-                        route = "auto_playlist/liked",
-                    ),
-                )
-            }
-            if (showDownloadedPlaylist) {
-                add(
-                    VisiblePlaylistItem(
-                        key = "downloadedPlaylist",
-                        playlist = downloadPlaylist,
-                        autoPlaylist = true,
-                        route = "auto_playlist/downloaded",
-                    ),
-                )
-            }
-            if (showCachedPlaylists) {
-                add(
-                    VisiblePlaylistItem(
-                        key = "cachedPlaylist",
-                        playlist = cachedPlaylist,
-                        autoPlaylist = true,
-                        route = "cache_playlist/cached",
-                    ),
-                )
-            }
-            if (showTopPlaylists) {
-                add(
-                    VisiblePlaylistItem(
-                        key = "TopPlaylist",
-                        playlist = topPlaylist,
-                        autoPlaylist = true,
-                        route = "top_playlist/$topSize",
-                    ),
-                )
-            }
-            if (showUploadedPlaylists) {
-                add(
-                    VisiblePlaylistItem(
-                        key = "uploadedPlaylist",
-                        playlist = uploadedPlaylist,
-                        autoPlaylist = true,
-                        route = "auto_playlist/uploaded",
-                    ),
-                )
-            }
-
             filteredPlaylists
                 .distinctBy { it.id }
                 .forEach { playlist ->
@@ -403,6 +352,14 @@ fun LibraryPlaylistsScreen(
         }
     }
 
+    val collections = buildList {
+        if (showLikedPlaylist) add(LibraryCollection("liked", likedPlaylist.playlist.name, R.drawable.favorite_border, "auto_playlist/liked", 0))
+        if (showDownloadedPlaylist) add(LibraryCollection("downloaded", downloadPlaylist.playlist.name, R.drawable.offline, "auto_playlist/downloaded", 1))
+        if (showCachedPlaylists) add(LibraryCollection("cached", cachedPlaylist.playlist.name, R.drawable.cached, "cache_playlist/cached", 2))
+        if (showTopPlaylists) add(LibraryCollection("top", topPlaylist.playlist.name, R.drawable.trending_up, "top_playlist/$topSize", 3))
+        if (showUploadedPlaylists) add(LibraryCollection("uploaded", uploadedPlaylist.playlist.name, R.drawable.backup, "auto_playlist/uploaded", 4))
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -419,6 +376,18 @@ fun LibraryPlaylistsScreen(
                         filterContent()
                     }
 
+                    if (collections.isNotEmpty()) {
+                        item(
+                            key = "collections",
+                            contentType = CONTENT_TYPE_HEADER,
+                        ) {
+                            LibraryCollectionsRow(
+                                collections = collections,
+                                onClick = { navController.navigate(it.route) },
+                            )
+                        }
+                    }
+
                     item(
                         key = "header",
                         contentType = CONTENT_TYPE_HEADER,
@@ -426,7 +395,7 @@ fun LibraryPlaylistsScreen(
                         headerContent()
                     }
 
-                    if (visibleResults.isEmpty()) {
+                    if (visibleResults.isEmpty() && (collections.isEmpty() || searchQuery.isBlank())) {
                         item(key = "empty_placeholder") {
                             if (searchQuery.isNotBlank()) {
                                 LibrarySearchEmptyPlaceholder(modifier = Modifier.animateItem())
@@ -486,6 +455,19 @@ fun LibraryPlaylistsScreen(
                         filterContent()
                     }
 
+                    if (collections.isNotEmpty()) {
+                        item(
+                            key = "collections",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = CONTENT_TYPE_HEADER,
+                        ) {
+                            LibraryCollectionsRow(
+                                collections = collections,
+                                onClick = { navController.navigate(it.route) },
+                            )
+                        }
+                    }
+
                     item(
                         key = "header",
                         span = { GridItemSpan(maxLineSpan) },
@@ -494,7 +476,7 @@ fun LibraryPlaylistsScreen(
                         headerContent()
                     }
 
-                    if (visibleResults.isEmpty()) {
+                    if (visibleResults.isEmpty() && (collections.isEmpty() || searchQuery.isBlank())) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             if (searchQuery.isNotBlank()) {
                                 LibrarySearchEmptyPlaceholder(modifier = Modifier.animateItem())

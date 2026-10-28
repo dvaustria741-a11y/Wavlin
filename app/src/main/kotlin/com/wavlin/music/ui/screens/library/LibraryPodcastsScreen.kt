@@ -178,37 +178,17 @@ fun LibraryPodcastsScreen(
     ) {
         // Chip row header — same pattern as LibrarySongsScreen
         val chipsHeader = @Composable {
-            Row {
-                Spacer(Modifier.width(12.dp))
-                FilterChip(
-                    label = { Text(stringResource(R.string.filter_podcasts)) },
-                    selected = true,
-                    colors =
-                        FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    onClick = onDeselect,
-                    shape = RoundedCornerShape(16.dp),
-                    border = null,
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = stringResource(R.string.close_chip),
-                        )
-                    },
-                )
-                ChipsRow(
-                    chips =
-                        listOf(
-                            PodcastFilter.EPISODES to stringResource(R.string.filter_episodes),
-                            PodcastFilter.CHANNELS to stringResource(R.string.filter_channels),
-                            PodcastFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                        ),
-                    currentValue = podcastFilter,
-                    onValueUpdate = { podcastFilter = it },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            LibrarySectionHeader(title = stringResource(R.string.filter_podcasts), onClose = onDeselect) {
+            LibrarySegmentedFilter(
+                options = listOf(
+                    PodcastFilter.EPISODES to stringResource(R.string.filter_episodes),
+                    PodcastFilter.CHANNELS to stringResource(R.string.filter_channels),
+                    PodcastFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
+                ),
+                selected = podcastFilter,
+                onSelect = { podcastFilter = it },
+            )
+        }
         }
 
         when (podcastFilter) {

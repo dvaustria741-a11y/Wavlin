@@ -444,36 +444,18 @@ fun LibrarySongsScreen(
                         }
                     }
                 } else {
-                    Row {
-                        Spacer(Modifier.width(12.dp))
-                        FilterChip(
-                            label = { Text(stringResource(R.string.songs)) },
-                            selected = true,
-                            colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                            onClick = onDeselect,
-                            shape = RoundedCornerShape(16.dp),
-                            leadingIcon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.close),
-                                    contentDescription = "",
-                                )
-                            },
-                        )
-                        ChipsRow(
-                            chips =
-                                listOf(
-                                    SongFilter.LIKED to stringResource(R.string.filter_liked),
-                                    SongFilter.LIBRARY to stringResource(R.string.filter_library),
-                                    SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
-                                    SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                                ),
-                            currentValue = filter,
-                            onValueUpdate = {
-                                filter = it
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                    LibrarySectionHeader(title = stringResource(R.string.songs), onClose = onDeselect) {
+            LibrarySegmentedFilter(
+                options = listOf(
+                    SongFilter.LIKED to stringResource(R.string.filter_liked),
+                    SongFilter.LIBRARY to stringResource(R.string.filter_library),
+                    SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
+                    SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
+                ),
+                selected = filter,
+                onSelect = { filter = it },
+            )
+        }
                 }
             }
 

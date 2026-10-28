@@ -414,7 +414,6 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf[decIdx] = mHp
         if (++decIdx >= decBuf.size) decIdx = 0
         s += decor * delayed
-        s = sideShelf.process(s)
 
         // Immersive sound: darkened, delayed copies of the mid signal arrive from different sides (early reflections).
         immLp += (mHp - immLp) * immLpCoef
@@ -433,9 +432,16 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         refL *= immGain
         refR *= immGain
 
+        // Reflections join the mid/side signals BEFORE the background (side) darkening, so the recessed
+        // "lubog" background is always applied - whatever Expanded stereo / Immersive are set to.
+        val refGain = 1f / outGain
+        m += (refL + refR) * 0.5f * refGain
+        s += (refL - refR) * 0.5f * refGain
+        s = sideShelf.process(s)
+
         // Graphic equalizer (10 bands).
-        var tl = (m + s) * outGain + refL
-        var tr = (m - s) * outGain + refR
+        var tl = (m + s) * outGain
+        var tr = (m - s) * outGain
         for (i in geqL.indices) {
             tl = geqL[i].process(tl)
             tr = geqR[i].process(tr)

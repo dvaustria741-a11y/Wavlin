@@ -75,7 +75,6 @@ import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.playback.queues.YouTubeQueue
 import com.wavlin.music.ui.component.ArtistListItem
-import com.wavlin.music.ui.component.ChoiceChipsRow
 import com.wavlin.music.ui.component.EmptyPlaceholder
 import com.wavlin.music.ui.component.HideOnScrollFAB
 import com.wavlin.music.ui.component.IconButton
@@ -324,7 +323,7 @@ fun StatsScreen(
                     }
 
             item(key = "choice_chips") {
-                ChoiceChipsRow(
+                StatsPeriodSelector(
                     chips =
                         when (selectedOption) {
                             OptionStats.WEEKS -> {
@@ -392,6 +391,19 @@ fun StatsScreen(
                 )
             }
 
+            if (!isSearching && mostPlayedSongsStats.isNotEmpty()) {
+                item(key = "statsSummary") {
+                    StatsSummaryCard(
+                        totalTimeMs = mostPlayedSongsStats.sumOf { it.timeListened ?: 0L },
+                        plays = mostPlayedSongsStats.sumOf { it.songCountListened },
+                        songs = mostPlayedSongsStats.size,
+                        artists = mostPlayedArtists.size,
+                        albums = mostPlayedAlbums.size,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+
             if (visibleStatsPlaylists.isNotEmpty() && !isSearching && sArtists.isEmpty()) {
                 item(key = "mostPeriodPlaylistsTitle") {
                     NavigationTitle(
@@ -407,7 +419,7 @@ fun StatsScreen(
 
                 item(key = "mostPeriodPlaylists") {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp),
                         modifier = Modifier.animateItem(),
                     ) {
                         itemsIndexed(

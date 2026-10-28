@@ -67,7 +67,7 @@ val LocalPinkNowPlaying = staticCompositionLocalOf { false }
 /** A stronger pink frosted style for the bottom bar, so blurred artwork never shows as dark smudges. */
 fun pinkLilyNavHazeStyle(): HazeStyle = HazeStyle(
     backgroundColor = Color(0xFFFFE9F1),
-    tints = listOf(HazeTint(Color(0xFFFFC2D6).copy(alpha = 0.82f))),
+    tints = listOf(HazeTint(Color(0xFFFFC2D6).copy(alpha = 0.6f))),
     blurRadius = 28.dp,
     noiseFactor = 0.03f,
 )

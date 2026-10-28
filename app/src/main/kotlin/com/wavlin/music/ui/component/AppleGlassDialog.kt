@@ -73,6 +73,7 @@ fun AppleGlassAccountOverlay(
 ) {
     val navController = LocalNavController.current
     val shape = RoundedCornerShape(26.dp)
+    val pinkLily = LocalPinkLilyTheme.current
     val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
     val close: () -> Unit = { visibleState.targetState = false }
     BackHandler(onBack = close)
@@ -124,8 +125,18 @@ fun AppleGlassAccountOverlay(
                     .then(
                         if (glass) {
                             Modifier
-                                .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.45f)
-                                .border(1.dp, glassStrokeBrush(), shape)
+                                .appleGlass(
+                                    shape,
+                                    if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin(),
+                                    tintAlpha = 0.45f,
+                                )
+                                .then(
+                                    if (pinkLily) {
+                                        Modifier.pinkGlassEdge(shape, strong = LocalInterfaceAppleMusic.current)
+                                    } else {
+                                        Modifier.border(1.dp, glassStrokeBrush(), shape)
+                                    },
+                                )
                         } else {
                             Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
                         },

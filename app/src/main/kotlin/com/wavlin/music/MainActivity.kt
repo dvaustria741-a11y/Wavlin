@@ -185,7 +185,6 @@ import com.wavlin.music.playback.MusicService
 import com.wavlin.music.playback.MusicService.MusicBinder
 import com.wavlin.music.playback.PlayerConnection
 import com.wavlin.music.playback.queues.YouTubeQueue
-import com.wavlin.music.ui.component.AccountSettingsDialog
 import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LilyDiscBox
@@ -1543,18 +1542,11 @@ class MainActivity : ComponentActivity() {
                             showAccountDialog = false
                             homeViewModel.refresh()
                         }
-                        if (!pinkWallpaper) {
-                            // Small glass popover anchored top-right in both styles (blur fallback when there is no layer backdrop).
-                            com.wavlin.music.ui.component.AppleGlassAccountOverlay(
-                                onDismiss = dismissAccount,
-                                latestVersionName = latestVersionName,
-                            )
-                        } else {
-                            AccountSettingsDialog(
-                                onDismiss = dismissAccount,
-                                latestVersionName = latestVersionName,
-                            )
-                        }
+                        // Small glass popover anchored top-right, in every theme (Secret Pink only tints it).
+                        com.wavlin.music.ui.component.AppleGlassAccountOverlay(
+                            onDismiss = dismissAccount,
+                            latestVersionName = latestVersionName,
+                        )
                     }
 
                     sharedSong?.let { song ->

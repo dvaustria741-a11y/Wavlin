@@ -52,174 +52,10 @@ fun Material3SettingsGroup(
     items: List<Material3SettingsItem>,
     useLowContrast: Boolean = false
 ) {
-    if (!LocalPinkLilyTheme.current) {
-        if (LocalInterfaceAppleMusic.current) {
-            AppleSettingsGroup(title, items)
-        } else {
-            ClearSettingsGroup(title, items, useLowContrast)
-        }
-        return
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
-        // Section title
-        title?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp, top = 8.dp)
-            )
-        }
-
-        // Settings items
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items.forEachIndexed { index, item ->
-                val shape = when {
-                    items.size == 1 -> RoundedCornerShape(24.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 6.dp, bottomEnd = 6.dp)
-                    index == items.size - 1 -> RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                    else -> RoundedCornerShape(6.dp)
-                }
-
-                val pinkLily = LocalPinkLilyTheme.current
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize()
-                        .let { base ->
-                            if (pinkLily) base.pinkGlass(RoundedCornerShape(28.dp), floating = false) else base
-                        },
-                    shape = if (pinkLily) RoundedCornerShape(28.dp) else shape,
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (pinkLily) androidx.compose.ui.graphics.Color.Transparent else if (!useLowContrast) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        }
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Material3SettingsItemRow(item = item)
-                }
-            }
-        }
-    }
-}
-
-/**
- * Individual settings item row with Material 3 styling
- */
-@Composable
-private fun Material3SettingsItemRow(
-    item: Material3SettingsItem
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = item.enabled && item.onClick != null,
-                onClick = { item.onClick?.invoke() }
-            )
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Custom leading content or Icon with background
-        if (item.leadingContent != null) {
-            item.leadingContent.invoke()
-            Spacer(modifier = Modifier.width(16.dp))
-        } else if (item.icon != null) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(
-                            alpha = if (item.isHighlighted) 0.15f else 0.1f
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (item.showBadge) {
-                    BadgedBox(
-                        badge = {
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    ) {
-                        Icon(
-                            painter = item.icon,
-                            contentDescription = null,
-                            tint = if (!item.enabled)
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else if (item.isHighlighted)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                } else {
-                    Icon(
-                        painter = item.icon,
-                        contentDescription = null,
-                        tint = if (!item.enabled)
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        else if (item.isHighlighted)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-
-        // Title and description
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            // Title content
-            ProvideTextStyle(
-                MaterialTheme.typography.titleMedium.copy(
-                    color = if (!item.enabled) 
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    else
-                        MaterialTheme.colorScheme.onSurface
-                )
-            ) {
-                item.title()
-            }
-
-            // Description if provided
-            item.description?.let { desc ->
-                Spacer(modifier = Modifier.height(2.dp))
-                ProvideTextStyle(
-                    MaterialTheme.typography.bodyMedium.copy(
-                        color = if (!item.enabled)
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    desc()
-                }
-            }
-        }
-
-        // Trailing content
-        item.trailingContent?.let { trailing ->
-            Spacer(modifier = Modifier.width(8.dp))
-            trailing()
-        }
+    if (LocalInterfaceAppleMusic.current) {
+        AppleSettingsGroup(title, items)
+    } else {
+        ClearSettingsGroup(title, items, useLowContrast)
     }
 }
 
@@ -270,17 +106,25 @@ private fun ClearSettingsGroup(
                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp),
             )
         }
+        val pinkLily = LocalPinkLilyTheme.current
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(shape)
-                .background(
-                    if (useLowContrast) {
-                        MaterialTheme.colorScheme.surfaceContainerLow
+                .let { base ->
+                    if (pinkLily) {
+                        base.pinkGlass(shape, floating = false)
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
-                    },
-                )
+                        base
+                            .clip(shape)
+                            .background(
+                                if (useLowContrast) {
+                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
+                                },
+                            )
+                    }
+                }
                 .animateContentSize(),
         ) {
             items.forEachIndexed { index, item ->
@@ -321,11 +165,19 @@ private fun AppleSettingsGroup(
                 modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 7.dp),
             )
         }
+        val pinkLily = LocalPinkLilyTheme.current
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                .let { base ->
+                    if (pinkLily) {
+                        base.pinkGlass(shape, floating = false)
+                    } else {
+                        base
+                            .clip(shape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    }
+                }
                 .animateContentSize(),
         ) {
             items.forEachIndexed { index, item ->

@@ -198,11 +198,9 @@ fun AppNavigationBar(
     // Pure black is an explicit OLED preference - keep a heavy black tint, but still blur
     // through it rather than falling back to a flat, zero-variation fill.
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    val haptics = LocalHapticFeedback.current
-    val viewConfiguration = LocalViewConfiguration.current
     val hazeState = LocalHazeState.current
 
-    if (LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current) {
+    if (LocalInterfaceAppleMusic.current) {
         AppleFloatingTabBar(
             navigationItems = navigationItems,
             currentRoute = currentRoute,
@@ -214,141 +212,31 @@ fun AppNavigationBar(
         return
     }
 
-    if (!LocalPinkLilyTheme.current) {
-        NavigationBar(
-            modifier = modifier
-                .hazeEffect(
-                    state = hazeState,
-                    style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin(),
-                )
-                .glassTopEdgeGlow(),
-            containerColor = Color.Transparent,
-            contentColor = contentColor
-        ) {
-            MaterialGlideTabs(
-                navigationItems = navigationItems,
-                currentRoute = currentRoute,
-                onItemClick = onItemClick,
-                slimNav = slimNav,
-                onSearchLongClick = onSearchLongClick,
-            )
-        }
-        return
-    }
-
+    // Material 3: edge-to-edge frosted bar. Secret Pink only swaps the haze tint, it is the same glass.
+    val pinkLily = LocalPinkLilyTheme.current
     NavigationBar(
         modifier = modifier
-            .let { base ->
-                if (LocalPinkLilyTheme.current) {
-                    // Secret Pink: the lily art is opaque and carries its own rounded corners, so no clip or fill underneath.
-                    base
-                } else {
-                    base.hazeEffect(
-                        state = hazeState,
-                        style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin(),
-                    )
-                }
-            }
-            .let { base ->
-                if (LocalPinkLilyTheme.current) {
-                    base.lilySliced(res = R.drawable.lily_nav_bar, leftCapPx = 130, rightCapPx = 130, alpha = 1f)
-                } else {
-                    base
-                }
-            }
-            .let { base -> if (LocalPinkLilyTheme.current) base else base.glassTopEdgeGlow() },
+            .hazeEffect(
+                state = hazeState,
+                style = when {
+                    pinkLily -> pinkLilyNavHazeStyle()
+                    pureBlack -> pureBlackHazeStyle()
+                    else -> HazeMaterials.thin()
+                },
+            )
+            .glassTopEdgeGlow(),
         containerColor = Color.Transparent,
         contentColor = contentColor
     ) {
-        navigationItems.forEach { screen ->
-            val isSelected = remember(currentRoute, screen.route) {
-                isRouteSelected(currentRoute, screen.route, navigationItems)
-            }
-            val currentIsSelected by rememberUpdatedState(isSelected)
-            val iconRes = remember(isSelected, screen) {
-                if (isSelected) screen.iconIdActive else screen.iconIdInactive
-            }
-
-            val isSearchItem = screen == Screens.Search && onSearchLongClick != null
-            val interactionSource = remember { MutableInteractionSource() }
-
-            // Long press detection using InteractionSource
-            if (isSearchItem) {
-                LaunchedEffect(interactionSource) {
-                    var isLongClick = false
-                    interactionSource.interactions.collectLatest { interaction ->
-                        when (interaction) {
-                            is PressInteraction.Press -> {
-                                isLongClick = false
-                                delay(viewConfiguration.longPressTimeoutMillis)
-                                isLongClick = true
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onSearchLongClick.invoke()
-                            }
-                            is PressInteraction.Release -> {
-                                if (!isLongClick) {
-                                    onItemClick(screen, currentIsSelected)
-                                }
-                            }
-                            is PressInteraction.Cancel -> {
-                                isLongClick = false
-                            }
-                        }
-                    }
-                }
-            }
-
-            NavigationBarItem(
-                colors =
-                    if (LocalPinkLilyTheme.current) {
-                        androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurface,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                            indicatorColor = Color.Transparent,
-                        )
-                    } else {
-                        androidx.compose.material3.NavigationBarItemDefaults.colors()
-                    },
-                selected = isSelected,
-                onClick = {
-                    if (!isSearchItem) {
-                        onItemClick(screen, currentIsSelected)
-                    }
-                    // For search item, click is handled via InteractionSource
-                },
-                interactionSource = interactionSource,
-                icon = {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (LocalPinkLilyTheme.current && isSelected) {
-                            // Secret Pink: glossy pill behind the selected tab instead of the M3 indicator.
-                            LilySlicedBackground(
-                                res = R.drawable.lily_nav_pill,
-                                leftCapPx = 104,
-                                rightCapPx = 104,
-                                modifier = Modifier.requiredSize(64.dp, 32.dp),
-                            )
-                        }
-                        Icon(
-                            painter = painterResource(id = iconRes),
-                            contentDescription = stringResource(screen.titleId)
-                        )
-                    }
-                },
-                label = if (!slimNav) {
-                    {
-                        Text(
-                            text = stringResource(screen.titleId),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                } else null
-            )
-        }
+        MaterialGlideTabs(
+            navigationItems = navigationItems,
+            currentRoute = currentRoute,
+            onItemClick = onItemClick,
+            slimNav = slimNav,
+            onSearchLongClick = onSearchLongClick,
+        )
     }
 }
-
 
 /**
  * Apple Music style: a single floating glass capsule holding every tab (Home, Search, Library)
@@ -414,7 +302,7 @@ private fun RowScope.MaterialGlideTabs(
     val colors = MaterialTheme.colorScheme
     val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
     val glide = rememberTabGlide(foundIndex)
-    val pillColor = colors.secondaryContainer
+    val pillColor = if (LocalPinkLilyTheme.current) PinkGlassTint.copy(alpha = 0.45f) else colors.secondaryContainer
     val count = navigationItems.size.coerceAtLeast(1)
 
     Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -531,7 +419,9 @@ private fun AppleFloatingTabBar(
             modifier = Modifier
                 .weight(1f)
                 .height(barHeight)
-                .appleGlass(CircleShape, HazeMaterials.thin())
+                .let { base ->
+                    if (LocalPinkLilyTheme.current) base.pinkGlass(CircleShape) else base.appleGlass(CircleShape, HazeMaterials.thin())
+                }
                 .padding(6.dp),
         ) {
             val tabWidth = maxWidth / navigationItems.size.coerceAtLeast(1)

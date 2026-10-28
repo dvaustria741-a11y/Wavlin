@@ -112,9 +112,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
          * Slow auto-gain toward a per-band target level: quiet parts are lifted AND loud parts are pulled down, so
          * everything ends up at a similar volume (the system Dolby leveler feel).
          */
-        private val LEVEL_TARGET = floatArrayOf(0.18f, 0.15f, 0.05f)
+        private val LEVEL_TARGET = floatArrayOf(0.30f, 0.25f, 0.09f)
         private const val LEVEL_GAMMA = 0.7f       // 0 = off, 1 = fully flat
-        private const val LEVEL_G_MIN = 0.4f       // max cut  (~ -8 dB)
+        private const val LEVEL_G_MIN = 0.75f      // max cut  (~ -2.5 dB)
         private const val LEVEL_G_MAX = 2.8f       // max lift (~ +9 dB)
         private const val AGC_ATTACK_S = 0.01
         private const val AGC_RELEASE_S = 0.7
@@ -138,11 +138,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val EQ_UPDATE_FRAMES = 2048
 
         // ── Volume maximizer ─────────────────────────────────────────────────
-        private const val MASTER_GAIN_DB = 1.5
-        private const val LIM_CEIL = 0.89f
+        private const val MASTER_GAIN_DB = 5.0
+        private const val LIM_CEIL = 0.93f
         private const val LIM_LOOKAHEAD_S = 0.0015
         private const val LIM_RELEASE_S = 0.08
-        private const val CLIP_KNEE = 0.92f
+        private const val CLIP_KNEE = 0.95f
 
         private const val MIX_SMOOTHING = 0.0015f
     }

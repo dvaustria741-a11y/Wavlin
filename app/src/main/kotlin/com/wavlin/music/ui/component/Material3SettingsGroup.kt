@@ -93,9 +93,9 @@ fun Material3SettingsGroup(
                         .fillMaxWidth()
                         .animateContentSize()
                         .let { base ->
-                            if (pinkLily) base.lilySliced(res = com.wavlin.music.R.drawable.lily_row_bar, leftCapPx = 260, rightCapPx = 260) else base
+                            if (pinkLily) base.pinkGlass(RoundedCornerShape(28.dp), floating = false) else base
                         },
-                    shape = if (pinkLily) RoundedCornerShape(50) else shape,
+                    shape = if (pinkLily) RoundedCornerShape(28.dp) else shape,
                     colors = CardDefaults.cardColors(
                         containerColor = if (pinkLily) androidx.compose.ui.graphics.Color.Transparent else if (!useLowContrast) {
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -126,7 +126,7 @@ private fun Material3SettingsItemRow(
                 enabled = item.enabled && item.onClick != null,
                 onClick = { item.onClick?.invoke() }
             )
-            .padding(horizontal = if (LocalPinkLilyTheme.current) 28.dp else 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Custom leading content or Icon with background

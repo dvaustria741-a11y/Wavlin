@@ -7,6 +7,8 @@
 
 package com.wavlin.music.ui.player
 
+import com.wavlin.music.ui.component.pinkGlass
+import com.wavlin.music.ui.component.pinkGlassEdge
 import com.wavlin.music.ui.component.appleGlass
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
 import android.content.res.Configuration
@@ -414,8 +416,8 @@ private fun NewMiniPlayer(
                     .clip(RoundedCornerShape(32.dp))
                     .let { base ->
                         if (useGlassBackdrop) {
-                            if (LocalInterfaceAppleMusic.current && !pinkLily) {
-                                base.appleGlass(RoundedCornerShape(32.dp), HazeMaterials.thin())
+                            if (LocalInterfaceAppleMusic.current) {
+                                base.appleGlass(RoundedCornerShape(32.dp), if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
                             } else {
                                 base.hazeEffect(state = hazeState, style = if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin())
                             }
@@ -474,13 +476,7 @@ private fun NewMiniPlayer(
                 else -> {}
             }
             if (pinkLily && useGlassBackdrop) {
-                LilySlicedBackground(
-                    res = R.drawable.lily_pill_bar,
-                    leftCapPx = 354,
-                    rightCapPx = 354,
-                    alpha = 0.95f,
-                    modifier = Modifier.matchParentSize(),
-                )
+                Box(Modifier.matchParentSize().pinkGlassEdge(RoundedCornerShape(50), strong = LocalInterfaceAppleMusic.current))
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1183,11 +1179,7 @@ private fun SubscribeButton(
                 },
     ) {
         if (pinkLily) {
-            Image(
-                painter = painterResource(R.drawable.lily_btn_disc),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-            )
+            Box(Modifier.matchParentSize().pinkGlass(CircleShape))
         }
         Icon(
             painter = painterResource(if (isSubscribed) R.drawable.subscribed else R.drawable.subscribe),
@@ -1226,11 +1218,7 @@ private fun AddToPlaylistButton(
             .clickable { onClick() },
     ) {
         if (pinkLily) {
-            Image(
-                painter = painterResource(R.drawable.lily_btn_disc),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-            )
+            Box(Modifier.matchParentSize().pinkGlass(CircleShape))
         }
         Icon(
             painter = painterResource(R.drawable.add),
@@ -1272,11 +1260,7 @@ private fun FavoriteButton(
                 ).clickable { playerConnection.service.toggleLike() },
     ) {
         if (pinkLily) {
-            Image(
-                painter = painterResource(R.drawable.lily_btn_disc),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-            )
+            Box(Modifier.matchParentSize().pinkGlass(CircleShape))
         }
         Icon(
             painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),

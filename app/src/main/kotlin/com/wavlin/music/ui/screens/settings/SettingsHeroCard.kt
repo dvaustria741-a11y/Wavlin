@@ -68,7 +68,7 @@ fun SettingsHeroCard(
                 .background(colors.onPrimaryContainer.copy(alpha = 0.12f), CircleShape),
         ) {
             Icon(
-                painter = painterResource(R.drawable.app_logo),
+                painter = painterResource(R.drawable.music_note),
                 contentDescription = null,
                 tint = colors.onPrimaryContainer,
                 modifier = Modifier.size(32.dp),

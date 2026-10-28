@@ -113,7 +113,7 @@ fun Modifier.glassPanel(
     strokeWidth: Dp = 1.dp,
     drawStroke: Boolean = true,
 ): Modifier =
-    if (LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current) {
+    if (LocalInterfaceAppleMusic.current) {
         // Apple Music style: every glass surface uses the shared liquid-glass backdrop.
         this.appleGlass(shape, style)
     } else {
@@ -128,23 +128,13 @@ fun Modifier.legacyGlassPanel(
     strokeWidth: Dp = 1.dp,
     drawStroke: Boolean = true,
 ): Modifier = composed {
-    if (LocalPinkLilyTheme.current && shape == androidx.compose.foundation.shape.CircleShape) {
-        // Secret Pink: round glass buttons use the pale lily disc art instead of a haze outline.
-        val disc = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.wavlin.music.R.drawable.lily_btn_disc)
-        return@composed this
-            .clip(shape)
-            .drawBehind {
-                drawImage(
-                    image = disc,
-                    dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
-                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
-                )
-            }
-    }
     val hazeState = LocalHazeState.current
     var m = this
         .clip(shape)
-        .hazeEffect(state = hazeState, style = style ?: HazeMaterials.thin())
+        .hazeEffect(
+            state = hazeState,
+            style = style ?: if (LocalPinkLilyTheme.current) pinkLilyHazeStyle() else HazeMaterials.thin(),
+        )
     if (drawStroke) {
         m = m.border(strokeWidth, glassStrokeBrush(), shape)
     }
@@ -193,13 +183,15 @@ fun GlassIconButton(
         modifier = modifier
             .size(size)
             .let { base ->
-                if (appleGlassStyle && !pinkLily) {
+                if (pinkLily) {
+                    base.pinkGlass(androidx.compose.foundation.shape.CircleShape)
+                } else if (appleGlassStyle) {
                     base.appleGlass(androidx.compose.foundation.shape.CircleShape)
                 } else {
                     base
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
-                        .border(1.dp, if (pinkLily) Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)) else glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
+                        .border(1.dp, glassStrokeBrush(), androidx.compose.foundation.shape.CircleShape)
                 }
             }
             .clip(androidx.compose.foundation.shape.CircleShape)
@@ -213,13 +205,6 @@ fun GlassIconButton(
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (pinkLily) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(com.wavlin.music.R.drawable.lily_btn_disc),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-            )
-        }
         content()
     }
 }

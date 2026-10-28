@@ -90,7 +90,7 @@ fun SettingsScreen(
                     onClick = { navController.navigate("settings/appearance") }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.app_logo),
+                    icon = painterResource(R.drawable.grid_view),
                     title = { Text(stringResource(R.string.app_icon)) },
                     description = { Text(stringResource(R.string.settings_desc_app_icon)) },
                     onClick = { navController.navigate("settings/app_icon") }

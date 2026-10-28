@@ -150,11 +150,7 @@ fun LilyDiscBox(
 ) {
     Box(contentAlignment = Alignment.Center) {
         if (enabled) {
-            Image(
-                painter = painterResource(R.drawable.lily_btn_disc),
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-            )
+            Box(Modifier.size(40.dp).pinkGlass(CircleShape))
         }
         content()
     }

@@ -54,12 +54,14 @@ fun Modifier.appleGlass(
     backdrop: LayerBackdrop? = LocalGlassBackdrop.current,
 ): Modifier {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val tint = tintAlpha ?: if (isDark) 0.22f else 0.28f
+    val pink = LocalPinkLilyTheme.current
+    val tint = tintAlpha ?: if (pink) 0.34f else if (isDark) 0.22f else 0.28f
+    val tintColor = if (pink) PinkGlassTint else if (isDark) Color.Black else Color.White
     if (backdrop == null || !appleGlassSupported()) {
         // No sampleable backdrop (inside screen content, or pre-Android 13): Haze blur with the same tint.
         return this
             .legacyGlassPanel(shape = shape, style = fallbackStyle)
-            .background((if (isDark) Color.Black else Color.White).copy(alpha = tint), shape)
+            .background(tintColor.copy(alpha = tint), shape)
     }
     return this.drawBackdrop(
         backdrop = backdrop,
@@ -76,7 +78,7 @@ fun Modifier.appleGlass(
         },
         onDrawBackdrop = { drawBackdrop -> drawBackdrop() },
         onDrawSurface = {
-            drawRect((if (isDark) Color.Black else Color.White).copy(alpha = tint))
+            drawRect(tintColor.copy(alpha = tint))
         },
     )
 }

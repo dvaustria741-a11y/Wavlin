@@ -48,23 +48,9 @@ import com.wavlin.music.ui.theme.PinkInk
 import com.wavlin.music.ui.theme.PinkSwoosh
 import com.wavlin.music.ui.theme.playball
 
-/** Glass art that picks a circle disc for square-ish sizes and a stretched pill for wide ones. */
+/** Secret Pink glass in a capsule shape: a circle for square-ish sizes, a pill for wide ones. */
 @Composable
-fun Modifier.lilyGlassAuto(): Modifier {
-    val disc = ImageBitmap.imageResource(R.drawable.lily_btn_disc)
-    val bar = ImageBitmap.imageResource(R.drawable.lily_row_bar)
-    return this.drawBehind {
-        if (size.width < size.height * 1.3f) {
-            drawImage(
-                image = disc,
-                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-                filterQuality = FilterQuality.High,
-            )
-        } else {
-            drawLilyNinePatch(bar, 238, size.height / 2f)
-        }
-    }
-}
+fun Modifier.lilyGlassAuto(): Modifier = this.pinkGlass(RoundedCornerShape(50), floating = false)
 
 /**
  * Drop-in replacement for Material's FilledIconButton. In the Secret Pink theme the button draws glass art
@@ -165,13 +151,12 @@ fun PinkSliderTrack(
     val range = sliderState.valueRange
     val span = range.endInclusive - range.start
     val fraction = if (span > 0f) ((sliderState.value - range.start) / span).coerceIn(0f, 1f) else 0f
-    val bar = ImageBitmap.imageResource(R.drawable.lily_row_bar)
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(20.dp)
-                .drawBehind { drawLilyNinePatch(bar, 238, size.height / 2f) },
+                .pinkGlass(RoundedCornerShape(50), floating = false),
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(

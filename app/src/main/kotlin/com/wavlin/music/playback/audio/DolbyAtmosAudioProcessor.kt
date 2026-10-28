@@ -131,17 +131,22 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val LEVEL_GAMMA = 0.7f       // 0 = off, 1 = fully flat
         private const val LEVEL_G_MIN = 0.75f      // max cut  (~ -2.5 dB)
         private const val LEVEL_G_MAX = 2.8f       // max lift (~ +9 dB)
-        private const val AGC_ATTACK_S = 0.01
-        private const val AGC_RELEASE_S = 0.7
+        private const val AGC_ATTACK_S = 4.0
+        private const val AGC_RELEASE_S = 8.0
         private const val AGC_UPDATE_FRAMES = 32
+
+        /** After a flush/seek the leveler learns the level quickly for this long, then holds the gain steady. */
+        private const val AGC_WARMUP_S = 1.5
+        private const val AGC_WARM_ATTACK_S = 0.02
+        private const val AGC_WARM_RELEASE_S = 0.6
         private const val AGC_FLOOR = 0.003f
         private val BAND_ATTACK_S = doubleArrayOf(0.008, 0.005, 0.002)
-        private val BAND_RELEASE_S = doubleArrayOf(0.25, 0.15, 0.08)
+        private val BAND_RELEASE_S = doubleArrayOf(0.8, 0.6, 0.4)
 
         // ── Audio regulator (per band limits, tighter at high system volume) ─
         private val REG_LIMIT = floatArrayOf(0.50f, 0.45f, 0.20f)
-        private const val REG_RATIO = 6f
-        private const val REG_VOLUME_TIGHTEN = 0.4f
+        private const val REG_RATIO = 3f
+        private const val REG_VOLUME_TIGHTEN = 0.1f
 
         // ── Intelligent equalizer ────────────────────────────────────────────
         private const val TARGET_LOW_DB = 4f   // low band level relative to mid band
@@ -153,10 +158,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val EQ_UPDATE_FRAMES = 2048
 
         // ── Volume maximizer ─────────────────────────────────────────────────
-        private const val MASTER_GAIN_DB = 5.0
+        private const val MASTER_GAIN_DB = 7.0
         private const val LIM_CEIL = 0.93f
         private const val LIM_LOOKAHEAD_S = 0.0015
-        private const val LIM_RELEASE_S = 0.08
+        private const val LIM_RELEASE_S = 0.6
         private const val CLIP_KNEE = 0.95f
 
         private const val MIX_SMOOTHING = 0.0015f
@@ -235,6 +240,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var agcAtk = 0.002f
     private var agcRel = 0.00003f
     private var agcCounter = 0
+    private var agcWarm = 0
+    private var agcWarmFrames = 0
+    private var agcWarmAtk = 0.002f
+    private var agcWarmRel = 0.00003f
     private var powCoef = 0.00002f
     private val eqGain = FloatArray(3) { 1f }
     private val eqTarget = FloatArray(3) { 1f }
@@ -336,6 +345,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         }
         agcAtk = (1.0 - exp(-1.0 / (AGC_ATTACK_S * sr))).toFloat()
         agcRel = (1.0 - exp(-1.0 / (AGC_RELEASE_S * sr))).toFloat()
+        agcWarmAtk = (1.0 - exp(-1.0 / (AGC_WARM_ATTACK_S * sr))).toFloat()
+        agcWarmRel = (1.0 - exp(-1.0 / (AGC_WARM_RELEASE_S * sr))).toFloat()
+        agcWarmFrames = (AGC_WARMUP_S * sr).toInt()
         powCoef = (1.0 - exp(-1.0 / (EQ_POWER_TAU_S * sr))).toFloat()
         eqSmooth = (1.0 - exp(-1.0 / (EQ_SMOOTH_TAU_S * sr))).toFloat()
 
@@ -517,15 +529,19 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val highR = restR - midR
 
         // Envelope (linked L/R) and slow power per band.
+        val warm = agcWarm > 0
+        if (warm) agcWarm--
+        val atkC = if (warm) agcWarmAtk else agcAtk
+        val relC = if (warm) agcWarmRel else agcRel
         var pk = max(abs(lowL), abs(lowR))
         bandEnv[0] += (pk - bandEnv[0]) * (if (pk > bandEnv[0]) bandAtk[0] else bandRel[0])
-        bandAgc[0] += (pk - bandAgc[0]) * (if (pk > bandAgc[0]) agcAtk else agcRel)
+        bandAgc[0] += (pk - bandAgc[0]) * (if (pk > bandAgc[0]) atkC else relC)
         pk = max(abs(midL), abs(midR))
         bandEnv[1] += (pk - bandEnv[1]) * (if (pk > bandEnv[1]) bandAtk[1] else bandRel[1])
-        bandAgc[1] += (pk - bandAgc[1]) * (if (pk > bandAgc[1]) agcAtk else agcRel)
+        bandAgc[1] += (pk - bandAgc[1]) * (if (pk > bandAgc[1]) atkC else relC)
         pk = max(abs(highL), abs(highR))
         bandEnv[2] += (pk - bandEnv[2]) * (if (pk > bandEnv[2]) bandAtk[2] else bandRel[2])
-        bandAgc[2] += (pk - bandAgc[2]) * (if (pk > bandAgc[2]) agcAtk else agcRel)
+        bandAgc[2] += (pk - bandAgc[2]) * (if (pk > bandAgc[2]) atkC else relC)
 
         if (++agcCounter >= AGC_UPDATE_FRAMES) {
             agcCounter = 0
@@ -712,6 +728,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         }
         eqCounter = 0
         agcCounter = 0
+        agcWarm = agcWarmFrames
         laBufL.fill(0f); laBufR.fill(0f); laIdx = 0
         limGain = 1f
     }

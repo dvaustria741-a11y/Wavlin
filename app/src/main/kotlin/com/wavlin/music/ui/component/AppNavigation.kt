@@ -31,6 +31,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import com.wavlin.music.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
@@ -326,11 +333,26 @@ private fun AppleFloatingTabBar(
 ) {
     val barHeight: Dp = if (slimNav) 52.dp else 60.dp
     val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
 
     val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
     val lastIndex = remember { IntArray(1) }
     if (foundIndex >= 0) lastIndex[0] = foundIndex
-    val selectedIndex = lastIndex[0]
+
+    // The pill follows the tap immediately. Navigation starts a moment later, so the heavy screen
+    // composition cannot swallow the first frames of the glide on slower phones.
+    var pendingIndex by remember { mutableStateOf<Int?>(null) }
+    var navJob by remember { mutableStateOf<Job?>(null) }
+    val targetIndex = pendingIndex ?: lastIndex[0]
+
+    val pillPos = remember { Animatable(lastIndex[0].toFloat()) }
+    LaunchedEffect(targetIndex) {
+        pillPos.animateTo(
+            targetValue = targetIndex.toFloat(),
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        )
+    }
+    LaunchedEffect(foundIndex) { pendingIndex = null }
 
     Row(
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
@@ -343,16 +365,11 @@ private fun AppleFloatingTabBar(
                 .padding(6.dp),
         ) {
             val tabWidth = maxWidth / navigationItems.size.coerceAtLeast(1)
-            val indicatorX by animateDpAsState(
-                targetValue = tabWidth * selectedIndex,
-                animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
-                label = "tabIndicatorX",
-            )
             val indicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
 
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(indicatorX.roundToPx(), 0) }
+                    .offset { IntOffset((pillPos.value * tabWidth.toPx()).roundToInt(), 0) }
                     .width(tabWidth)
                     .fillMaxHeight()
                     .clip(CircleShape)
@@ -360,11 +377,12 @@ private fun AppleFloatingTabBar(
             )
 
             Row(modifier = Modifier.fillMaxSize()) {
-                navigationItems.forEach { screen ->
-                    val selected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                navigationItems.forEachIndexed { index, screen ->
+                    val routeSelected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                    val visuallySelected = index == targetIndex
                     val longClick = if (screen == Screens.Search) onSearchLongClick else null
                     val tint by animateColorAsState(
-                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        targetValue = if (visuallySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(260),
                         label = "tabTint",
                     )
@@ -374,7 +392,20 @@ private fun AppleFloatingTabBar(
                             .fillMaxHeight()
                             .clip(CircleShape)
                             .combinedClickable(
-                                onClick = { onItemClick(screen, selected) },
+                                onClick = {
+                                    if (routeSelected) {
+                                        onItemClick(screen, true)
+                                    } else {
+                                        pendingIndex = index
+                                        navJob?.cancel()
+                                        navJob = scope.launch {
+                                            delay(170)
+                                            onItemClick(screen, false)
+                                            delay(800)
+                                            pendingIndex = null
+                                        }
+                                    }
+                                },
                                 onLongClick = longClick?.let { cb ->
                                     {
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -386,7 +417,7 @@ private fun AppleFloatingTabBar(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Icon(
-                            painter = painterResource(id = if (selected) screen.iconIdActive else screen.iconIdInactive),
+                            painter = painterResource(id = if (visuallySelected) screen.iconIdActive else screen.iconIdInactive),
                             contentDescription = stringResource(screen.titleId),
                             modifier = Modifier.size(22.dp),
                             tint = tint,

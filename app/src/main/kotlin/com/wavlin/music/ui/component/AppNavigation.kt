@@ -38,6 +38,17 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import com.wavlin.music.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
@@ -203,6 +214,28 @@ fun AppNavigationBar(
         return
     }
 
+    if (!LocalPinkLilyTheme.current) {
+        NavigationBar(
+            modifier = modifier
+                .hazeEffect(
+                    state = hazeState,
+                    style = if (pureBlack) pureBlackHazeStyle() else HazeMaterials.thin(),
+                )
+                .glassTopEdgeGlow(),
+            containerColor = Color.Transparent,
+            contentColor = contentColor
+        ) {
+            MaterialGlideTabs(
+                navigationItems = navigationItems,
+                currentRoute = currentRoute,
+                onItemClick = onItemClick,
+                slimNav = slimNav,
+                onSearchLongClick = onSearchLongClick,
+            )
+        }
+        return
+    }
+
     NavigationBar(
         modifier = modifier
             .let { base ->
@@ -321,26 +354,25 @@ fun AppNavigationBar(
  * Apple Music style: a single floating glass capsule holding every tab (Home, Search, Library)
  * as an equal item, instead of the full-width Material 3 navigation bar.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-private fun AppleFloatingTabBar(
-    navigationItems: List<Screens>,
-    currentRoute: String?,
-    onItemClick: (Screens, Boolean) -> Unit,
-    modifier: Modifier,
-    slimNav: Boolean,
-    onSearchLongClick: (() -> Unit)?,
+/**
+ * Shared state for the gliding tab pill: the pill follows the tap immediately and the real navigation starts a
+ * moment later, so the heavy screen composition cannot swallow the first frames of the glide.
+ */
+@Stable
+private class TabGlide(
+    val pillPos: Animatable<Float, AnimationVector1D>,
+    val targetIndex: Int,
+    private val onTap: (Int, () -> Unit) -> Unit,
 ) {
-    val barHeight: Dp = if (slimNav) 52.dp else 60.dp
-    val haptics = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
+    fun tap(index: Int, navigate: () -> Unit) = onTap(index, navigate)
+}
 
-    val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
+@Composable
+private fun rememberTabGlide(foundIndex: Int): TabGlide {
+    val scope = rememberCoroutineScope()
     val lastIndex = remember { IntArray(1) }
     if (foundIndex >= 0) lastIndex[0] = foundIndex
 
-    // The pill follows the tap immediately. Navigation starts a moment later, so the heavy screen
-    // composition cannot swallow the first frames of the glide on slower phones.
     var pendingIndex by remember { mutableStateOf<Int?>(null) }
     var navJob by remember { mutableStateOf<Job?>(null) }
     val targetIndex = pendingIndex ?: lastIndex[0]
@@ -353,6 +385,144 @@ private fun AppleFloatingTabBar(
         )
     }
     LaunchedEffect(foundIndex) { pendingIndex = null }
+
+    return remember(pillPos, targetIndex) {
+        TabGlide(pillPos, targetIndex) { index, navigate ->
+            pendingIndex = index
+            navJob?.cancel()
+            navJob = scope.launch {
+                delay(170)
+                navigate()
+                delay(800)
+                pendingIndex = null
+            }
+        }
+    }
+}
+
+/** Material 3 look with ONE pill that glides across the tabs (instead of one indicator fading per tab). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun RowScope.MaterialGlideTabs(
+    navigationItems: List<Screens>,
+    currentRoute: String?,
+    onItemClick: (Screens, Boolean) -> Unit,
+    slimNav: Boolean,
+    onSearchLongClick: (() -> Unit)?,
+) {
+    val haptics = LocalHapticFeedback.current
+    val colors = MaterialTheme.colorScheme
+    val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
+    val glide = rememberTabGlide(foundIndex)
+    val pillColor = colors.secondaryContainer
+    val count = navigationItems.size.coerceAtLeast(1)
+
+    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    val tabWidth = size.width / count
+                    val pillWidth = 64.dp.toPx()
+                    val pillHeight = 32.dp.toPx()
+                    val contentHeight = if (slimNav) pillHeight else pillHeight + 20.dp.toPx()
+                    val x = glide.pillPos.value * tabWidth + (tabWidth - pillWidth) / 2f
+                    val y = (size.height - contentHeight) / 2f
+                    drawRoundRect(
+                        color = pillColor,
+                        topLeft = Offset(x, y),
+                        size = Size(pillWidth, pillHeight),
+                        cornerRadius = CornerRadius(pillHeight / 2f),
+                    )
+                },
+        ) {
+            navigationItems.forEachIndexed { index, screen ->
+                val routeSelected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                val visuallySelected = index == glide.targetIndex
+                val iconTint by animateColorAsState(
+                    targetValue = if (visuallySelected) colors.onSecondaryContainer else colors.onSurfaceVariant,
+                    animationSpec = tween(260),
+                    label = "tabIconTint",
+                )
+                val textTint by animateColorAsState(
+                    targetValue = if (visuallySelected) colors.onSurface else colors.onSurfaceVariant,
+                    animationSpec = tween(260),
+                    label = "tabTextTint",
+                )
+                val longClick = if (screen == Screens.Search) onSearchLongClick else null
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                if (routeSelected) {
+                                    onItemClick(screen, true)
+                                } else {
+                                    glide.tap(index) { onItemClick(screen, false) }
+                                }
+                            },
+                            onLongClick = longClick?.let { cb ->
+                                {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    cb()
+                                }
+                            },
+                        )
+                        .semantics {
+                            role = Role.Tab
+                            selected = visuallySelected
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Box(
+                        modifier = Modifier.size(width = 64.dp, height = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = if (visuallySelected) screen.iconIdActive else screen.iconIdInactive),
+                            contentDescription = stringResource(screen.titleId),
+                            tint = iconTint,
+                        )
+                    }
+                    if (!slimNav) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(modifier = Modifier.height(16.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = stringResource(screen.titleId),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                fontWeight = if (visuallySelected) FontWeight.SemiBold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = textTint,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalHazeMaterialsApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun AppleFloatingTabBar(
+    navigationItems: List<Screens>,
+    currentRoute: String?,
+    onItemClick: (Screens, Boolean) -> Unit,
+    modifier: Modifier,
+    slimNav: Boolean,
+    onSearchLongClick: (() -> Unit)?,
+) {
+    val barHeight: Dp = if (slimNav) 52.dp else 60.dp
+    val haptics = LocalHapticFeedback.current
+    val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
+    val glide = rememberTabGlide(foundIndex)
 
     Row(
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
@@ -369,7 +539,7 @@ private fun AppleFloatingTabBar(
 
             Box(
                 modifier = Modifier
-                    .offset { IntOffset((pillPos.value * tabWidth.toPx()).roundToInt(), 0) }
+                    .offset { IntOffset((glide.pillPos.value * tabWidth.toPx()).roundToInt(), 0) }
                     .width(tabWidth)
                     .fillMaxHeight()
                     .clip(CircleShape)
@@ -379,7 +549,7 @@ private fun AppleFloatingTabBar(
             Row(modifier = Modifier.fillMaxSize()) {
                 navigationItems.forEachIndexed { index, screen ->
                     val routeSelected = isRouteSelected(currentRoute, screen.route, navigationItems)
-                    val visuallySelected = index == targetIndex
+                    val visuallySelected = index == glide.targetIndex
                     val longClick = if (screen == Screens.Search) onSearchLongClick else null
                     val tint by animateColorAsState(
                         targetValue = if (visuallySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -396,14 +566,7 @@ private fun AppleFloatingTabBar(
                                     if (routeSelected) {
                                         onItemClick(screen, true)
                                     } else {
-                                        pendingIndex = index
-                                        navJob?.cancel()
-                                        navJob = scope.launch {
-                                            delay(170)
-                                            onItemClick(screen, false)
-                                            delay(800)
-                                            pendingIndex = null
-                                        }
+                                        glide.tap(index) { onItemClick(screen, false) }
                                     }
                                 },
                                 onLongClick = longClick?.let { cb ->

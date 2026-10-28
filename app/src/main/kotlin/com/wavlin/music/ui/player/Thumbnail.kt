@@ -71,6 +71,8 @@ import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import coil3.imageLoader
+import coil3.request.allowHardware
 import com.wavlin.music.LocalListenTogetherManager
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
@@ -374,6 +376,35 @@ fun Thumbnail(
                         }
                     }
                     
+                    // Warm the image cache for the previous/next song so skipping never waits on a download or decode.
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    LaunchedEffect(mediaMetadata?.id, dimensions.thumbnailSize, playerBackground) {
+                        val thumbPx = with(density) { dimensions.thumbnailSize.roundToPx() }.coerceAtLeast(1)
+                        val currentId = mediaMetadata?.id
+                        getMediaItems(playerConnection.player, true).items.forEach { neighbour ->
+                            if (neighbour.mediaId == currentId) return@forEach
+                            val url = neighbour.mediaMetadata.artworkUri?.toString() ?: return@forEach
+                            context.imageLoader.enqueue(
+                                ImageRequest.Builder(context)
+                                    .data(url)
+                                    .size(thumbPx)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .networkCachePolicy(CachePolicy.ENABLED)
+                                    .build(),
+                            )
+                            if (playerBackground != PlayerBackgroundStyle.DEFAULT) {
+                                context.imageLoader.enqueue(
+                                    ImageRequest.Builder(context)
+                                        .data(url)
+                                        .size(100, 100)
+                                        .allowHardware(false)
+                                        .build(),
+                                )
+                            }
+                        }
+                    }
+
                     // Derive scroll enabled state to prevent unnecessary recomposition
                     val isScrollEnabled by remember(swipeThumbnail) {
                         derivedStateOf { swipeThumbnail && isPlayerExpanded() }

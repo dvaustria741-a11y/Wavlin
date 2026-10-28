@@ -1352,7 +1352,7 @@ class MusicService :
             while (isActive) {
                 delay(15.seconds)
                 if (cachedPersistentQueue) {
-                    saveQueueToDisk()
+                    saveQueueToDiskAsync()
                 }
                 val currentMetadata = player.currentMediaItem?.metadata
                 if (currentMetadata?.isEpisode == true && player.isPlaying && player.currentPosition > 0) {
@@ -1366,7 +1366,7 @@ class MusicService :
             while (isActive) {
                 delay(10.seconds)
                 if (cachedPersistentQueue && player.isPlaying) {
-                    saveQueueToDisk()
+                    saveQueueToDiskAsync()
                 }
             }
         }
@@ -2662,7 +2662,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -2703,7 +2703,7 @@ class MusicService :
 
         // Save state when playback state changes (but not during silence skipping)
         if (cachedPersistentQueue && !isSilenceSkipping) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
 
         if (playbackState == Player.STATE_READY) {
@@ -2834,7 +2834,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -2847,7 +2847,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -4047,79 +4047,97 @@ class MusicService :
         }
     }
 
-    private fun saveQueueToDisk() {
+    private class QueueSnapshot(
+        val queue: PersistQueue,
+        val automix: PersistQueue,
+        val playerState: PersistPlayerState,
+    )
+
+    private val queueFileLock = Any()
+    private var queueSaveJob: Job? = null
+
+    /** Cheap part, on the main thread: copies what has to be written. */
+    private fun snapshotQueue(): QueueSnapshot? {
         if (player.mediaItemCount == 0) {
             Timber.tag(TAG).d("Skipping queue save - no media items")
-            return
+            return null
         }
-
-        try {
-            val persistQueue =
-                currentQueue.toPersistQueue(
-                    title = queueTitle,
-                    items = player.mediaItems.mapNotNull { it.metadata },
-                    mediaItemIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
-                )
-
-            val persistAutomix =
-                PersistQueue(
-                    title = "automix",
-                    items = automixItems.value.mapNotNull { it.metadata },
-                    mediaItemIndex = 0,
-                    position = 0,
-                )
-
-            val persistPlayerState =
-                PersistPlayerState(
-                    playWhenReady = player.playWhenReady,
-                    repeatMode = player.repeatMode,
-                    shuffleModeEnabled = player.shuffleModeEnabled,
-                    volume = playerVolume.value,
-                    currentPosition = player.currentPosition,
-                    currentMediaItemIndex = player.currentMediaItemIndex,
-                    playbackState = player.playbackState,
-                )
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
-                    }
-                }
-                Timber.tag(TAG).d("Queue saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save queue")
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistAutomix)
-                    }
-                }
-                Timber.tag(TAG).d("Automix saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save automix")
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistPlayerState)
-                    }
-                }
-                Timber.tag(TAG).d("Player state saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save player state")
-                reportException(it)
-            }
+        return try {
+            QueueSnapshot(
+                queue =
+                    currentQueue.toPersistQueue(
+                        title = queueTitle,
+                        items = player.mediaItems.mapNotNull { it.metadata },
+                        mediaItemIndex = player.currentMediaItemIndex,
+                        position = player.currentPosition,
+                    ),
+                automix =
+                    PersistQueue(
+                        title = "automix",
+                        items = automixItems.value.mapNotNull { it.metadata },
+                        mediaItemIndex = 0,
+                        position = 0,
+                    ),
+                playerState =
+                    PersistPlayerState(
+                        playWhenReady = player.playWhenReady,
+                        repeatMode = player.repeatMode,
+                        shuffleModeEnabled = player.shuffleModeEnabled,
+                        volume = playerVolume.value,
+                        currentPosition = player.currentPosition,
+                        currentMediaItemIndex = player.currentMediaItemIndex,
+                        playbackState = player.playbackState,
+                    ),
+            )
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error during queue save operation")
             reportException(e)
+            null
         }
+    }
+
+    /** Expensive part (Java serialization + disk): safe to run on any thread. */
+    private fun writeQueueSnapshot(snapshot: QueueSnapshot) {
+        synchronized(queueFileLock) {
+            writePersisted(PERSISTENT_QUEUE_FILE, snapshot.queue, "Queue")
+            writePersisted(PERSISTENT_AUTOMIX_FILE, snapshot.automix, "Automix")
+            writePersisted(PERSISTENT_PLAYER_STATE_FILE, snapshot.playerState, "Player state")
+        }
+    }
+
+    private fun writePersisted(
+        fileName: String,
+        value: java.io.Serializable,
+        label: String,
+    ) {
+        runCatching {
+            filesDir.resolve(fileName).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos -> oos.writeObject(value) }
+            }
+            Timber.tag(TAG).d("$label saved successfully")
+        }.onFailure {
+            Timber.tag(TAG).e(it, "Failed to save ${label.lowercase()}")
+            reportException(it)
+        }
+    }
+
+    /** Blocking save, used when the service is going away. */
+    private fun saveQueueToDisk() {
+        snapshotQueue()?.let(::writeQueueSnapshot)
+    }
+
+    /**
+     * Same save without blocking the main thread, so skipping tracks and state changes never stall on serializing
+     * the whole queue. Bursts (skip -> buffering -> ready) are coalesced into one write.
+     */
+    private fun saveQueueToDiskAsync() {
+        queueSaveJob?.cancel()
+        queueSaveJob =
+            scope.launch {
+                delay(400)
+                val snapshot = snapshotQueue() ?: return@launch
+                withContext(Dispatchers.IO) { writeQueueSnapshot(snapshot) }
+            }
     }
 
     /**

@@ -62,6 +62,23 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BASE_DECOR = 0.1f
         private const val SIDE_HP_HZ = 250.0
 
+        // ── Diffuse "lubog" background: the background is blurred into a wide, dark, LOUDER cloud (short reverb) ──
+        // The blur is what spreads it. Fed mostly by the side signal plus a little of the vocal band.
+        private val DIFF_COMB_L_MS = doubleArrayOf(29.7, 37.1, 41.1, 43.7)
+        private val DIFF_COMB_R_MS = doubleArrayOf(31.3, 36.7, 42.7, 46.1)
+        private const val DIFF_AP_MS_1 = 5.0
+        private const val DIFF_AP_MS_2 = 1.7
+        private const val DIFF_FEEDBACK = 0.62f
+        private const val DIFF_DAMP = 0.45f
+        private const val DIFF_IN_SIDE = 0.5f
+        private const val DIFF_IN_MID = 0.25f
+        private const val DIFF_GAIN = 3.5f
+        private const val DIFF_MID_PART = 0.3f
+
+        /** The singing voice is softened a little too (less harsh/clear, easier on the ears). */
+        private const val MID_SHELF_HZ = 4000.0
+        private const val MID_SHELF_DB = -2.5
+
         // ── Vocal / background balance: the singing voice and the background are levelled toward each other ──
         // (like the system Dolby): if the vocal sits far above the background it is eased down and the background lifted.
         // Neither side may get further than BAL_WINDOW_DB above the other: inside the window nothing is touched,
@@ -229,6 +246,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var decPrevIn = 0f
     private var decPrevOut = 0f
     private val sideShelf = Biquad()
+    private val midShelf = Biquad()
+    private var combsL = emptyArray<Comb>()
+    private var combsR = emptyArray<Comb>()
+    private var apL1 = Allpass(1)
+    private var apL2 = Allpass(1)
+    private var apR1 = Allpass(1)
+    private var apR2 = Allpass(1)
 
     // ── Immersive reflections ────────────────────────────────────────────────
     private var immBuf = FloatArray(1)
@@ -354,6 +378,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         }
 
         applyHighShelf(SIDE_SHELF_HZ, SIDE_SHELF_DB, sideShelf)
+        applyHighShelf(MID_SHELF_HZ, MID_SHELF_DB, midShelf)
+        combsL = Array(DIFF_COMB_L_MS.size) { Comb(((DIFF_COMB_L_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8)) }
+        combsR = Array(DIFF_COMB_R_MS.size) { Comb(((DIFF_COMB_R_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8)) }
+        apL1 = Allpass(((DIFF_AP_MS_1 / 1000.0) * sr).toInt().coerceAtLeast(4))
+        apL2 = Allpass(((DIFF_AP_MS_2 / 1000.0) * sr).toInt().coerceAtLeast(4))
+        apR1 = Allpass(((DIFF_AP_MS_1 * 1.13 / 1000.0) * sr).toInt().coerceAtLeast(4))
+        apR2 = Allpass(((DIFF_AP_MS_2 * 1.19 / 1000.0) * sr).toInt().coerceAtLeast(4))
         appliedGeqVersion = -1 // rebuild graphic EQ for the new sample rate
         applyLowpass(XOVER_LOW_HZ, lp1L, lp1R)
         applyLowpass(XOVER_HIGH_HZ, lp2L, lp2R)
@@ -454,7 +485,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val my = b0 * m + z1
         z1 = b1 * m - a1 * my + z2
         z2 = b2 * m - a2 * my
-        m = my
+        m = midShelf.process(my)
 
         // Stereo: widen side above the high-pass corner, add pseudo-stereo, darken only the side.
         val sHp = hpCoef * (hpPrevOut + s - hpPrevIn)
@@ -493,6 +524,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val refGain = 1f / outGain
         m += (refL + refR) * 0.5f * refGain
         s += (refL - refR) * 0.5f * refGain
+
+        // Diffuse background cloud (added before the side darkening so it is always dark as well as wide).
+        val dIn = sHp * DIFF_IN_SIDE + voxLp * DIFF_IN_MID
+        var wetL = 0f
+        var wetR = 0f
+        for (c in combsL.indices) wetL += combsL[c].process(dIn, DIFF_FEEDBACK, DIFF_DAMP)
+        for (c in combsR.indices) wetR += combsR[c].process(dIn, DIFF_FEEDBACK, DIFF_DAMP)
+        wetL = apL2.process(apL1.process(wetL * 0.25f))
+        wetR = apR2.process(apR1.process(wetR * 0.25f))
+        s += (wetL - wetR) * 0.5f * DIFF_GAIN
+        m += (wetL + wetR) * 0.5f * DIFF_GAIN * DIFF_MID_PART
+
         s = sideShelf.process(s)
 
         // Vocal spread: scatter the vocal band across L/R with two wobbling micro-delays (post-darkening = stays clear).
@@ -756,7 +799,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f
-        sideShelf.reset()
+        sideShelf.reset(); midShelf.reset()
         geqL.forEach { it.reset() }
         geqR.forEach { it.reset() }
         lp1L.reset(); lp1R.reset(); lp2L.reset(); lp2R.reset()
@@ -773,6 +816,34 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         agcWarm = agcWarmFrames
         laBufL.fill(0f); laBufR.fill(0f); laIdx = 0
         limGain = 1f
+    }
+
+    /** Damped feedback comb filter (Freeverb style). */
+    private class Comb(size: Int) {
+        private val buf = FloatArray(size)
+        private var idx = 0
+        private var store = 0f
+
+        fun process(x: Float, feedback: Float, damp: Float): Float {
+            val out = buf[idx]
+            store = out * (1f - damp) + store * damp
+            buf[idx] = x + store * feedback
+            if (++idx >= buf.size) idx = 0
+            return out
+        }
+    }
+
+    private class Allpass(size: Int) {
+        private val buf = FloatArray(size)
+        private var idx = 0
+
+        fun process(x: Float): Float {
+            val b = buf[idx]
+            val out = b - x
+            buf[idx] = x + b * 0.5f
+            if (++idx >= buf.size) idx = 0
+            return out
+        }
     }
 
     private class Biquad {

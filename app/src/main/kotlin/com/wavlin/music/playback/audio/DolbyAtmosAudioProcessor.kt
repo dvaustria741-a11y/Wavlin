@@ -34,7 +34,8 @@ import kotlin.math.tanh
  * - **Graphic equalizer**: 10-band EQ (default = the "Custom" curve from the user's system Dolby: bass up, highs down).
  * - **Intelligent equalizer**: slowly measures the low/mid/high balance of the song and nudges it toward a target tone
  *   (leaves already-balanced songs alone).
- * - **Volume leveler**: per-band (3 bands) downward compression + makeup gain, so everything is evened out without pumping.
+ * - **Volume leveler**: slow per-band (3 bands) auto-gain toward a target level, so quiet parts come up and loud parts
+ *   come down until everything sits at a similar volume, without pumping.
  * - **Audio regulator**: per-band limits that tighten as the system volume goes up, so max volume doesn't hurt.
  * - **Volume maximizer**: master gain followed by a look-ahead limiter and a soft clip.
  *
@@ -107,9 +108,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BUTTERWORTH_Q = 0.7071
 
         // ── Volume leveler (per band: low, mid, high) ────────────────────────
-        private val LEVEL_T = floatArrayOf(0.12f, 0.10f, 0.04f)
-        private const val LEVEL_RATIO = 2.2f
-        private const val LEVEL_MAKEUP = 1.8f
+        /**
+         * Slow auto-gain toward a per-band target level: quiet parts are lifted AND loud parts are pulled down, so
+         * everything ends up at a similar volume (the system Dolby leveler feel).
+         */
+        private val LEVEL_TARGET = floatArrayOf(0.18f, 0.15f, 0.05f)
+        private const val LEVEL_GAMMA = 0.7f       // 0 = off, 1 = fully flat
+        private const val LEVEL_G_MIN = 0.4f       // max cut  (~ -8 dB)
+        private const val LEVEL_G_MAX = 2.8f       // max lift (~ +9 dB)
+        private const val AGC_ATTACK_S = 0.01
+        private const val AGC_RELEASE_S = 0.7
+        private const val AGC_UPDATE_FRAMES = 32
+        private const val AGC_FLOOR = 0.003f
         private val BAND_ATTACK_S = doubleArrayOf(0.008, 0.005, 0.002)
         private val BAND_RELEASE_S = doubleArrayOf(0.25, 0.15, 0.08)
 
@@ -128,7 +138,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val EQ_UPDATE_FRAMES = 2048
 
         // ── Volume maximizer ─────────────────────────────────────────────────
-        private const val MASTER_GAIN_DB = 3.0
+        private const val MASTER_GAIN_DB = 1.5
         private const val LIM_CEIL = 0.89f
         private const val LIM_LOOKAHEAD_S = 0.0015
         private const val LIM_RELEASE_S = 0.08
@@ -195,6 +205,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private val bandAtk = FloatArray(3) { 0.01f }
     private val bandRel = FloatArray(3) { 0.0005f }
     private val bandPow = FloatArray(3)
+    private val bandAgc = FloatArray(3)
+    private val agcGain = FloatArray(3) { 1f }
+    private var agcAtk = 0.002f
+    private var agcRel = 0.00003f
+    private var agcCounter = 0
     private var powCoef = 0.00002f
     private val eqGain = FloatArray(3) { 1f }
     private val eqTarget = FloatArray(3) { 1f }
@@ -288,6 +303,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             bandAtk[i] = (1.0 - exp(-1.0 / (BAND_ATTACK_S[i] * sr))).toFloat()
             bandRel[i] = (1.0 - exp(-1.0 / (BAND_RELEASE_S[i] * sr))).toFloat()
         }
+        agcAtk = (1.0 - exp(-1.0 / (AGC_ATTACK_S * sr))).toFloat()
+        agcRel = (1.0 - exp(-1.0 / (AGC_RELEASE_S * sr))).toFloat()
         powCoef = (1.0 - exp(-1.0 / (EQ_POWER_TAU_S * sr))).toFloat()
         eqSmooth = (1.0 - exp(-1.0 / (EQ_SMOOTH_TAU_S * sr))).toFloat()
 
@@ -453,10 +470,21 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // Envelope (linked L/R) and slow power per band.
         var pk = max(abs(lowL), abs(lowR))
         bandEnv[0] += (pk - bandEnv[0]) * (if (pk > bandEnv[0]) bandAtk[0] else bandRel[0])
+        bandAgc[0] += (pk - bandAgc[0]) * (if (pk > bandAgc[0]) agcAtk else agcRel)
         pk = max(abs(midL), abs(midR))
         bandEnv[1] += (pk - bandEnv[1]) * (if (pk > bandEnv[1]) bandAtk[1] else bandRel[1])
+        bandAgc[1] += (pk - bandAgc[1]) * (if (pk > bandAgc[1]) agcAtk else agcRel)
         pk = max(abs(highL), abs(highR))
         bandEnv[2] += (pk - bandEnv[2]) * (if (pk > bandEnv[2]) bandAtk[2] else bandRel[2])
+        bandAgc[2] += (pk - bandAgc[2]) * (if (pk > bandAgc[2]) agcAtk else agcRel)
+
+        if (++agcCounter >= AGC_UPDATE_FRAMES) {
+            agcCounter = 0
+            for (b in 0 until 3) {
+                agcGain[b] = (LEVEL_TARGET[b] / max(bandAgc[b], AGC_FLOOR)).pow(LEVEL_GAMMA)
+                    .coerceIn(LEVEL_G_MIN, LEVEL_G_MAX)
+            }
+        }
 
         bandPow[0] += ((lowL * lowL + lowR * lowR) * 0.5f - bandPow[0]) * powCoef
         bandPow[1] += ((midL * midL + midR * midR) * 0.5f - bandPow[1]) * powCoef
@@ -480,9 +508,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
     private fun bandGain(b: Int): Float {
         val e = bandEnv[b]
-        val t = LEVEL_T[b]
-        var g = if (e > t) (t + (e - t) / LEVEL_RATIO) / e else 1f
-        g *= LEVEL_MAKEUP
+        var g = agcGain[b]
         val lvl = e * g
         val lim = REG_LIMIT[b] * regScale
         if (lvl > lim) g *= (lim + (lvl - lim) / REG_RATIO) / lvl
@@ -617,11 +643,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         lp1L.reset(); lp1R.reset(); lp2L.reset(); lp2R.reset()
         for (i in 0 until 3) {
             bandEnv[i] = 0f
+            bandAgc[i] = 0f
+            agcGain[i] = 1f
             bandPow[i] = 0f
             eqGain[i] = 1f
             eqTarget[i] = 1f
         }
         eqCounter = 0
+        agcCounter = 0
         laBufL.fill(0f); laBufR.fill(0f); laIdx = 0
         limGain = 1f
     }

@@ -64,9 +64,12 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // ── Vocal / background balance: the singing voice and the background are levelled toward each other ──
         // (like the system Dolby): if the vocal sits far above the background it is eased down and the background lifted.
-        private const val BAL_STRENGTH = 0.5f   // 0 = off, 1 = fully equal level
-        private const val BAL_MAX_DB = 5.0f     // max correction (split between vocal cut and background lift)
-        private const val BAL_TAU_S = 0.3
+        // Neither side may get further than BAL_WINDOW_DB above the other: inside the window nothing is touched,
+        // beyond it the louder one is pulled back and the quieter one lifted (a limit on both, like the system Dolby).
+        private const val BAL_WINDOW_DB = 3.0f
+        private const val BAL_STRENGTH = 1.0f   // how much of the overshoot is corrected (1 = all)
+        private const val BAL_MAX_DB = 12.0f    // max total correction (split between vocal and background)
+        private const val BAL_TAU_S = 0.2
         private const val BAL_UPDATE_FRAMES = 64
 
         // ── Vocal spread ("makalat" vocals): two slowly wobbling micro-delays of the vocal band are fed to the side ──
@@ -502,7 +505,12 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             balCounter = 0
             if (balEnvM > 0.0005f || balEnvS > 0.0005f) {
                 val ratioDb = 20f * log10((balEnvM + 1e-5f) / (balEnvS + 1e-5f))
-                val corr = (-ratioDb * BAL_STRENGTH).coerceIn(-BAL_MAX_DB, BAL_MAX_DB) // negative = vocal above background
+                val over = when {
+                    ratioDb > BAL_WINDOW_DB -> ratioDb - BAL_WINDOW_DB
+                    ratioDb < -BAL_WINDOW_DB -> ratioDb + BAL_WINDOW_DB
+                    else -> 0f
+                }
+                val corr = (-over * BAL_STRENGTH).coerceIn(-BAL_MAX_DB, BAL_MAX_DB) // negative = vocal above background
                 balTargetM = 10.0.pow(corr / 40.0).toFloat()    // vocal: down when it is above the background
                 balTargetS = 10.0.pow(-corr / 40.0).toFloat()   // background: up by the same amount
             }

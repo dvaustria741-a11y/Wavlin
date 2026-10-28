@@ -27,6 +27,7 @@ import com.wavlin.music.utils.dataStore
 import com.wavlin.music.utils.get
 import com.wavlin.music.utils.reportException
 import com.wavlin.music.spotify.SpotifyProvider
+import com.wavlin.music.spotify.account.SpotifySession
 import com.wavlin.music.spotify.SpotifyTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +41,7 @@ class OnlineSearchViewModel
 constructor(
     @ApplicationContext val context: Context,
     savedStateHandle: SavedStateHandle,
+    val spotifySession: SpotifySession,
 ) : ViewModel() {
     val query = SearchRoutes.decodeQuery(savedStateHandle.get<String>("query").orEmpty())
     val filter = MutableStateFlow<YouTube.SearchFilter?>(null)

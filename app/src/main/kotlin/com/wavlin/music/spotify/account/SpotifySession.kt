@@ -9,6 +9,7 @@
 package com.wavlin.music.spotify.account
 
 import android.content.Context
+import com.wavlin.music.spotify.SpotifyProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -79,6 +80,7 @@ class SpotifySession
 
         init {
             SpotifyClient.setTokenRefresher { refreshTokenSilently() }
+            SpotifyProvider.tokenProvider = { validAccessToken() }
             scope.launch {
                 if (store.isConnected) {
                     restoreSession()

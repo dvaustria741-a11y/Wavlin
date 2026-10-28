@@ -62,6 +62,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import com.wavlin.music.spotify.SpotifyAlbumItem
 import com.wavlin.music.spotify.SpotifyProvider
+import com.wavlin.music.spotify.account.SpotifySession
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -85,6 +86,7 @@ class HomeViewModel @Inject constructor(
     val syncUtils: SyncUtils,
     val wrappedManager: WrappedManager,
     private val wrappedAudioService: WrappedAudioService,
+    val spotifySession: SpotifySession,
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)

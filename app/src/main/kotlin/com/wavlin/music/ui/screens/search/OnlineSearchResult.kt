@@ -603,49 +603,6 @@ fun OnlineSearchResult(
                     }
 
 
-                    // Spotify results — shown below YT results when no filter is active
-                    if (searchFilter == null) {
-                        val tracks = spotifyResults
-                        if (!tracks.isNullOrEmpty()) {
-                            item(key = "spotify_results_header") {
-                                NavigationTitle(title = "Songs on Spotify")
-                            }
-                            items(
-                                items = tracks,
-                                key = { "spotify_track_\${it.id}" },
-                            ) { track ->
-                                SpotifyTrackListItem(
-                                    track = track,
-                                    onClick = {
-                                        val ytQuery = track.query
-                                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                            com.wavlin.innertube.YouTube.search(
-                                                ytQuery,
-                                                com.wavlin.innertube.YouTube.SearchFilter.FILTER_SONG
-                                            ).onSuccess { result ->
-                                                result.items.firstOrNull()?.let { ytSong ->
-                                                    if (ytSong is com.wavlin.innertube.models.SongItem) {
-                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                            playerConnection.playQueue(
-                                                                com.wavlin.music.playback.queues.YouTubeQueue(
-                                                                    com.wavlin.innertube.models.WatchEndpoint(videoId = ytSong.id),
-                                                                    ytSong.toMediaMetadata(),
-                                                                )
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                        } else if (tracks == null && searchSummary != null) {
-                            item(key = "spotify_shimmer") {
-                                ShimmerHost { repeat(3) { ListItemPlaceHolder() } }
-                            }
-                        }
-                    }
 
                     item(key = "bottom_spacer") {
                         Spacer(modifier = Modifier.height(MiniPlayerHeight + MiniPlayerBottomSpacing + NavigationBarHeight))

@@ -22,6 +22,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.IntOffset
 import com.wavlin.music.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
@@ -318,51 +327,79 @@ private fun AppleFloatingTabBar(
     val barHeight: Dp = if (slimNav) 52.dp else 60.dp
     val haptics = LocalHapticFeedback.current
 
+    val foundIndex = navigationItems.indexOfFirst { isRouteSelected(currentRoute, it.route, navigationItems) }
+    val lastIndex = remember { IntArray(1) }
+    if (foundIndex >= 0) lastIndex[0] = foundIndex
+    val selectedIndex = lastIndex[0]
+
     Row(
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
                 .height(barHeight)
                 .appleGlass(CircleShape, HazeMaterials.thin())
                 .padding(6.dp),
         ) {
-            navigationItems.forEach { screen ->
-                val selected = isRouteSelected(currentRoute, screen.route, navigationItems)
-                val longClick = if (screen == Screens.Search) onSearchLongClick else null
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(if (selected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f) else Color.Transparent)
-                        .combinedClickable(
-                            onClick = { onItemClick(screen, selected) },
-                            onLongClick = longClick?.let { cb ->
-                                {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    cb()
-                                }
-                            },
-                        ),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(id = if (selected) screen.iconIdActive else screen.iconIdInactive),
-                        contentDescription = stringResource(screen.titleId),
-                        modifier = Modifier.size(22.dp),
-                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            val tabWidth = maxWidth / navigationItems.size.coerceAtLeast(1)
+            val indicatorX by animateDpAsState(
+                targetValue = tabWidth * selectedIndex,
+                animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+                label = "tabIndicatorX",
+            )
+            val indicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(indicatorX.roundToPx(), 0) }
+                    .width(tabWidth)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(indicatorColor),
+            )
+
+            Row(modifier = Modifier.fillMaxSize()) {
+                navigationItems.forEach { screen ->
+                    val selected = isRouteSelected(currentRoute, screen.route, navigationItems)
+                    val longClick = if (screen == Screens.Search) onSearchLongClick else null
+                    val tint by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(260),
+                        label = "tabTint",
                     )
-                    if (!slimNav) {
-                        Text(
-                            text = stringResource(screen.titleId),
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .combinedClickable(
+                                onClick = { onItemClick(screen, selected) },
+                                onLongClick = longClick?.let { cb ->
+                                    {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        cb()
+                                    }
+                                },
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = if (selected) screen.iconIdActive else screen.iconIdInactive),
+                            contentDescription = stringResource(screen.titleId),
+                            modifier = Modifier.size(22.dp),
+                            tint = tint,
                         )
+                        if (!slimNav) {
+                            Text(
+                                text = stringResource(screen.titleId),
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = tint,
+                            )
+                        }
                     }
                 }
             }

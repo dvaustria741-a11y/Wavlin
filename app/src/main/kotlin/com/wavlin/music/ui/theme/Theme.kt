@@ -7,6 +7,9 @@ package com.wavlin.music.ui.theme
 
 import android.graphics.Bitmap
 import android.os.Build
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -81,12 +84,63 @@ fun WavlinTheme(
 
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = animateWavlinColorScheme(colorScheme),
         typography = if (appleMusic) AppleMusicTypography else AppTypography,
         shapes = if (appleMusic) AppleMusicShapes else Shapes(),
         content = content
     )
 }
+
+private const val THEME_SWITCH_MS = 450
+
+@Composable
+private fun animateThemeColor(target: Color): Color =
+    animateColorAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = THEME_SWITCH_MS, easing = FastOutSlowInEasing),
+        label = "themeColor"
+    ).value
+
+/** Cross-fades every color of the scheme so switching theme, palette or dark mode glides instead of snapping. */
+@Composable
+private fun animateWavlinColorScheme(target: ColorScheme): ColorScheme =
+    target.copy(
+        primary = animateThemeColor(target.primary),
+        onPrimary = animateThemeColor(target.onPrimary),
+        primaryContainer = animateThemeColor(target.primaryContainer),
+        onPrimaryContainer = animateThemeColor(target.onPrimaryContainer),
+        inversePrimary = animateThemeColor(target.inversePrimary),
+        secondary = animateThemeColor(target.secondary),
+        onSecondary = animateThemeColor(target.onSecondary),
+        secondaryContainer = animateThemeColor(target.secondaryContainer),
+        onSecondaryContainer = animateThemeColor(target.onSecondaryContainer),
+        tertiary = animateThemeColor(target.tertiary),
+        onTertiary = animateThemeColor(target.onTertiary),
+        tertiaryContainer = animateThemeColor(target.tertiaryContainer),
+        onTertiaryContainer = animateThemeColor(target.onTertiaryContainer),
+        background = animateThemeColor(target.background),
+        onBackground = animateThemeColor(target.onBackground),
+        surface = animateThemeColor(target.surface),
+        onSurface = animateThemeColor(target.onSurface),
+        surfaceVariant = animateThemeColor(target.surfaceVariant),
+        onSurfaceVariant = animateThemeColor(target.onSurfaceVariant),
+        surfaceTint = animateThemeColor(target.surfaceTint),
+        inverseSurface = animateThemeColor(target.inverseSurface),
+        inverseOnSurface = animateThemeColor(target.inverseOnSurface),
+        error = animateThemeColor(target.error),
+        onError = animateThemeColor(target.onError),
+        errorContainer = animateThemeColor(target.errorContainer),
+        onErrorContainer = animateThemeColor(target.onErrorContainer),
+        outline = animateThemeColor(target.outline),
+        outlineVariant = animateThemeColor(target.outlineVariant),
+        surfaceBright = animateThemeColor(target.surfaceBright),
+        surfaceDim = animateThemeColor(target.surfaceDim),
+        surfaceContainer = animateThemeColor(target.surfaceContainer),
+        surfaceContainerHigh = animateThemeColor(target.surfaceContainerHigh),
+        surfaceContainerHighest = animateThemeColor(target.surfaceContainerHighest),
+        surfaceContainerLow = animateThemeColor(target.surfaceContainerLow),
+        surfaceContainerLowest = animateThemeColor(target.surfaceContainerLowest),
+    )
 
 fun Bitmap.extractThemeColor(): Color {
     val colorsToPopulation = Palette.from(this)

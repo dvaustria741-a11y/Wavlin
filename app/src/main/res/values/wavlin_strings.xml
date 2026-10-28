@@ -1156,4 +1156,9 @@
     <string name="sign_in">Sign in</string>
     <string name="account_not_logged_in">Not logged in</string>
     <string name="youtube_music">YouTube Music</string>
+    <string name="theme_mode_auto">Auto</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_black">Black</string>
+    <string name="palette_locked_label">Secret</string>
 </resources>

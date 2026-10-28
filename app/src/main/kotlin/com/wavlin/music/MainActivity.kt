@@ -1429,13 +1429,12 @@ class MainActivity : ComponentActivity() {
                                         val previousRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
 
                                         if (currentRouteIndex != -1 && previousRouteIndex != -1) {
-                                            // Tab to tab: fade-through with a gentle scale and drift toward the new tab.
-                                            val spec = tween<Float>(340, delayMillis = 90, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                                            val drift = tween<androidx.compose.ui.unit.IntOffset>(340, delayMillis = 90, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                                            // Tab to tab: the new tab glides in from the side of the tab that was tapped.
                                             val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
-                                            fadeIn(spec) +
-                                                androidx.compose.animation.scaleIn(spec, initialScale = 0.96f) +
-                                                slideInHorizontally(drift) { dir * it / 14 }
+                                            slideInHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { dir * it } +
+                                                fadeIn(tween(260, delayMillis = 40))
                                         } else if (currentRouteIndex == -1 || currentRouteIndex > previousRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
@@ -1447,7 +1446,11 @@ class MainActivity : ComponentActivity() {
                                         val targetRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
 
                                         if (currentRouteIndex != -1 && targetRouteIndex != -1) {
-                                            fadeOut(tween(110, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+                                            val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
+                                            slideOutHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { -dir * it } +
+                                                fadeOut(tween(240))
                                         } else if (targetRouteIndex == -1 || targetRouteIndex > currentRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {
@@ -1458,7 +1461,13 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
                                         val previousRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
 
-                                        if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex) {
+                                        if (currentRouteIndex != -1 && previousRouteIndex != -1) {
+                                            val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
+                                            slideInHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { dir * it } +
+                                                fadeIn(tween(260, delayMillis = 40))
+                                        } else if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
                                             slideInHorizontally { -it / 8 } + fadeIn(tween(200))
@@ -1468,7 +1477,13 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
                                         val targetRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
 
-                                        if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex) {
+                                        if (currentRouteIndex != -1 && targetRouteIndex != -1) {
+                                            val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
+                                            slideOutHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { -dir * it } +
+                                                fadeOut(tween(240))
+                                        } else if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {
                                             slideOutHorizontally { it / 8 } + fadeOut(tween(200))

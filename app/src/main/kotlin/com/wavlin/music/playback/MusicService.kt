@@ -862,6 +862,25 @@ class MusicService :
                     Timber.tag(TAG).i("QUALITY CHANGED: $oldQuality -> $newQuality")
 
                     val mediaId = player.currentMediaItem?.mediaId ?: return@collect
+
+                    // Offline: a fresh stream can't be fetched, so reloading would only break the
+                    // current song (and leave the bypass flag stuck). Keep playing from cache;
+                    // the new quality applies to the next stream that gets resolved online.
+                    if (!isNetworkConnected.value) {
+                        Timber.tag(TAG).i("QUALITY CHANGED offline: skipping reload for $mediaId")
+                        return@collect
+                    }
+
+                    // Fully downloaded songs play from local storage and don't depend on stream quality.
+                    val isFullyDownloaded = runBlocking(Dispatchers.IO) {
+                        val len = database.song(mediaId).first()?.format?.contentLength
+                        len != null && downloadCache.isCached(mediaId, 0, len)
+                    }
+                    if (isFullyDownloaded) {
+                        Timber.tag(TAG).i("QUALITY CHANGED: $mediaId is downloaded, skipping reload")
+                        return@collect
+                    }
+
                     val currentPosition = player.currentPosition
                     val wasPlaying = player.isPlaying
                     val currentIndex = player.currentMediaItemIndex
@@ -874,8 +893,7 @@ class MusicService :
                     runBlocking(Dispatchers.IO) {
                         try {
                             playerCache.removeResource(mediaId)
-                            downloadCache.removeResource(mediaId)
-                            Timber.tag(TAG).d("Cleared player and download cache for $mediaId")
+                            Timber.tag(TAG).d("Cleared player cache for $mediaId")
                         } catch (e: Exception) {
                             Timber.tag(TAG).e(e, "Failed to clear cache for $mediaId")
                         }
@@ -988,9 +1006,10 @@ class MusicService :
             dataStore.data.map { it[AudioOffload] ?: false },
             dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
             com.wavlin.music.audio.reverb.ReverbManager.isEnabled,
-        ) { offloadPref, crossfadeEnabled, reverbEnabled ->
-            // Offload is disabled with crossfade (volume ramp issues) and with reverb (offloaded tracks bypass audio processors)
-            if (crossfadeEnabled || reverbEnabled) false else offloadPref
+            com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser,
+        ) { offloadPref, crossfadeEnabled, reverbEnabled, dolbyEnabled ->
+            // Offload is disabled with crossfade (volume ramp issues), reverb and Dolby Atmos (offloaded tracks bypass audio processors)
+            if (crossfadeEnabled || reverbEnabled || dolbyEnabled) false else offloadPref
         }.distinctUntilChanged()
             .collectLatest(scope) { useOffload ->
                 player.setOffloadEnabled(useOffload)
@@ -1333,7 +1352,7 @@ class MusicService :
             while (isActive) {
                 delay(15.seconds)
                 if (cachedPersistentQueue) {
-                    saveQueueToDisk()
+                    saveQueueToDiskAsync()
                 }
                 val currentMetadata = player.currentMediaItem?.metadata
                 if (currentMetadata?.isEpisode == true && player.isPlaying && player.currentPosition > 0) {
@@ -1347,7 +1366,7 @@ class MusicService :
             while (isActive) {
                 delay(10.seconds)
                 if (cachedPersistentQueue && player.isPlaying) {
-                    saveQueueToDisk()
+                    saveQueueToDiskAsync()
                 }
             }
         }
@@ -1364,6 +1383,8 @@ class MusicService :
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
         val reverbProcessor = com.wavlin.music.playback.audio.ReverbAudioProcessor()
         com.wavlin.music.audio.reverb.ReverbManager.setProcessor(reverbProcessor)
+        val dolbyProcessor = com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor()
+        com.wavlin.music.audio.dolby.DolbyAtmosManager.registerProcessor(dolbyProcessor)
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1384,7 +1405,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, dolbyProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -1414,14 +1435,14 @@ class MusicService :
         if (prefs != null) {
             val offload = prefs[AudioOffload] ?: false
             val crossfade = prefs[CrossfadeEnabledKey] ?: false
-            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value) false else offload)
+            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value) false else offload)
             player.skipSilenceEnabled = prefs[SkipSilenceKey] ?: false
         } else {
             player.apply {
                 runBlocking {
                     val offload = dataStore.get(AudioOffload, false)
                     val crossfade = dataStore.get(CrossfadeEnabledKey, false)
-                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value) false else offload)
+                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value) false else offload)
                     skipSilenceEnabled = dataStore.get(SkipSilenceKey, false)
                 }
             }
@@ -2641,7 +2662,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -2682,7 +2703,7 @@ class MusicService :
 
         // Save state when playback state changes (but not during silence skipping)
         if (cachedPersistentQueue && !isSilenceSkipping) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
 
         if (playbackState == Player.STATE_READY) {
@@ -2813,7 +2834,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -2826,7 +2847,7 @@ class MusicService :
         }
 
         if (cachedPersistentQueue) {
-            saveQueueToDisk()
+            saveQueueToDiskAsync()
         }
     }
 
@@ -3749,6 +3770,9 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
+            // Never bypass the cache while offline — a fresh fetch is impossible and the stuck
+            // flag would keep the song broken until the connection returns.
+            if (!isNetworkConnected.value) bypassCacheForQualityChange.remove(mediaId)
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 
             if (!shouldBypassCache) {
@@ -3797,6 +3821,8 @@ class MusicService :
                         ),
                     )
                 }.getOrElse { throwable ->
+                    // Don't leave the bypass flag stuck after a failed fetch, or retries never hit the cache.
+                    bypassCacheForQualityChange.remove(mediaId)
                     when (throwable) {
                         is PlaybackException -> {
                             throw throwable
@@ -3902,6 +3928,7 @@ class MusicService :
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         reverbProcessor: com.wavlin.music.playback.audio.ReverbAudioProcessor,
+        dolbyProcessor: com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
@@ -3963,6 +3990,7 @@ class MusicService :
                         normalizationProcessor,
                         eqProcessor,
                         reverbProcessor,
+                        dolbyProcessor,
                         silenceProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
@@ -4019,79 +4047,97 @@ class MusicService :
         }
     }
 
-    private fun saveQueueToDisk() {
+    private class QueueSnapshot(
+        val queue: PersistQueue,
+        val automix: PersistQueue,
+        val playerState: PersistPlayerState,
+    )
+
+    private val queueFileLock = Any()
+    private var queueSaveJob: Job? = null
+
+    /** Cheap part, on the main thread: copies what has to be written. */
+    private fun snapshotQueue(): QueueSnapshot? {
         if (player.mediaItemCount == 0) {
             Timber.tag(TAG).d("Skipping queue save - no media items")
-            return
+            return null
         }
-
-        try {
-            val persistQueue =
-                currentQueue.toPersistQueue(
-                    title = queueTitle,
-                    items = player.mediaItems.mapNotNull { it.metadata },
-                    mediaItemIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
-                )
-
-            val persistAutomix =
-                PersistQueue(
-                    title = "automix",
-                    items = automixItems.value.mapNotNull { it.metadata },
-                    mediaItemIndex = 0,
-                    position = 0,
-                )
-
-            val persistPlayerState =
-                PersistPlayerState(
-                    playWhenReady = player.playWhenReady,
-                    repeatMode = player.repeatMode,
-                    shuffleModeEnabled = player.shuffleModeEnabled,
-                    volume = playerVolume.value,
-                    currentPosition = player.currentPosition,
-                    currentMediaItemIndex = player.currentMediaItemIndex,
-                    playbackState = player.playbackState,
-                )
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
-                    }
-                }
-                Timber.tag(TAG).d("Queue saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save queue")
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistAutomix)
-                    }
-                }
-                Timber.tag(TAG).d("Automix saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save automix")
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistPlayerState)
-                    }
-                }
-                Timber.tag(TAG).d("Player state saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save player state")
-                reportException(it)
-            }
+        return try {
+            QueueSnapshot(
+                queue =
+                    currentQueue.toPersistQueue(
+                        title = queueTitle,
+                        items = player.mediaItems.mapNotNull { it.metadata },
+                        mediaItemIndex = player.currentMediaItemIndex,
+                        position = player.currentPosition,
+                    ),
+                automix =
+                    PersistQueue(
+                        title = "automix",
+                        items = automixItems.value.mapNotNull { it.metadata },
+                        mediaItemIndex = 0,
+                        position = 0,
+                    ),
+                playerState =
+                    PersistPlayerState(
+                        playWhenReady = player.playWhenReady,
+                        repeatMode = player.repeatMode,
+                        shuffleModeEnabled = player.shuffleModeEnabled,
+                        volume = playerVolume.value,
+                        currentPosition = player.currentPosition,
+                        currentMediaItemIndex = player.currentMediaItemIndex,
+                        playbackState = player.playbackState,
+                    ),
+            )
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error during queue save operation")
             reportException(e)
+            null
         }
+    }
+
+    /** Expensive part (Java serialization + disk): safe to run on any thread. */
+    private fun writeQueueSnapshot(snapshot: QueueSnapshot) {
+        synchronized(queueFileLock) {
+            writePersisted(PERSISTENT_QUEUE_FILE, snapshot.queue, "Queue")
+            writePersisted(PERSISTENT_AUTOMIX_FILE, snapshot.automix, "Automix")
+            writePersisted(PERSISTENT_PLAYER_STATE_FILE, snapshot.playerState, "Player state")
+        }
+    }
+
+    private fun writePersisted(
+        fileName: String,
+        value: java.io.Serializable,
+        label: String,
+    ) {
+        runCatching {
+            filesDir.resolve(fileName).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos -> oos.writeObject(value) }
+            }
+            Timber.tag(TAG).d("$label saved successfully")
+        }.onFailure {
+            Timber.tag(TAG).e(it, "Failed to save ${label.lowercase()}")
+            reportException(it)
+        }
+    }
+
+    /** Blocking save, used when the service is going away. */
+    private fun saveQueueToDisk() {
+        snapshotQueue()?.let(::writeQueueSnapshot)
+    }
+
+    /**
+     * Same save without blocking the main thread, so skipping tracks and state changes never stall on serializing
+     * the whole queue. Bursts (skip -> buffering -> ready) are coalesced into one write.
+     */
+    private fun saveQueueToDiskAsync() {
+        queueSaveJob?.cancel()
+        queueSaveJob =
+            scope.launch {
+                delay(400)
+                val snapshot = snapshotQueue() ?: return@launch
+                withContext(Dispatchers.IO) { writeQueueSnapshot(snapshot) }
+            }
     }
 
     /**

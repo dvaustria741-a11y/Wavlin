@@ -963,9 +963,10 @@ private fun LegacyMiniPlayer(
                 listenTogetherManager = listenTogetherManager,
             )
 
+            val onNextClick = rememberNextClickHandler(playerConnection)
             IconButton(
                 enabled = canSkipNext && !isListenTogetherGuest,
-                onClick = if (isListenTogetherGuest) ({}) else ({ playerConnection.seekToNext() }),
+                onClick = if (isListenTogetherGuest) ({}) else onNextClick,
             ) {
                 Icon(painter = painterResource(R.drawable.skip_next), contentDescription = null)
             }

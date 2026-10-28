@@ -48,7 +48,7 @@ fun RandomizeGridItem(
         modifier =
             modifier
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(artworkShape())
                 .background(MaterialTheme.colorScheme.secondaryContainer)
                 .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,

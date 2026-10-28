@@ -336,7 +336,7 @@ inline fun ListItem(
                         .align(Alignment.Center)
                         .background(
                             Color.Black.copy(alpha = 0.25f),
-                            RoundedCornerShape(ThumbnailCornerRadius)
+                            artworkShape()
                         )
                 ) {
                     Icon(
@@ -600,7 +600,7 @@ fun SongListItem(
                      isSelected = isSelected,
                      isActive = isActive,
                      isPlaying = isPlaying,
-                     shape = RoundedCornerShape(ThumbnailCornerRadius),
+                     shape = artworkShape(),
                      modifier = Modifier.size(ListThumbnailSize)
                  )
                  }
@@ -676,7 +676,7 @@ fun SongGridItem(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = artworkShape(),
             modifier = Modifier.size(gridHeight)
         )
         if (!isActive) {
@@ -824,7 +824,7 @@ fun AlbumListItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = artworkShape(),
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -904,7 +904,7 @@ fun AlbumGridItem(
             thumbnailUrl = album.album.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = artworkShape(),
         )
 
         AlbumPlayButton(
@@ -999,7 +999,7 @@ fun PlaylistListItem(
                     modifier = Modifier.size(ListThumbnailSize / 2)
                 )
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius)
+            shape = artworkShape()
         )
     },
     trailingContent = trailingContent,
@@ -1104,7 +1104,7 @@ fun PlaylistGridItem(
                     )
                 }
             },
-            shape = RoundedCornerShape(ThumbnailCornerRadius)
+            shape = artworkShape()
         )
     },
     fillMaxWidth = fillMaxWidth,
@@ -1150,7 +1150,7 @@ fun MediaMetadataListItem(
                 isSelected = isSelected,
                 isActive = isActive,
                 isPlaying = isPlaying,
-                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                shape = artworkShape(),
                 modifier = Modifier.size(ListThumbnailSize)
             )
         },
@@ -1216,7 +1216,7 @@ fun YouTubeListItem(
                     isSelected = isSelected,
                     isActive = isActive,
                     isPlaying = isPlaying,
-                    shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+                    shape = if (item is ArtistItem) CircleShape else artworkShape(),
                     modifier = Modifier.size(ListThumbnailSize)
                 )
             },
@@ -1309,7 +1309,7 @@ fun YouTubeGridItem(
             thumbnailUrl = item.thumbnail,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            shape = if (item is ArtistItem) CircleShape else artworkShape(),
         )
 
         if (item is SongItem && !isActive) {
@@ -1375,7 +1375,7 @@ fun LocalSongsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = artworkShape(),
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = true,
             playButtonVisible = false
@@ -1459,7 +1459,7 @@ fun LocalAlbumsGrid(
             thumbnailUrl = thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = artworkShape(),
             modifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier,
             showCenterPlay = false,
             playButtonVisible = true

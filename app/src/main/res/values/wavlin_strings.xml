@@ -75,6 +75,10 @@
     <string name="dolby_atmos_active">Active for spatial &amp; multichannel streams</string>
     <string name="dolby_atmos_off">Disabled</string>
     <string name="dolby_atmos_unsupported">Unsupported on current device/route</string>
+    <string name="dolby_expanded_stereo">Expanded stereo</string>
+    <string name="dolby_earphones_only">(Earphones only)</string>
+    <string name="dolby_immersive_mode">Immersive Dolby Atmos</string>
+    <string name="dolby_immersive_mode_desc">Stronger surround space (test)</string>
     <string name="track_info">Track Info</string>
     <string name="add_playlist">Add Playlist</string>
     <string name="audio_eq">Audio EQ</string>
@@ -1141,5 +1145,20 @@
     <string name="hub_new_albums">New albums</string>
     <string name="hub_new_mixes">New music mixes</string>
     <string name="video_canvas">Video Canvas</string>
-    <string name="video_canvas_desc">Show a short looping video behind the artwork. Auto-expands to full screen after 5 s of inactivity — tap to dismiss.</string>
+    <string name="video_canvas_desc">Play the short looping Spotify Canvas video of the song in the player (needs a Spotify account signed in). After 5 s without touching, the controls fade out; tap to bring them back.</string>
+    <string name="account_guest">Guest</string>
+    <string name="account_good_morning">Good morning</string>
+    <string name="account_good_afternoon">Good afternoon</string>
+    <string name="account_good_evening">Good evening</string>
+    <string name="double_tap_to_skip_next">Double tap to skip</string>
+    <string name="double_tap_to_skip_next_desc">Tap the next button twice to skip to the next song</string>
+    <string name="connected_accounts">Connected accounts</string>
+    <string name="sign_in">Sign in</string>
+    <string name="account_not_logged_in">Not logged in</string>
+    <string name="youtube_music">YouTube Music</string>
+    <string name="theme_mode_auto">Auto</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_black">Black</string>
+    <string name="palette_locked_label">Secret</string>
 </resources>

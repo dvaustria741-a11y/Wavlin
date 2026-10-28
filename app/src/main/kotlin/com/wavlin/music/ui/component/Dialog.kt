@@ -171,6 +171,7 @@ fun AccountSettingsDialog(
             contentAlignment = Alignment.Center,
         ) {
             val pinkLily = LocalPinkLilyTheme.current
+            val appleMusic = LocalInterfaceAppleMusic.current && !pinkLily
             Surface(
                 modifier =
                     Modifier
@@ -179,6 +180,8 @@ fun AccountSettingsDialog(
                         .let { base ->
                             if (pinkLily) {
                                 base.lilyNinePatch(res = com.wavlin.music.R.drawable.lily_panel, srcCap = 150, dstCap = 46.dp)
+                            } else if (appleMusic) {
+                                base.clip(RoundedCornerShape(24.dp))
                             } else {
                                 base
                                     .clip(RoundedCornerShape(28.dp))
@@ -186,7 +189,7 @@ fun AccountSettingsDialog(
                             }
                         },
                 shape = MaterialTheme.shapes.large,
-                color = if (pinkLily) Color.Transparent else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                color = if (pinkLily) Color.Transparent else if (appleMusic) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                 tonalElevation = if (pinkLily) 0.dp else 8.dp,
             ) {
                 Box {

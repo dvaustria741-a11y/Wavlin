@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,7 +85,9 @@ import com.wavlin.music.viewmodels.SpotifyViewModel
 fun AccountSettings(
     navController: NavController,
     onClose: () -> Unit,
-    latestVersionName: String
+    latestVersionName: String,
+    /** Small popover layout (profile header, no title bar / close button). */
+    compact: Boolean = false,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -114,15 +117,15 @@ fun AccountSettings(
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showLoginPicker by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .background(Color.Transparent)
-            .padding(16.dp)
+            .padding(if (compact) 12.dp else 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        if (!compact) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,6 +144,7 @@ fun AccountSettings(
         }
 
         Spacer(Modifier.height(12.dp))
+        }
 
         // Logout confirmation dialog
         if (showLogoutDialog) {
@@ -191,63 +195,6 @@ fun AccountSettings(
                         }
                     ) {
                         Text(stringResource(R.string.logout_keep))
-                    }
-                }
-            )
-        }
-
-        if (showLoginPicker) {
-            DefaultDialog(
-                onDismiss = { showLoginPicker = false },
-                title = { Text(stringResource(R.string.login_choose_service)) },
-                content = {
-                    LoginServiceRow(
-                        icon = painterResource(R.drawable.ic_youtube_music),
-                        tint = Color(0xFFFF0000),
-                        name = "YouTube Music",
-                        connected = isLoggedIn,
-                        status =
-                            if (isLoggedIn) {
-                                listOf(stringResource(R.string.spotify_connected), accountName).filter { it.isNotBlank() }.joinToString(" · ")
-                            } else {
-                                stringResource(R.string.spotify_not_connected)
-                            },
-                        actionLabel = if (isLoggedIn) stringResource(R.string.action_logout) else null,
-                        onAction = {
-                            showLoginPicker = false
-                            showLogoutDialog = true
-                        },
-                        onClick = {
-                            showLoginPicker = false
-                            onClose()
-                            navController.navigate(if (isLoggedIn) "account" else "login")
-                        }
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LoginServiceRow(
-                        icon = painterResource(R.drawable.ic_spotify_logo),
-                        tint = Color(0xFF1DB954),
-                        name = stringResource(R.string.spotify),
-                        connected = spotifyConnected,
-                        status =
-                            when {
-                                spotifyConnected ->
-                                    listOf(stringResource(R.string.spotify_connected), spotifyName).filter { it.isNotBlank() }.joinToString(" · ")
-                                spotifyState == SpotifyAuthState.LOADING -> stringResource(R.string.spotify_connecting)
-                                else -> stringResource(R.string.spotify_not_connected)
-                            },
-                        actionLabel = if (spotifyConnected) stringResource(R.string.action_logout) else null,
-                        onAction = { spotifyViewModel.logout() },
-                        onClick = {
-                            showLoginPicker = false
-                            onClose()
-                            navController.navigate(if (spotifyConnected) "settings/integrations/spotify" else "spotify_signin")
-                        }
-                    )
-                },
-                buttons = {
-                    TextButton(onClick = { showLoginPicker = false }) {
-                        Text(stringResource(android.R.string.cancel))
                     }
                 }
             )
@@ -316,112 +263,58 @@ fun AccountSettings(
             )
         }
 
-        Material3SettingsGroup(
-            items = listOf(
-                Material3SettingsItem(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (isLoggedIn && accountImageUrl != null) {
-                                AsyncImage(
-                                    model = accountImageUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(40.dp).clip(CircleShape)
-                                )
+        // Plain rows like Settings/Integrations below: no card behind them.
+        val loginDescription = buildList {
+            if (isLoggedIn) add("YouTube Music")
+            if (spotifyConnected) add(stringResource(R.string.spotify))
+        }.joinToString(" · ")
 
-                                Spacer(Modifier.width(12.dp))
-                            }
-
-                            Text(
-                                text = if (isLoggedIn) accountName else stringResource(R.string.login),
-                            )
-                        }
-                    },
-                    icon = if (!isLoggedIn) painterResource(R.drawable.login) else null,
-                    description = {
-                        val parts = buildList {
-                            if (isLoggedIn) add("YouTube Music")
-                            if (spotifyConnected) add(stringResource(R.string.spotify))
-                        }
-                        if (parts.isNotEmpty()) Text(parts.joinToString(" · "))
-                    },
-                    onClick = { showLoginPicker = true }
-                )
-            ),
-            useLowContrast = true
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Material3SettingsGroup(
-            items = listOfNotNull(
-                if (!isLoggedIn) null else Material3SettingsItem(
-                    title = {
-                        Text(
-                            when {
-                                !isLoggedIn -> stringResource(R.string.advanced_login)
-                                showToken -> stringResource(R.string.token_shown)
-                                else -> stringResource(R.string.token_hidden)
-                            }
+        PreferenceEntry(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLoggedIn && accountImageUrl != null) {
+                        AsyncImage(
+                            model = accountImageUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
                         )
-                    },
-                    icon = painterResource(R.drawable.token),
-                    onClick = {
-                        if (!isLoggedIn) showTokenEditor = true
-                        else if (!showToken) showToken = true
-                        else showTokenEditor = true
+
+                        Spacer(Modifier.width(12.dp))
                     }
-                ),
-                Material3SettingsItem(
-                    title = { Text(stringResource(R.string.more_content)) },
-                    icon = painterResource(R.drawable.cached),
-                    trailingContent = {
-                        Switch(
-                            enabled = isLoggedIn,
-                            checked = useLoginForBrowse,
-                            onCheckedChange = {
-                                YouTube.useLoginForBrowse = it
-                                onUseLoginForBrowseChange(it)
-                            },
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (useLoginForBrowse) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    enabled = isLoggedIn
-                ),
-                Material3SettingsItem(
-                    title = { Text(stringResource(R.string.yt_sync)) },
-                    icon = painterResource(R.drawable.cached),
-                    trailingContent = {
-                        Switch(
-                            enabled = isLoggedIn,
-                            checked = ytmSync,
-                            onCheckedChange = onYtmSyncChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (ytmSync) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                                )
-                            }
-                        )
-                    },
-                    enabled = isLoggedIn
-                )
-            ),
-            useLowContrast = true
+
+                    Text(text = if (isLoggedIn) accountName else stringResource(R.string.login))
+                }
+            },
+            description = loginDescription.ifEmpty { null },
+            icon = if (!isLoggedIn) {
+                { Icon(painterResource(R.drawable.login), null) }
+            } else null,
+            onClick = {
+                onClose()
+                navController.navigate("accounts")
+            },
+            modifier = Modifier.fillMaxWidth(),
         )
+
+        Spacer(Modifier.height(4.dp))
+
+        if (isLoggedIn) {
+            PreferenceEntry(
+                title = {
+                    Text(
+                        if (showToken) stringResource(R.string.token_shown) else stringResource(R.string.token_hidden)
+                    )
+                },
+                icon = { Icon(painterResource(R.drawable.token), null) },
+                onClick = {
+                    if (!showToken) showToken = true else showTokenEditor = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(4.dp))
+        }
 
         Spacer(Modifier.height(12.dp))
 
@@ -489,53 +382,6 @@ fun AccountSettings(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun LoginServiceRow(
-    icon: androidx.compose.ui.graphics.painter.Painter,
-    tint: Color,
-    name: String,
-    status: String,
-    connected: Boolean,
-    actionLabel: String?,
-    onAction: () -> Unit,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = status,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (connected) Color(0xFF2E9E5B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        }
-        if (actionLabel != null) {
-            TextButton(onClick = onAction) { Text(actionLabel) }
         }
     }
 }

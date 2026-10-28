@@ -472,6 +472,10 @@ fun NavGraphBuilder.navigationBuilder(
         LoginScreen(navController)
     }
 
+    composable("accounts") {
+        AccountHubScreen(navController)
+    }
+
     composable("wrapped") {
         WrappedScreen()
     }

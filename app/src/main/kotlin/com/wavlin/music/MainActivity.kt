@@ -669,10 +669,12 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        val themeInterfaceStyle by rememberEnumPreference(InterfaceStyleKey, defaultValue = InterfaceStyle.MATERIAL)
         WavlinTheme(
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
             themeColor = themeColor,
+            appleMusic = themeInterfaceStyle == InterfaceStyle.APPLE_MUSIC,
         ) {
             val currentDensity = LocalDensity.current
             val windowInfo = LocalWindowInfo.current
@@ -1018,14 +1020,25 @@ class MainActivity : ComponentActivity() {
                 val hazeState = remember { HazeState() }
                 val interfaceStyle by rememberEnumPreference(InterfaceStyleKey, defaultValue = InterfaceStyle.MATERIAL)
                 val appleStyle = interfaceStyle == InterfaceStyle.APPLE_MUSIC
+                // A WebView can't be recorded into the glass backdrop layer (it crashes the page or the app),
+                // so the screens that host one run without the liquid-glass backdrop.
+                val webViewRoute = currentRoute == "login" || currentRoute == "spotify_signin"
+                val glassOverlayHost = remember { com.wavlin.music.ui.component.GlassOverlayHostState() }
                 val glassBackdrop = rememberLayerBackdrop {
                     drawRect(baseBg)
                     drawContent()
                 }
 
+                val playerGlassBackdrop = rememberLayerBackdrop {
+                    drawRect(Color.Black)
+                    drawContent()
+                }
+
                 CompositionLocalProvider(
                     LocalInterfaceAppleMusic provides appleStyle,
-                    LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported()) glassBackdrop else null),
+                    com.wavlin.music.ui.component.LocalPlayerGlassBackdrop provides (if (appleStyle && appleGlassSupported()) playerGlassBackdrop else null),
+                    LocalGlassBackdrop provides (if (appleStyle && appleGlassSupported() && !webViewRoute) glassBackdrop else null),
+                    com.wavlin.music.ui.component.LocalGlassOverlayHost provides (if (appleStyle && appleGlassSupported() && !webViewRoute) glassOverlayHost else null),
                     LocalDatabase provides database,
                     LocalNavController provides navController,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
@@ -1091,7 +1104,7 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 Text(
                                                     text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                    style = MaterialTheme.typography.titleLarge,
+                                                    style = if (appleStyle) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
                                                 )
                                             }
                                         },
@@ -1149,6 +1162,8 @@ class MainActivity : ComponentActivity() {
                                                         Color.Transparent
                                                     } else if (pureBlack) {
                                                         Color.Black
+                                                    } else if (appleStyle) {
+                                                        MaterialTheme.colorScheme.background
                                                     } else {
                                                         MaterialTheme.colorScheme.surfaceContainer
                                                     },
@@ -1157,6 +1172,8 @@ class MainActivity : ComponentActivity() {
                                                         Color.Transparent
                                                     } else if (pureBlack) {
                                                         Color.Black
+                                                    } else if (appleStyle) {
+                                                        MaterialTheme.colorScheme.background
                                                     } else {
                                                         MaterialTheme.colorScheme.surfaceContainer
                                                     },
@@ -1334,11 +1351,12 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
                     ) {
+                        Box(Modifier.fillMaxSize()) {
                         Row(
                             Modifier
                                 .fillMaxSize()
                                 .hazeSource(state = hazeState)
-                                .then(if (appleStyle && appleGlassSupported()) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                                .then(if (appleStyle && appleGlassSupported() && !webViewRoute) Modifier.layerBackdrop(glassBackdrop) else Modifier)
                                 .then(
                                     if (pinkWallpaper) {
                                         Modifier.paint(
@@ -1352,6 +1370,8 @@ class MainActivity : ComponentActivity() {
                                     },
                                 ),
                         ) {
+                            // Glass inside the screens can't sample the layer it is drawn into, so use the lite look there.
+                            CompositionLocalProvider(LocalGlassBackdrop provides null) {
                             val onRailItemClick: (Screens, Boolean) -> Unit =
                                 remember(navController, coroutineScope, topAppBarScrollBehavior, playerBottomSheetState) {
                                     { screen: Screens, isSelected: Boolean ->
@@ -1408,7 +1428,14 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
                                         val previousRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
 
-                                        if (currentRouteIndex == -1 || currentRouteIndex > previousRouteIndex) {
+                                        if (currentRouteIndex != -1 && previousRouteIndex != -1) {
+                                            // Tab to tab: the new tab glides in from the side of the tab that was tapped.
+                                            val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
+                                            slideInHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { dir * it } +
+                                                fadeIn(tween(260, delayMillis = 40))
+                                        } else if (currentRouteIndex == -1 || currentRouteIndex > previousRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
                                             slideInHorizontally { -it / 8 } + fadeIn(tween(200))
@@ -1418,7 +1445,13 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
                                         val targetRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
 
-                                        if (targetRouteIndex == -1 || targetRouteIndex > currentRouteIndex) {
+                                        if (currentRouteIndex != -1 && targetRouteIndex != -1) {
+                                            val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
+                                            slideOutHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { -dir * it } +
+                                                fadeOut(tween(240))
+                                        } else if (targetRouteIndex == -1 || targetRouteIndex > currentRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {
                                             slideOutHorizontally { it / 8 } + fadeOut(tween(200))
@@ -1428,7 +1461,13 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
                                         val previousRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
 
-                                        if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex) {
+                                        if (currentRouteIndex != -1 && previousRouteIndex != -1) {
+                                            val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
+                                            slideInHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { dir * it } +
+                                                fadeIn(tween(260, delayMillis = 40))
+                                        } else if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
                                             slideInHorizontally { -it / 8 } + fadeIn(tween(200))
@@ -1438,7 +1477,13 @@ class MainActivity : ComponentActivity() {
                                         val currentRouteIndex = routeIndexMap[initialState.destination.route] ?: -1
                                         val targetRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
 
-                                        if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex) {
+                                        if (currentRouteIndex != -1 && targetRouteIndex != -1) {
+                                            val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
+                                            slideOutHorizontally(
+                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                            ) { -dir * it } +
+                                                fadeOut(tween(240))
+                                        } else if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {
                                             slideOutHorizontally { it / 8 } + fadeOut(tween(200))
@@ -1455,6 +1500,9 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
+                            }
+                        }
+                        com.wavlin.music.ui.component.GlassOverlayHost(glassOverlayHost)
                         }
                     }
 
@@ -1479,13 +1527,22 @@ class MainActivity : ComponentActivity() {
                     )
 
                     if (showAccountDialog) {
-                        AccountSettingsDialog(
-                            onDismiss = {
-                                showAccountDialog = false
-                                homeViewModel.refresh()
-                            },
-                            latestVersionName = latestVersionName,
-                        )
+                        val dismissAccount = {
+                            showAccountDialog = false
+                            homeViewModel.refresh()
+                        }
+                        if (!pinkWallpaper) {
+                            // Small glass popover anchored top-right in both styles (blur fallback when there is no layer backdrop).
+                            com.wavlin.music.ui.component.AppleGlassAccountOverlay(
+                                onDismiss = dismissAccount,
+                                latestVersionName = latestVersionName,
+                            )
+                        } else {
+                            AccountSettingsDialog(
+                                onDismiss = dismissAccount,
+                                latestVersionName = latestVersionName,
+                            )
+                        }
                     }
 
                     sharedSong?.let { song ->

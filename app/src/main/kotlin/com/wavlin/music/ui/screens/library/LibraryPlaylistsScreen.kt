@@ -76,6 +76,7 @@ import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.ui.component.CreatePlaylistDialog
 import com.wavlin.music.ui.component.GlassIconButton
+import com.wavlin.music.ui.component.GlassOverlay
 import com.wavlin.music.ui.component.LibrarySearchEmptyPlaceholder
 import com.wavlin.music.ui.component.LibrarySearchHeader
 import com.wavlin.music.ui.component.LibraryPlaylistGridItem
@@ -541,6 +542,7 @@ fun LibraryPlaylistsScreen(
         }
 
         // Always visible + button (no scroll hiding)
+        GlassOverlay {
         GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
             size = 56.dp,
@@ -557,6 +559,7 @@ fun LibraryPlaylistsScreen(
                 painter = painterResource(R.drawable.add),
                 contentDescription = null,
             )
+        }
         }
     }
 }

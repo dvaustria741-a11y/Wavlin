@@ -67,6 +67,7 @@ import com.wavlin.music.constants.ResumeOnBluetoothConnectKey
 import com.wavlin.music.constants.SeekExtraSeconds
 import com.wavlin.music.constants.ShufflePlaylistFirstKey
 import com.wavlin.music.constants.SimilarContent
+import com.wavlin.music.constants.DoubleTapToSkipNextKey
 import com.wavlin.music.constants.SkipSilenceInstantKey
 import com.wavlin.music.constants.SkipSilenceKey
 import com.wavlin.music.constants.StopMusicOnTaskClearKey
@@ -128,6 +129,10 @@ fun PlayerSettings(
     )
     val (skipSilence, onSkipSilenceChange) = rememberPreference(
         SkipSilenceKey,
+        defaultValue = false
+    )
+    val (doubleTapToSkipNext, onDoubleTapToSkipNextChange) = rememberPreference(
+        DoubleTapToSkipNextKey,
         defaultValue = false
     )
     val (skipSilenceInstant, onSkipSilenceInstantChange) = rememberPreference(
@@ -427,6 +432,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onSkipSilenceChange(!skipSilence) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.skip_next),
+                    title = { Text(stringResource(R.string.double_tap_to_skip_next)) },
+                    description = { Text(stringResource(R.string.double_tap_to_skip_next_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = doubleTapToSkipNext,
+                            onCheckedChange = onDoubleTapToSkipNextChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (doubleTapToSkipNext) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onDoubleTapToSkipNextChange(!doubleTapToSkipNext) }
                 ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.skip_next),

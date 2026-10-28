@@ -1,20 +1,19 @@
 package com.wavlin.music.ui.screens.settings
 
-import com.wavlin.music.ui.component.pinkTopBarColors
-import android.content.res.Configuration
-import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,8 +22,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -32,26 +31,22 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,17 +56,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.materialkolor.PaletteStyle
@@ -79,13 +74,14 @@ import com.materialkolor.rememberDynamicColorScheme
 import com.wavlin.music.R
 import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.DynamicThemeKey
-import com.wavlin.music.constants.PureBlackKey
-import com.wavlin.music.constants.PureBlackMiniPlayerKey
 import com.wavlin.music.constants.PinkNowPlayingModifiedKey
 import com.wavlin.music.constants.PreviousDarkModeBeforeSecretPinkKey
+import com.wavlin.music.constants.PureBlackKey
+import com.wavlin.music.constants.PureBlackMiniPlayerKey
 import com.wavlin.music.constants.SecretPinkThemeUnlockedKey
 import com.wavlin.music.constants.SelectedThemeColorKey
 import com.wavlin.music.ui.component.TextFieldDialog
+import com.wavlin.music.ui.component.pinkTopBarColors
 import com.wavlin.music.ui.theme.DefaultThemeColor
 import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.theme.WavlinTheme
@@ -98,8 +94,8 @@ data class ThemePalette(
 )
 
 val PaletteColors = listOf(
-    ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
-    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
+    ThemePalette(R.string.palette_dynamic, Color.Transparent),
+    ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)),
     ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
     ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
     ThemePalette(R.string.palette_deep_purple, Color(0xFF5E35B1)),
@@ -120,6 +116,8 @@ val PaletteColors = listOf(
     ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
 )
 
+private const val PALETTE_COLUMNS = 4
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThemeScreen(
@@ -131,7 +129,6 @@ fun ThemeScreen(
         PureBlackMiniPlayerKey,
         defaultValue = false
     )
-
     val onPureBlackChange: (Boolean) -> Unit = { enabled ->
         onPureBlackChangeRaw(enabled)
         onPureBlackMiniPlayerChange(enabled)
@@ -141,370 +138,79 @@ fun ThemeScreen(
         DefaultThemeColor.toArgb()
     )
     val (_, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = true)
-
     val selectedThemeColor = Color(selectedThemeColorInt)
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Helper function to handle color selection with dynamic theme toggle
     val handleColorSelection: (Color) -> Unit = { color ->
         onSelectedThemeColorChange(color.toArgb())
-        // Enable dynamic theme only when selecting the default/dynamic color
-        // Disable it when selecting any other color
-        val isDynamicColor = color == DefaultThemeColor
-        onDynamicThemeChange(isDynamicColor)
+        onDynamicThemeChange(color == DefaultThemeColor)
     }
 
-    if (isLandscape) {
-        LandscapeThemeLayout(
-            innerPadding = PaddingValues(0.dp),
-            darkMode = darkMode,
-            onDarkModeChange = onDarkModeChange,
-            pureBlack = pureBlack,
-            onPureBlackChange = onPureBlackChange,
-            selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = handleColorSelection
-        )
-    } else {
-        PortraitThemeLayout(
-            innerPadding = PaddingValues(0.dp),
-            darkMode = darkMode,
-            onDarkModeChange = onDarkModeChange,
-            pureBlack = pureBlack,
-            onPureBlackChange = onPureBlackChange,
-            selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = handleColorSelection
-        )
-    }
-
-    TopAppBar(
-        colors = pinkTopBarColors(),
-        title = { Text(stringResource(R.string.theme_colors)) },
-        navigationIcon = {
-            IconButton(onClick = { navController.navigateUp() }) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = stringResource(R.string.cd_back)
-                )
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            colors = pinkTopBarColors(),
+            title = { Text(stringResource(R.string.theme_colors)) },
+            navigationIcon = {
+                IconButton(onClick = { navController.navigateUp() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_back),
+                        contentDescription = stringResource(R.string.cd_back)
+                    )
+                }
             }
-        }
-    )
-}
-
-@Composable
-fun PortraitThemeLayout(
-    innerPadding: PaddingValues,
-    darkMode: DarkMode,
-    onDarkModeChange: (DarkMode) -> Unit,
-    pureBlack: Boolean,
-    onPureBlackChange: (Boolean) -> Unit,
-    selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.weight(1f))
-
-        Box(
-            modifier = Modifier
-                .width(120.dp)
-                .height(240.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            ThemeMockupPortrait(
-                darkMode = darkMode,
-                pureBlack = pureBlack,
-                themeColor = selectedThemeColor
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        ThemeControls(
-            darkMode = darkMode,
-            onDarkModeChange = onDarkModeChange,
-            pureBlack = pureBlack,
-            onPureBlackChange = onPureBlackChange,
-            selectedThemeColor = selectedThemeColor,
-            onSelectedThemeColorChange = onSelectedThemeColorChange
         )
 
-        Spacer(modifier = Modifier.height(120.dp))
-    }
-}
-
-@Composable
-fun LandscapeThemeLayout(
-    innerPadding: PaddingValues,
-    darkMode: DarkMode,
-    onDarkModeChange: (DarkMode) -> Unit,
-    pureBlack: Boolean,
-    onPureBlackChange: (Boolean) -> Unit,
-    selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-    ) {
         Column(
             modifier = Modifier
-                .weight(0.4f)
-                .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .heightIn(max = 300.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                ThemeMockup(
-                    darkMode = darkMode,
-                    pureBlack = pureBlack,
-                    themeColor = selectedThemeColor
-                )
-            }
-        }
+            Spacer(modifier = Modifier.height(4.dp))
 
-        Column(
-            modifier = Modifier
-                .weight(0.6f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-                .padding(end = 16.dp, top = 16.dp, bottom = 16.dp)
-        ) {
-            ThemeControls(
+            ThemeLivePreview(
                 darkMode = darkMode,
-                onDarkModeChange = onDarkModeChange,
                 pureBlack = pureBlack,
-                onPureBlackChange = onPureBlackChange,
-                selectedThemeColor = selectedThemeColor,
-                onSelectedThemeColorChange = onSelectedThemeColorChange
+                themeColor = selectedThemeColor,
+                modifier = Modifier
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(80.dp))
-        }
-    }
-}
-
-@Composable
-fun ThemeControls(
-    darkMode: DarkMode,
-    onDarkModeChange: (DarkMode) -> Unit,
-    pureBlack: Boolean,
-    onPureBlackChange: (Boolean) -> Unit,
-    selectedThemeColor: Color,
-    onSelectedThemeColorChange: (Color) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = stringResource(R.string.theme_mode),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+            ThemeSection(title = stringResource(R.string.theme_mode)) {
+                ThemeModeSelector(
+                    darkMode = darkMode,
+                    pureBlack = pureBlack,
+                    onDarkModeChange = onDarkModeChange,
+                    onPureBlackChange = onPureBlackChange
                 )
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // System mode (AUTO)
-                    ModeCircle(
-                        darkMode = darkMode,
-                        pureBlack = pureBlack,
-                        targetMode = DarkMode.AUTO,
-                        targetPureBlack = pureBlack,
-                        onClick = {
-                            onDarkModeChange(DarkMode.AUTO)
-                        },
-                        showIcon = true
-                    )
-                    
-                    // Vertical divider to separate System from manual modes
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(32.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant)
-                    )
-                    
-                    // Manual modes (Light, Dark, Pure Black)
-                    ModeCircle(
-                        darkMode = darkMode,
-                        pureBlack = pureBlack,
-                        targetMode = DarkMode.OFF,
-                        targetPureBlack = false,
-                        onClick = {
-                            onDarkModeChange(DarkMode.OFF)
-                            onPureBlackChange(false)
-                        },
-                        showIcon = false
-                    )
-                    
-                    ModeCircle(
-                        darkMode = darkMode,
-                        pureBlack = pureBlack,
-                        targetMode = DarkMode.ON,
-                        targetPureBlack = false,
-                        onClick = {
-                            onDarkModeChange(DarkMode.ON)
-                            onPureBlackChange(false)
-                        },
-                        showIcon = false
-                    )
-                    
-                    ModeCircle(
-                        darkMode = darkMode,
-                        pureBlack = pureBlack,
-                        targetMode = DarkMode.ON,
-                        targetPureBlack = true,
-                        onClick = {
-                            onDarkModeChange(DarkMode.ON)
-                            onPureBlackChange(true)
-                        },
-                        showIcon = false
-                    )
-                }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = stringResource(R.string.color_palette),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+            ThemeSection(title = stringResource(R.string.color_palette)) {
+                ThemePaletteGrid(
+                    darkMode = darkMode,
+                    selectedThemeColor = selectedThemeColor,
+                    onDarkModeChange = onDarkModeChange,
+                    onSelectedThemeColorChange = handleColorSelection
                 )
-
-                val context = LocalContext.current
-                var secretPinkUnlocked by rememberPreference(SecretPinkThemeUnlockedKey, defaultValue = false)
-                var showUnlockDialog by remember { mutableStateOf(false) }
-                var previousDarkModeName by rememberPreference(
-                    PreviousDarkModeBeforeSecretPinkKey,
-                    defaultValue = DarkMode.AUTO.name
-                )
-                val isCurrentlyPink = selectedThemeColor == SecretPinkThemeColor
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    item {
-                        if (secretPinkUnlocked) {
-                            val secretPalette = ThemePalette(R.string.palette_secret_pink, SecretPinkThemeColor)
-                            PaletteItem(
-                                palette = secretPalette,
-                                isSelected = isCurrentlyPink,
-                                onClick = {
-                                    if (!isCurrentlyPink) {
-                                        // Remember whatever mode the user was actually in so we
-                                        // can put it back once they leave this theme - this theme
-                                        // is designed as a soft, light pastel look (dark mode would
-                                        // just desaturate it into a dark maroon accent instead), but
-                                        // forcing light shouldn't be a one-way trip for the user.
-                                        previousDarkModeName = darkMode.name
-                                        onDarkModeChange(DarkMode.OFF)
-                                    }
-                                    onSelectedThemeColorChange(SecretPinkThemeColor)
-                                }
-                            )
-                        } else {
-                            LockedPaletteItem(onClick = { showUnlockDialog = true })
-                        }
-                    }
-
-                    items(PaletteColors) { palette ->
-                        val isDynamicPalette = palette.seedColor == Color.Transparent
-                        val isSelected = if (isDynamicPalette) {
-                            selectedThemeColor == DefaultThemeColor
-                        } else {
-                            selectedThemeColor == palette.seedColor
-                        }
-                        
-                        PaletteItem(
-                            palette = palette,
-                            isSelected = isSelected,
-                            onClick = { 
-                                val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
-                                if (isCurrentlyPink) {
-                                    // Leaving the pink theme - restore whatever mode the user was
-                                    // actually in before it forced light mode.
-                                    val restoredMode = runCatching { DarkMode.valueOf(previousDarkModeName) }
-                                        .getOrDefault(DarkMode.AUTO)
-                                    onDarkModeChange(restoredMode)
-                                }
-                                onSelectedThemeColorChange(colorToSave) 
-                            }
-                        )
-                    }
-                }
-
-                if (showUnlockDialog) {
-                    TextFieldDialog(
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.lock),
-                                contentDescription = null
-                            )
-                        },
-                        title = { Text(stringResource(R.string.secret_theme_unlock_title)) },
-                        placeholder = { Text(stringResource(R.string.secret_theme_unlock_placeholder)) },
-                        isInputValid = { it.isNotBlank() },
-                        onDismiss = { showUnlockDialog = false },
-                        autoDismiss = false,
-                        onDone = { input ->
-                            if (input.trim().equals("pink", ignoreCase = true)) {
-                                secretPinkUnlocked = true
-                                if (!isCurrentlyPink) {
-                                    previousDarkModeName = darkMode.name
-                                    onDarkModeChange(DarkMode.OFF)
-                                }
-                                onSelectedThemeColorChange(SecretPinkThemeColor)
-                                showUnlockDialog = false
-                                Toast.makeText(context, R.string.secret_theme_unlocked_toast, Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, R.string.secret_theme_incorrect_toast, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    )
-                }
             }
 
-            if (selectedThemeColor == SecretPinkThemeColor) {
+            AnimatedVisibility(
+                visible = selectedThemeColor == SecretPinkThemeColor,
+                enter = fadeIn(tween(250)) + expandVertically(),
+                exit = fadeOut(tween(150)) + shrinkVertically()
+            ) {
                 var pinkNowPlayingModified by rememberPreference(PinkNowPlayingModifiedKey, defaultValue = true)
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.pink_now_playing_style),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                ThemeSection(title = stringResource(R.string.pink_now_playing_style)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        androidx.compose.material3.FilterChip(
+                        FilterChip(
                             selected = !pinkNowPlayingModified,
                             onClick = { pinkNowPlayingModified = false },
                             label = { Text(stringResource(R.string.pink_now_playing_default)) }
                         )
-                        androidx.compose.material3.FilterChip(
+                        FilterChip(
                             selected = pinkNowPlayingModified,
                             onClick = { pinkNowPlayingModified = true },
                             label = { Text(stringResource(R.string.pink_now_playing_modified)) }
@@ -512,294 +218,38 @@ fun ThemeControls(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(140.dp))
         }
     }
 }
 
 @Composable
-fun ModeCircle(
+private fun ThemeSection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+        content()
+    }
+}
+
+@Composable
+private fun ThemeLivePreview(
     darkMode: DarkMode,
     pureBlack: Boolean,
-    targetMode: DarkMode,
-    targetPureBlack: Boolean,
-    showIcon: Boolean,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-    val isSystemDark = isSystemInDarkTheme()
-    val isSelected = darkMode == targetMode && pureBlack == targetPureBlack
-    
-    val effectiveDark = when (targetMode) {
-        DarkMode.AUTO -> isSystemDark
-        DarkMode.ON -> true
-        DarkMode.OFF -> false
-    }
-    
-    // Use actual system colors for AUTO mode on Android 12+
-    val modeColorScheme = if (targetMode == DarkMode.AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        rememberDynamicColorScheme(
-            seedColor = DefaultThemeColor,
-            isDark = effectiveDark,
-            style = PaletteStyle.TonalSpot
-        )
-    }
-    
-    val fillColor = when {
-        targetPureBlack -> Color.Black
-        effectiveDark -> modeColorScheme.surface
-        else -> modeColorScheme.surface
-    }
-    
-    // Animated border width
-    val borderWidth by animateDpAsState(
-        targetValue = if (isSelected) 3.dp else 0.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "borderWidth"
-    )
-    
-    // Animated scale for the entire circle
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.05f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "scale"
-    )
-    
-    val interactionSource = remember { MutableInteractionSource() }
-    
-    val contentDesc = when {
-        targetPureBlack -> stringResource(R.string.cd_pure_black_mode)
-        targetMode == DarkMode.OFF -> stringResource(R.string.cd_light_mode)
-        targetMode == DarkMode.ON -> stringResource(R.string.cd_dark_mode)
-        else -> stringResource(R.string.cd_system_mode)
-    }
-    
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(CircleShape)
-            .background(fillColor)
-            .then(
-                if (borderWidth > 0.dp) {
-                    Modifier.border(
-                        width = borderWidth,
-                        color = MaterialTheme.colorScheme.inversePrimary,
-                        shape = CircleShape
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = onClick
-            )
-            .semantics {
-                contentDescription = contentDesc
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            showIcon -> {
-                Icon(
-                    painter = painterResource(R.drawable.sync),
-                    contentDescription = null,
-                    tint = modeColorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            isSelected -> {
-                AnimatedVisibility(
-                    visible = isSelected,
-                    enter = fadeIn(animationSpec = tween(300)) + scaleIn(
-                        initialScale = 0.3f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium
-                        )
-                    ),
-                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(
-                        targetScale = 0.3f,
-                        animationSpec = tween(150)
-                    )
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.check),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.inversePrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LockedPaletteItem(
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val contentDesc = stringResource(R.string.secret_theme_locked_cd)
-
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = onClick
-            )
-            .semantics {
-                contentDescription = contentDesc
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.lock),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@Composable
-fun PaletteItem(
-    palette: ThemePalette,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val isSystemDark = isSystemInDarkTheme()
-    
-    val colorScheme = rememberDynamicColorScheme(
-        seedColor = palette.seedColor,
-        isDark = isSystemDark,
-        style = PaletteStyle.TonalSpot
-    )
-    
-    val cornerRadius by animateDpAsState(
-        targetValue = if (isSelected) 48.dp * 0.25f else 24.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "cornerRadius"
-    )
-    
-    val borderWidth by animateDpAsState(
-        targetValue = if (isSelected) 3.dp else 0.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "borderWidth"
-    )
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.08f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "scale"
-    )
-    
-    val shape = RoundedCornerShape(cornerRadius)
-    val interactionSource = remember { MutableInteractionSource() }
-    
-    val paletteName = stringResource(palette.nameRes)
-    val contentDesc = stringResource(R.string.cd_palette_item, paletteName)
-    
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .then(
-                if (borderWidth > 0.dp) {
-                    Modifier.border(
-                        width = borderWidth,
-                        color = MaterialTheme.colorScheme.inversePrimary,
-                        shape = shape
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = onClick
-            )
-            .semantics {
-                contentDescription = contentDesc
-            }
-    ) {
-        if (palette.seedColor == Color.Transparent) {
-            // Draw Dynamic/System icon using Material Design icon
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.palette),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        } else {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val width = size.width
-                val height = size.height
-                
-                drawRect(
-                    color = colorScheme.onPrimary,
-                    topLeft = Offset(0f, 0f),
-                    size = Size(width, height / 2)
-                )
-                
-                drawRect(
-                    color = colorScheme.secondary,
-                    topLeft = Offset(0f, height / 2),
-                    size = Size(width / 2, height / 2)
-                )
-                
-                drawRect(
-                    color = colorScheme.tertiary,
-                    topLeft = Offset(width / 2, height / 2),
-                    size = Size(width / 2, height / 2)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ThemeMockup(
-    darkMode: DarkMode,
-    pureBlack: Boolean,
-    themeColor: Color
+    themeColor: Color,
+    modifier: Modifier = Modifier
 ) {
     val isSystemDark = isSystemInDarkTheme()
     val useDark = when (darkMode) {
@@ -813,89 +263,214 @@ fun ThemeMockup(
         pureBlack = pureBlack,
         themeColor = themeColor
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxSize()
-                .aspectRatio(9f / 18f),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        val cs = MaterialTheme.colorScheme
+        val pill = RoundedCornerShape(50)
+        Column(
+            modifier = modifier
+                .clip(RoundedCornerShape(28.dp))
+                .background(cs.surface)
+                .border(1.dp, cs.outlineVariant, RoundedCornerShape(28.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(10.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        .width(84.dp)
+                        .height(14.dp)
+                        .clip(pill)
+                        .background(cs.onSurface.copy(alpha = 0.85f))
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(cs.secondaryContainer))
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(cs.primaryContainer))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val tileColors = listOf(cs.primary, cs.secondaryContainer, cs.tertiaryContainer)
+                val lineColors = listOf(cs.onPrimary, cs.onSecondaryContainer, cs.onTertiaryContainer)
+                for (i in 0 until 3) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(tileColors[i]),
+                        contentAlignment = Alignment.BottomStart
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(18.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                                .padding(10.dp)
+                                .fillMaxWidth(0.6f)
+                                .height(8.dp)
+                                .clip(pill)
+                                .background(lineColors[i].copy(alpha = 0.75f))
                         )
                     }
                 }
+            }
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(cs.surfaceContainerHigh)
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(cs.primary))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(10.dp),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(32.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                            .fillMaxWidth(0.55f)
+                            .height(10.dp)
+                            .clip(pill)
+                            .background(cs.onSurface)
                     )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.35f)
+                            .height(8.dp)
+                            .clip(pill)
+                            .background(cs.onSurfaceVariant)
+                    )
+                }
+                Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(cs.primaryContainer))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(cs.surfaceContainer)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                for (i in 0 until 3) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
+                            .clip(CircleShape)
+                            .background(if (i == 0) cs.onSurface.copy(alpha = 0.14f) else Color.Transparent),
+                        contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(6.dp))
-                        )
-                        
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (i == 0) cs.primary else cs.onSurfaceVariant)
                         )
                     }
                 }
+            }
+        }
+    }
+}
 
+@Composable
+private fun ThemeModeSelector(
+    darkMode: DarkMode,
+    pureBlack: Boolean,
+    onDarkModeChange: (DarkMode) -> Unit,
+    onPureBlackChange: (Boolean) -> Unit
+) {
+    val labels = listOf(
+        R.string.theme_mode_auto,
+        R.string.theme_mode_light,
+        R.string.theme_mode_dark,
+        R.string.theme_mode_black
+    )
+    val selectedIndex = when {
+        darkMode == DarkMode.AUTO -> 0
+        darkMode == DarkMode.OFF -> 1
+        pureBlack -> 3
+        else -> 2
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(4.dp)
+    ) {
+        val segmentWidth = maxWidth / labels.size
+        val thumbX by animateDpAsState(
+            targetValue = segmentWidth * selectedIndex,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "modeThumb"
+        )
+
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(thumbX.roundToPx(), 0) }
+                .width(segmentWidth)
+                .fillMaxHeight()
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        )
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            labels.forEachIndexed { index, labelRes ->
+                val selected = index == selectedIndex
+                val textColor by animateColorAsState(
+                    targetValue = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    animationSpec = tween(250),
+                    label = "modeLabel"
+                )
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    contentAlignment = Alignment.BottomEnd
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            when (index) {
+                                0 -> onDarkModeChange(DarkMode.AUTO)
+                                1 -> {
+                                    onDarkModeChange(DarkMode.OFF)
+                                    onPureBlackChange(false)
+                                }
+                                2 -> {
+                                    onDarkModeChange(DarkMode.ON)
+                                    onPureBlackChange(false)
+                                }
+                                else -> {
+                                    onDarkModeChange(DarkMode.ON)
+                                    onPureBlackChange(true)
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                    Text(
+                        text = stringResource(labelRes),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = textColor,
+                        maxLines = 1
                     )
                 }
             }
@@ -904,114 +479,304 @@ fun ThemeMockup(
 }
 
 @Composable
-fun ThemeMockupPortrait(
+private fun ThemePaletteGrid(
     darkMode: DarkMode,
-    pureBlack: Boolean,
-    themeColor: Color
+    selectedThemeColor: Color,
+    onDarkModeChange: (DarkMode) -> Unit,
+    onSelectedThemeColorChange: (Color) -> Unit
 ) {
+    val context = LocalContext.current
     val isSystemDark = isSystemInDarkTheme()
-    val useDark = when (darkMode) {
+    val previewDark = when (darkMode) {
         DarkMode.AUTO -> isSystemDark
         DarkMode.ON -> true
         DarkMode.OFF -> false
     }
 
-    WavlinTheme(
-        darkTheme = useDark,
-        pureBlack = pureBlack,
-        themeColor = themeColor
+    var secretPinkUnlocked by rememberPreference(SecretPinkThemeUnlockedKey, defaultValue = false)
+    var showUnlockDialog by remember { mutableStateOf(false) }
+    var previousDarkModeName by rememberPreference(
+        PreviousDarkModeBeforeSecretPinkKey,
+        defaultValue = DarkMode.AUTO.name
+    )
+    val isCurrentlyPink = selectedThemeColor == SecretPinkThemeColor
+
+    val cells = buildList<@Composable () -> Unit> {
+        add {
+            if (secretPinkUnlocked) {
+                ThemeSwatch(
+                    label = stringResource(R.string.palette_secret_pink),
+                    contentDescription = stringResource(
+                        R.string.cd_palette_item,
+                        stringResource(R.string.palette_secret_pink)
+                    ),
+                    isSelected = isCurrentlyPink,
+                    seedColor = SecretPinkThemeColor,
+                    previewDark = previewDark,
+                    onClick = {
+                        if (!isCurrentlyPink) {
+                            previousDarkModeName = darkMode.name
+                            onDarkModeChange(DarkMode.OFF)
+                        }
+                        onSelectedThemeColorChange(SecretPinkThemeColor)
+                    }
+                )
+            } else {
+                ThemeLockedSwatch(onClick = { showUnlockDialog = true })
+            }
+        }
+        PaletteColors.forEach { palette ->
+            add {
+                val isDynamicPalette = palette.seedColor == Color.Transparent
+                val isSelected = if (isDynamicPalette) {
+                    selectedThemeColor == DefaultThemeColor
+                } else {
+                    selectedThemeColor == palette.seedColor
+                }
+                val name = stringResource(palette.nameRes)
+                ThemeSwatch(
+                    label = name,
+                    contentDescription = stringResource(R.string.cd_palette_item, name),
+                    isSelected = isSelected,
+                    seedColor = if (isDynamicPalette) null else palette.seedColor,
+                    previewDark = previewDark,
+                    onClick = {
+                        val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
+                        if (isCurrentlyPink) {
+                            val restoredMode = runCatching { DarkMode.valueOf(previousDarkModeName) }
+                                .getOrDefault(DarkMode.AUTO)
+                            onDarkModeChange(restoredMode)
+                        }
+                        onSelectedThemeColorChange(colorToSave)
+                    }
+                )
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 8.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
+        cells.chunked(PALETTE_COLUMNS).forEach { rowCells ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                rowCells.forEach { cell ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        cell()
+                    }
+                }
+                repeat(PALETTE_COLUMNS - rowCells.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+
+    if (showUnlockDialog) {
+        TextFieldDialog(
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.lock),
+                    contentDescription = null
+                )
+            },
+            title = { Text(stringResource(R.string.secret_theme_unlock_title)) },
+            placeholder = { Text(stringResource(R.string.secret_theme_unlock_placeholder)) },
+            isInputValid = { it.isNotBlank() },
+            onDismiss = { showUnlockDialog = false },
+            autoDismiss = false,
+            onDone = { input ->
+                if (input.trim().equals("pink", ignoreCase = true)) {
+                    secretPinkUnlocked = true
+                    if (!isCurrentlyPink) {
+                        previousDarkModeName = darkMode.name
+                        onDarkModeChange(DarkMode.OFF)
+                    }
+                    onSelectedThemeColorChange(SecretPinkThemeColor)
+                    showUnlockDialog = false
+                    Toast.makeText(context, R.string.secret_theme_unlocked_toast, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, R.string.secret_theme_incorrect_toast, Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ThemeSwatch(
+    label: String,
+    contentDescription: String,
+    isSelected: Boolean,
+    seedColor: Color?,
+    previewDark: Boolean,
+    onClick: () -> Unit
+) {
+    val ringWidth by animateDpAsState(
+        targetValue = if (isSelected) 3.dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "swatchRing"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.06f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "swatchScale"
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(250),
+        label = "swatchLabel"
+    )
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(),
+                onClick = onClick
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .semantics { this.contentDescription = contentDescription },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxSize(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                .size(56.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .then(
+                    if (ringWidth > 0.dp) {
+                        Modifier.border(ringWidth, MaterialTheme.colorScheme.primary, CircleShape)
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(if (ringWidth > 0.dp) 5.dp else 0.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Header (20% of height)
+            if (seedColor == null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(0.2f)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(6.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
-                        )
-                    }
-                }
-
-                // Main Content (60% of height)
-                Column(
-                    modifier = Modifier
-                        .weight(0.6f)
-                        .padding(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.palette),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
                     )
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1.2f),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(4.dp))
-                        )
-                        
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(4.dp))
-                        )
-                    }
                 }
+            } else {
+                val scheme = rememberDynamicColorScheme(
+                    seedColor = seedColor,
+                    isDark = previewDark,
+                    style = PaletteStyle.TonalSpot
+                )
+                val primary = scheme.primary
+                val secondary = scheme.secondary
+                val tertiary = scheme.tertiary
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawArc(primary, startAngle = -90f, sweepAngle = 120f, useCenter = true)
+                    drawArc(secondary, startAngle = 30f, sweepAngle = 120f, useCenter = true)
+                    drawArc(tertiary, startAngle = 150f, sweepAngle = 120f, useCenter = true)
+                }
+            }
 
-                // FAB Area (20% of height)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isSelected,
+                enter = fadeIn(tween(200)) + scaleIn(
+                    initialScale = 0.3f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ),
+                exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.3f, animationSpec = tween(120))
+            ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(0.2f)
-                        .padding(6.dp),
-                    contentAlignment = Alignment.BottomEnd
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                    Icon(
+                        painter = painterResource(R.drawable.check),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
         }
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = labelColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ThemeLockedSwatch(
+    onClick: () -> Unit
+) {
+    val description = stringResource(R.string.secret_theme_locked_cd)
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(),
+                onClick = onClick
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .semantics { contentDescription = description },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.lock),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.palette_locked_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
     }
 }

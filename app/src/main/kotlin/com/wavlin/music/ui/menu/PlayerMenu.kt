@@ -124,7 +124,7 @@ fun PlayerMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val playerVolume = playerConnection.service.playerVolume.collectAsStateWithLifecycle()
+    val systemVolume = rememberSystemVolume()
 
     // Cast state for volume control - safely access castConnectionHandler to prevent crashes
     val castHandler =
@@ -303,12 +303,13 @@ fun PlayerMenu(
                 if (isQueueTrigger != true) {
                     PlayerMenuNowPlayingCard(
                         mediaMetadata = mediaMetadata,
-                        volume = if (isCasting) castVolume else playerVolume.value,
+                        volumeProvider = { if (isCasting) castVolume else systemVolume.volume },
+                        animateProvider = { !isCasting && systemVolume.animateChange },
                         onVolumeChange = { volume ->
                             if (isCasting) {
                                 castHandler?.setVolume(volume)
                             } else {
-                                playerConnection.service.playerVolume.value = volume
+                                systemVolume.set(volume)
                             }
                         },
                         castDeviceName = if (isCasting) castDeviceName else null,
@@ -322,7 +323,7 @@ fun PlayerMenu(
                             PlayerQuickAction(
                                 iconRes = R.drawable.equalizer,
                                 label = stringResource(R.string.audio_eq),
-                                circleColor = colors.primary.copy(alpha = 0.22f),
+                                circleColor = colors.onSurface.copy(alpha = 0.12f),
                                 onClick = {
                                     navController.navigate("equalizer")
                                     onDismiss()
@@ -331,19 +332,19 @@ fun PlayerMenu(
                             PlayerQuickAction(
                                 iconRes = R.drawable.graphic_eq,
                                 label = stringResource(R.string.effects),
-                                circleColor = colors.primary.copy(alpha = 0.22f),
+                                circleColor = colors.onSurface.copy(alpha = 0.12f),
                                 onClick = { showEffectsSheet = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.playlist_add,
                                 label = stringResource(R.string.add_playlist),
-                                circleColor = colors.tertiary.copy(alpha = 0.22f),
+                                circleColor = colors.onSurface.copy(alpha = 0.12f),
                                 onClick = { showChoosePlaylistDialog = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.sleep_timer,
                                 label = stringResource(R.string.sleep_timer),
-                                circleColor = colors.secondary.copy(alpha = 0.22f),
+                                circleColor = colors.onSurface.copy(alpha = 0.12f),
                                 onClick = { showSleepTimerPickerDialog = true },
                             ),
                             PlayerQuickAction(
@@ -376,6 +377,7 @@ fun PlayerMenu(
                 }
 
                 PlayerMenuSettingsCard()
+                PlayerMenuExpandedStereoCard()
             }
         }
 
@@ -434,6 +436,8 @@ fun PlayerMenu(
                     ),
             )
         }
+
+        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
             // Check if this is a podcast episode (album ID doesn't start with MPREb_)

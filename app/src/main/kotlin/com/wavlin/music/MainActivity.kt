@@ -132,6 +132,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil3.compose.AsyncImage
+import com.wavlin.music.ui.component.TopBarActions
 import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -1109,6 +1110,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         actions = {
+                                            if (pinkWallpaper) {
                                             IconButton(onClick = { navController.navigate("stats") }) {
                                                 LilyDiscBox(pinkWallpaper) {
                                                     Icon(
@@ -1152,6 +1154,16 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }
+                                            }
+                                        } else {
+                                                TopBarActions(
+                                                    onStatsClick = { navController.navigate("stats") },
+                                                    showListenTogether = listenTogetherInTopBar,
+                                                    onListenTogetherClick = { navController.navigate("listen_together_from_topbar") },
+                                                    onAccountClick = { showAccountDialog = true },
+                                                    accountImageUrl = accountImageUrl,
+                                                    showUpdateBadge = latestVersionName != BuildConfig.VERSION_NAME,
+                                                )
                                             }
                                         },
                                         scrollBehavior = topAppBarScrollBehavior,

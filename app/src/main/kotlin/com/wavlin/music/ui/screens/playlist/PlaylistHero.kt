@@ -49,6 +49,8 @@ import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.R
 import com.wavlin.music.constants.AppBarHeight
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.pinkGlass
+import com.wavlin.music.ui.theme.PinkInk
 
 /** List padding for a screen whose first item is a full-bleed hero: no top padding while the hero shows. */
 @Composable
@@ -63,13 +65,34 @@ internal fun heroListPadding(heroVisible: Boolean): PaddingValues {
     )
 }
 
-/** Dark circle behind the top bar buttons while they float over the cover. */
+/** Circle behind the top bar buttons while they float over the cover: dark normally, rose glass in Secret Pink. */
 @Composable
 internal fun heroTopButtonModifier(overlay: Boolean): Modifier =
-    if (overlay) Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)) else Modifier
+    when {
+        !overlay -> Modifier
+        LocalPinkLilyTheme.current -> Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.3f)).pinkGlass(CircleShape, floating = false)
+        else -> Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f))
+    }
 
 @Composable
-internal fun heroTopIconTint(overlay: Boolean): Color = if (overlay) Color.White else LocalContentColor.current
+internal fun heroTopIconTint(overlay: Boolean): Color =
+    when {
+        !overlay -> LocalContentColor.current
+        LocalPinkLilyTheme.current -> PinkInk
+        else -> Color.White
+    }
+
+/** Colour the cover fades into at its bottom edge, so it meets the page without a seam. */
+@Composable
+internal fun heroFadeColor(): Color = if (LocalPinkLilyTheme.current) Color(0xFFFCE4EE) else MaterialTheme.colorScheme.background
+
+@Composable
+internal fun heroTitleColor(fade: Color): Color =
+    if (LocalPinkLilyTheme.current) PinkInk else if (fade.luminance() > 0.5f) Color.Black else Color.White
+
+/** Scrim behind the status bar and floating buttons: soft white in Secret Pink, dark otherwise. */
+@Composable
+internal fun heroTopScrimColor(): Color = if (LocalPinkLilyTheme.current) Color.White.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.35f)
 
 /**
  * The header every playlist screen shares: a full-bleed square cover (single image or 2x2 collage) that
@@ -90,8 +113,8 @@ internal fun PlaylistHeroHeader(
             val urls = coverUrls.distinct().take(4)
             if (urls.size in 2..3) List(4) { urls[it % urls.size] } else urls
         }
-    val heroBase = MaterialTheme.colorScheme.background
-    val heroText = if (heroBase.luminance() > 0.5f) Color.Black else Color.White
+    val heroBase = heroFadeColor()
+    val heroText = heroTitleColor(heroBase)
 
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
@@ -148,7 +171,7 @@ internal fun PlaylistHeroHeader(
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
-                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent))),
+                    .background(Brush.verticalGradient(listOf(heroTopScrimColor(), Color.Transparent))),
             )
             Column(
                 Modifier

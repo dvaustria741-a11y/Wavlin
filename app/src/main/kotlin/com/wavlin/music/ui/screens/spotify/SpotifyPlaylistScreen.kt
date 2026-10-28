@@ -5,6 +5,14 @@
 
 package com.wavlin.music.ui.screens.spotify
 
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.pinkGlassPanel
+import com.wavlin.music.ui.screens.playlist.heroFadeColor
+import com.wavlin.music.ui.screens.playlist.heroTitleColor
+import com.wavlin.music.ui.screens.playlist.heroTopButtonModifier
+import com.wavlin.music.ui.screens.playlist.heroTopIconTint
+import com.wavlin.music.ui.screens.playlist.heroTopScrimColor
+import com.wavlin.music.ui.theme.PinkInk
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -185,8 +193,8 @@ fun SpotifyPlaylistScreen(
             ) {
                 item(key = "header") {
                     val cover = playlist?.thumbnailUrl()
-                    val heroBase = MaterialTheme.colorScheme.background
-                    val heroText = if (heroBase.luminance() > 0.5f) Color.Black else Color.White
+                    val heroBase = heroFadeColor()
+                    val heroText = heroTitleColor(heroBase)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         // Hero: full-bleed cover, half the screen, fading into the page with the title on top
                         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
@@ -225,7 +233,7 @@ fun SpotifyPlaylistScreen(
                                     .align(Alignment.TopCenter)
                                     .fillMaxWidth()
                                     .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
-                                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent))),
+                                    .background(Brush.verticalGradient(listOf(heroTopScrimColor(), Color.Transparent))),
                             )
                             Column(
                                 Modifier
@@ -269,12 +277,30 @@ fun SpotifyPlaylistScreen(
                         }
                         Spacer(Modifier.size(12.dp))
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { play(current.tracks) }, modifier = Modifier.weight(1f)) {
+                            val pinkLily = LocalPinkLilyTheme.current
+                            val pillModifier = if (pinkLily) Modifier.weight(1f).pinkGlassPanel(CircleShape) else Modifier.weight(1f)
+                            val pillColors =
+                                if (pinkLily) {
+                                    androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = PinkInk)
+                                } else {
+                                    androidx.compose.material3.ButtonDefaults.buttonColors()
+                                }
+                            Button(onClick = { play(current.tracks) }, modifier = pillModifier, colors = pillColors) {
                                 Icon(painterResource(R.drawable.play), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.play_all))
                             }
-                            OutlinedButton(onClick = { play(current.tracks, shuffle = true) }, modifier = Modifier.weight(1f)) {
+                            OutlinedButton(
+                                onClick = { play(current.tracks, shuffle = true) },
+                                modifier = pillModifier,
+                                colors =
+                                    if (pinkLily) {
+                                        androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = PinkInk)
+                                    } else {
+                                        androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
+                                    },
+                                border = if (pinkLily) null else androidx.compose.material3.ButtonDefaults.outlinedButtonBorder(),
+                            ) {
                                 Icon(painterResource(R.drawable.shuffle), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.shuffle))
@@ -298,9 +324,8 @@ fun SpotifyPlaylistScreen(
             }
     }
 
-    val heroButtonModifier =
-        if (overlayTop) Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)) else Modifier
-    val heroIconTint = if (overlayTop) Color.White else LocalContentColor.current
+    val heroButtonModifier = heroTopButtonModifier(overlayTop)
+    val heroIconTint = heroTopIconTint(overlayTop)
     TopAppBar(
         colors = if (overlayTop) TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent) else pinkTopBarColors(),
         title = { Text(if (state is SpotifyPlaylistState.Loaded && !scrolledPastHero) "" else title, maxLines = 1, overflow = TextOverflow.Ellipsis) },

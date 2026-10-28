@@ -61,11 +61,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -376,8 +375,23 @@ private class MorphShape(
         layoutDirection: LayoutDirection,
         density: Density,
     ): Outline {
-        val path = morph.toPath(progress).asComposePath()
-        path.transform(Matrix().apply { scale(size.width, size.height) })
+        val path = Path()
+        var first = true
+        morph.forEachCubic(progress) { bezier ->
+            if (first) {
+                path.moveTo(bezier.anchor0X * size.width, bezier.anchor0Y * size.height)
+                first = false
+            }
+            path.cubicTo(
+                bezier.control0X * size.width,
+                bezier.control0Y * size.height,
+                bezier.control1X * size.width,
+                bezier.control1Y * size.height,
+                bezier.anchor1X * size.width,
+                bezier.anchor1Y * size.height,
+            )
+        }
+        path.close()
         return Outline.Generic(path)
     }
 }

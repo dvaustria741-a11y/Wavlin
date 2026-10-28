@@ -62,6 +62,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BASE_DECOR = 0.1f
         private const val SIDE_HP_HZ = 250.0
 
+        // ── Vocal spread ("makalat" vocals): two slowly wobbling micro-delays of the vocal band are fed to the side ──
+        // Always on (not tied to Expanded stereo / earphones), added AFTER the background darkening so vocals stay clear.
+        private const val VOX_SPREAD = 0.45f
+        private const val VOX_LP_HZ = 4500.0
+        private const val VOX_MAX_S = 0.008
+        private const val VOX1_BASE_S = 0.0012
+        private const val VOX1_DEPTH_S = 0.0006
+        private const val VOX1_RATE_HZ = 0.37
+        private const val VOX2_BASE_S = 0.0024
+        private const val VOX2_DEPTH_S = 0.0008
+        private const val VOX2_RATE_HZ = 0.61
+
         /** Widening only boosts the side signal up to here, so the background gets wider but not brighter/clearer. */
         private const val SIDE_WIDEN_LP_HZ = 1500.0
         private const val DECOR_DELAY_S = 0.015
@@ -179,6 +191,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
     private var sBand = 0f
+    private var voxBuf = FloatArray(1)
+    private var voxIdx = 0
+    private var voxLp = 0f
+    private var voxLpCoef = 0.4f
+    private var vox1Phase = 0.0
+    private var vox2Phase = 1.7
+    private var vox1Inc = 0.0
+    private var vox2Inc = 0.0
     private var sLpCoef = 0.2f
     private var decBuf = FloatArray(1)
     private var decIdx = 0
@@ -288,6 +308,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         hpCoef = onePoleHp(SIDE_HP_HZ)
         sLpCoef = (1.0 - exp(-2.0 * PI * SIDE_WIDEN_LP_HZ / sr)).toFloat()
+        voxBuf = FloatArray((VOX_MAX_S * sr).toInt().coerceAtLeast(64))
+        voxIdx = 0
+        voxLpCoef = (1.0 - exp(-2.0 * PI * VOX_LP_HZ / sr)).toFloat()
+        vox1Inc = 2.0 * PI * VOX1_RATE_HZ / sr
+        vox2Inc = 2.0 * PI * VOX2_RATE_HZ / sr
         decHpCoef = onePoleHp(DECOR_HP_HZ)
         decBuf = FloatArray((DECOR_DELAY_S * sr).toInt().coerceAtLeast(8))
         decIdx = 0
@@ -439,6 +464,17 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         s += (refL - refR) * 0.5f * refGain
         s = sideShelf.process(s)
 
+        // Vocal spread: scatter the vocal band across L/R with two wobbling micro-delays (post-darkening = stays clear).
+        voxLp += (mHp - voxLp) * voxLpCoef
+        voxBuf[voxIdx] = voxLp
+        s += VOX_SPREAD * (voxTap(VOX1_BASE_S + VOX1_DEPTH_S * sin(vox1Phase)) -
+            voxTap(VOX2_BASE_S + VOX2_DEPTH_S * sin(vox2Phase)))
+        vox1Phase += vox1Inc
+        if (vox1Phase > 2.0 * PI) vox1Phase -= 2.0 * PI
+        vox2Phase += vox2Inc
+        if (vox2Phase > 2.0 * PI) vox2Phase -= 2.0 * PI
+        if (++voxIdx >= voxBuf.size) voxIdx = 0
+
         // Graphic equalizer (10 bands).
         var tl = (m + s) * outGain
         var tr = (m - s) * outGain
@@ -539,6 +575,17 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         eqTarget[0] = 10.0.pow(dbLow / 20.0).toFloat()
         eqTarget[1] = 1f
         eqTarget[2] = 10.0.pow(dbHigh / 20.0).toFloat()
+    }
+
+    /** Linear-interpolated read of the vocal delay line [delayS] seconds behind the newest sample. */
+    private fun voxTap(delayS: Double): Float {
+        val d = (delayS * sampleRate).toFloat()
+        var pos = voxIdx - d
+        if (pos < 0f) pos += voxBuf.size
+        val i0 = pos.toInt()
+        val frac = pos - i0
+        val i1 = if (i0 + 1 >= voxBuf.size) 0 else i0 + 1
+        return voxBuf[i0] + (voxBuf[i1] - voxBuf[i0]) * frac
     }
 
     private fun softClip(x: Float): Float {
@@ -647,6 +694,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private fun clearState() {
         z1 = 0f; z2 = 0f
         hpPrevIn = 0f; hpPrevOut = 0f; sBand = 0f
+        voxBuf.fill(0f); voxIdx = 0; voxLp = 0f
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f

@@ -51,7 +51,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // ── Dialogue / presence (mid signal) ─────────────────────────────────
         private val DIALOGUE_GAIN_DB = floatArrayOf(0f, 0.2f, 0.4f, 0.6f)
-        private const val BASE_PRESENCE_DB = 2.5
+        private const val BASE_PRESENCE_DB = 1.0
         private const val DIALOGUE_FREQ_HZ = 2500.0
         private const val DIALOGUE_Q = 0.7
 
@@ -61,6 +61,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BASE_WIDEN = 0.5f
         private const val BASE_DECOR = 0.1f
         private const val SIDE_HP_HZ = 250.0
+
+        // ── Vocal / background balance: the singing voice and the background are levelled toward each other ──
+        // (like the system Dolby): if the vocal sits far above the background it is eased down and the background lifted.
+        private const val BAL_STRENGTH = 0.5f   // 0 = off, 1 = fully equal level
+        private const val BAL_MAX_DB = 5.0f     // max correction (split between vocal cut and background lift)
+        private const val BAL_TAU_S = 0.3
+        private const val BAL_UPDATE_FRAMES = 64
 
         // ── Vocal spread ("makalat" vocals): two slowly wobbling micro-delays of the vocal band are fed to the side ──
         // Always on (not tied to Expanded stereo / earphones), added AFTER the background darkening so vocals stay clear.
@@ -196,6 +203,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
     private var sBand = 0f
+    private var balEnvM = 0f
+    private var balEnvS = 0f
+    private var balCoef = 0.0001f
+    private var balGainM = 1f
+    private var balGainS = 1f
+    private var balTargetM = 1f
+    private var balTargetS = 1f
+    private var balCounter = 0
     private var voxBuf = FloatArray(1)
     private var voxIdx = 0
     private var voxLp = 0f
@@ -317,6 +332,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         hpCoef = onePoleHp(SIDE_HP_HZ)
         sLpCoef = (1.0 - exp(-2.0 * PI * SIDE_WIDEN_LP_HZ / sr)).toFloat()
+        balCoef = (1.0 - exp(-1.0 / (BAL_TAU_S * sr))).toFloat()
         voxBuf = FloatArray((VOX_MAX_S * sr).toInt().coerceAtLeast(64))
         voxIdx = 0
         voxLpCoef = (1.0 - exp(-2.0 * PI * VOX_LP_HZ / sr)).toFloat()
@@ -478,6 +494,23 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // Vocal spread: scatter the vocal band across L/R with two wobbling micro-delays (post-darkening = stays clear).
         voxLp += (mHp - voxLp) * voxLpCoef
+
+        // Vocal / background balance (band-limited to the vocal band so bass and treble are left alone).
+        balEnvM += (abs(voxLp) - balEnvM) * balCoef
+        balEnvS += (abs(sHp) - balEnvS) * balCoef
+        if (++balCounter >= BAL_UPDATE_FRAMES) {
+            balCounter = 0
+            if (balEnvM > 0.0005f || balEnvS > 0.0005f) {
+                val ratioDb = 20f * log10((balEnvM + 1e-5f) / (balEnvS + 1e-5f))
+                val corr = (-ratioDb * BAL_STRENGTH).coerceIn(-BAL_MAX_DB, BAL_MAX_DB) // negative = vocal above background
+                balTargetM = 10.0.pow(corr / 40.0).toFloat()    // vocal: down when it is above the background
+                balTargetS = 10.0.pow(-corr / 40.0).toFloat()   // background: up by the same amount
+            }
+        }
+        balGainM += (balTargetM - balGainM) * 0.002f
+        balGainS += (balTargetS - balGainS) * 0.002f
+        m += (balGainM - 1f) * voxLp
+        s += (balGainS - 1f) * sHp
         voxBuf[voxIdx] = voxLp
         s += VOX_SPREAD * (voxTap(VOX1_BASE_S + VOX1_DEPTH_S * sin(vox1Phase)) -
             voxTap(VOX2_BASE_S + VOX2_DEPTH_S * sin(vox2Phase)))
@@ -711,6 +744,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         z1 = 0f; z2 = 0f
         hpPrevIn = 0f; hpPrevOut = 0f; sBand = 0f
         voxBuf.fill(0f); voxIdx = 0; voxLp = 0f
+        balEnvM = 0f; balEnvS = 0f; balGainM = 1f; balGainS = 1f; balTargetM = 1f; balTargetS = 1f; balCounter = 0
         decBuf.fill(0f); decIdx = 0
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f

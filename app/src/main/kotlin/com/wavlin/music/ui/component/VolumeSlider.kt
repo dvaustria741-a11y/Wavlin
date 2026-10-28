@@ -68,10 +68,6 @@ fun VolumeSlider(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     compact: Boolean = false,
 ) {
-    if (LocalPinkLilyTheme.current) {
-        PinkVolumeSlider(value, onValueChange, modifier, enabled, onValueChangeFinished, compact)
-        return
-    }
     val interactionSource = remember { MutableInteractionSource() }
 
     val volumeOffIcon = painterResource(R.drawable.volume_off)
@@ -194,68 +190,4 @@ private fun DrawScope.drawVolumeIcon(
             }
         }
     }
-}
-
-/** Secret Pink volume slider: glass pill track, rose fill and a lily flower as the handle. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PinkVolumeSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier,
-    enabled: Boolean,
-    onValueChangeFinished: (() -> Unit)?,
-    compact: Boolean = false,
-) {
-    val trackImg = ImageBitmap.imageResource(R.drawable.lily_vol_track)
-    val icon = painterResource(
-        when {
-            value <= 0f -> R.drawable.volume_off
-            value < 0.33f -> R.drawable.volume_mute
-            value < 0.66f -> R.drawable.volume_down
-            else -> R.drawable.volume_up
-        },
-    )
-    Slider(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        enabled = enabled,
-        valueRange = 0f..1f,
-        onValueChangeFinished = onValueChangeFinished,
-        thumb = {
-            Image(
-                painter = painterResource(R.drawable.lily_vol_knob),
-                contentDescription = null,
-                modifier = if (compact) Modifier.size(width = 31.dp, height = 35.dp) else Modifier.size(width = 46.dp, height = 52.dp),
-            )
-        },
-        track = { sliderState ->
-            val fraction = ((sliderState.value - sliderState.valueRange.start) /
-                (sliderState.valueRange.endInclusive - sliderState.valueRange.start)).coerceIn(0f, 1f)
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (compact) 24.dp else 30.dp)
-                    .drawWithContent {
-                        drawLilySliced(trackImg, trackImg.height / 2, trackImg.height / 2)
-                        val r = size.height / 2
-                        clipRect(right = size.width * fraction) {
-                            drawRoundRect(
-                                color = Color(0xFFE98BAE).copy(alpha = 0.55f),
-                                topLeft = androidx.compose.ui.geometry.Offset(2.dp.toPx(), 2.dp.toPx()),
-                                size = androidx.compose.ui.geometry.Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx()),
-                                cornerRadius = CornerRadius(r, r),
-                            )
-                        }
-                        val sz = (if (compact) 16.dp else 20.dp).toPx()
-                        translate((if (compact) 10.dp else 12.dp).toPx(), (size.height - sz) / 2) {
-                            with(icon) {
-                                draw(androidx.compose.ui.geometry.Size(sz, sz), colorFilter = ColorFilter.tint(PinkInk))
-                            }
-                        }
-                    },
-            )
-        },
-    )
 }

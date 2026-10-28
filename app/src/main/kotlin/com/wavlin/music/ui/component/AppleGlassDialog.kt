@@ -223,8 +223,19 @@ fun AppleGlassMenuSheet(
                     modifier = Modifier
                         .matchParentSize()
                         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                        .appleGlass(shape, HazeMaterials.thin(), tintAlpha = 0.4f, backdrop = backdrop)
-                        .border(1.dp, glassStrokeBrush(), shape),
+                        .appleGlass(
+                            shape,
+                            if (LocalPinkLilyTheme.current) pinkLilyHazeStyle() else HazeMaterials.thin(),
+                            tintAlpha = 0.4f,
+                            backdrop = backdrop,
+                        )
+                        .then(
+                            if (LocalPinkLilyTheme.current) {
+                                Modifier.pinkGlassEdge(shape, strong = true)
+                            } else {
+                                Modifier.border(1.dp, glassStrokeBrush(), shape)
+                            },
+                        ),
                 )
                 Column(modifier = Modifier.fillMaxSize()) {
                 Box(

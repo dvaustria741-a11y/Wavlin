@@ -163,14 +163,14 @@ fun BottomSheetMenu(
     // The share sheet is only as tall as its card + buttons: the sheet itself stays full height (so its size never
     // depends on late-measured content) and the content sits at the bottom of it.
     val wrapContent = state.expandFully
-    val appleSheet = LocalInterfaceAppleMusic.current && !pinkLily
+    val appleSheet = LocalInterfaceAppleMusic.current
     // The player menu (opened with a height fraction) gets real liquid glass over the player background.
     val playerGlassBackdrop = LocalPlayerGlassBackdrop.current
     if (appleSheet && state.heightFraction < 1f && playerGlassBackdrop != null) {
         AppleGlassMenuSheet(state = state, backdrop = playerGlassBackdrop)
         return
     }
-    val sheetShape = RoundedCornerShape(topStart = if (pinkLily) 30.dp else if (appleSheet) 22.dp else 28.dp, topEnd = if (pinkLily) 30.dp else if (appleSheet) 22.dp else 28.dp)
+    val sheetShape = RoundedCornerShape(topStart = if (appleSheet) 22.dp else 28.dp, topEnd = if (appleSheet) 22.dp else 28.dp)
 
     AnimatedBottomSheet(
         isVisible = state.isVisible,
@@ -181,9 +181,8 @@ fun BottomSheetMenu(
         },
         sheetState = sheetState,
         shape = sheetShape,
-        // Secret Pink: the frosted lily sheet art is the container (drawn ~92% opaque below, so the screen
-        // beneath only faintly glows through) and a rose-tinted scrim replaces the default grey.
-        containerColor = if (pinkLily || wrapContent) Color.Transparent else background,
+        // Secret Pink keeps the normal sheet (Material 3 here, liquid glass above) and only swaps in a rose tint and scrim.
+        containerColor = if (wrapContent) Color.Transparent else if (pinkLily) PinkSheetColor else background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         scrimColor = if (pinkLily) PinkInk.copy(alpha = 0.32f) else BottomSheetDefaults.ScrimColor,
         dragHandle = {
@@ -196,7 +195,7 @@ fun BottomSheetMenu(
         },
         // The glass edge and the height live on the sheet's own content below, so they move with the sheet
         // when it is dragged (a border put on this modifier stayed behind at the top of the screen).
-        modifier = if (pinkLily || wrapContent) modifier.fillMaxHeight(state.heightFraction) else modifier,
+        modifier = if (wrapContent) modifier.fillMaxHeight(state.heightFraction) else modifier,
     ) {
         if (wrapContent) {
             Spacer(
@@ -206,35 +205,6 @@ fun BottomSheetMenu(
                     .pointerInput(Unit) { detectTapGestures { state.isVisible = false } },
             )
         }
-        if (pinkLily) {
-            // The sheet art is drawn here, inside the sheet's own (offset) coordinates, so its top edge
-            // sits exactly where the sheet starts instead of at the top of the screen.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (wrapContent) Modifier else Modifier.weight(1f))
-                    .lilyNinePatch(res = R.drawable.lily_sheet, srcCap = 260, dstCap = 76.dp, alpha = 0.92f),
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(vertical = 12.dp)
-                            .size(width = 40.dp, height = 4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(PinkInk.copy(alpha = 0.35f)),
-                    )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                    ) {
-                        state.content(this)
-                    }
-                    if (wrapContent) Spacer(Modifier.navigationBarsPadding())
-                }
-            }
-        } else {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -243,11 +213,11 @@ fun BottomSheetMenu(
                             Modifier
                                 .clip(sheetShape)
                                 .background(background)
-                                .border(1.dp, glassStrokeBrush(), sheetShape)
+                                .pinkAwareEdge(sheetShape)
                         } else {
                             Modifier
                                 .fillMaxHeight(state.heightFraction)
-                                .border(1.dp, glassStrokeBrush(), sheetShape)
+                                .pinkAwareEdge(sheetShape)
                         },
                     ),
             ) {
@@ -266,6 +236,13 @@ fun BottomSheetMenu(
                 }
                 if (wrapContent) Spacer(Modifier.navigationBarsPadding())
             }
-        }
     }
 }
+
+/** Rose tint for the Secret Pink Material 3 sheet; the sheet is its own window, so it can't sample the screen behind it. */
+private val PinkSheetColor = Color(0xFFFFE9F1).copy(alpha = 0.9f)
+
+/** The glass rim of a sheet: the pink rim in Secret Pink, the neutral white one otherwise. */
+@Composable
+private fun Modifier.pinkAwareEdge(shape: androidx.compose.ui.graphics.Shape): Modifier =
+    if (LocalPinkLilyTheme.current) pinkGlassEdge(shape) else border(1.dp, glassStrokeBrush(), shape)

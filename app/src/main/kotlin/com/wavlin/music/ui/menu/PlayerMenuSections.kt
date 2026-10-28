@@ -50,6 +50,8 @@ import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
 import com.wavlin.music.models.MediaMetadata
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import com.wavlin.music.ui.component.PinkGlassTint
+import com.wavlin.music.ui.component.pinkGlassEdge
 import com.wavlin.music.ui.component.VolumeSlider
 import com.wavlin.music.ui.theme.PinkSwoosh
 import com.wavlin.music.utils.rememberEnumPreference
@@ -60,23 +62,25 @@ private val AppleCardShape = RoundedCornerShape(18.dp)
 
 /** Apple Music style: tighter cards, neutral translucent fill and trailing icons. */
 @Composable
-private fun appleMenu(): Boolean = LocalInterfaceAppleMusic.current && !LocalPinkLilyTheme.current
+private fun appleMenu(): Boolean = LocalInterfaceAppleMusic.current
 
 @Composable
 private fun cardShape(): RoundedCornerShape = if (appleMenu()) AppleCardShape else CardShape
 
-/** Card surface: tonal container normally, frosted rose glass in the Secret Pink theme. */
+/** Card surface: Apple Music or Material 3 container, with a rose-tinted glass fill and rim in Secret Pink. */
 @Composable
-private fun Modifier.menuCard(): Modifier =
-    if (LocalPinkLilyTheme.current) {
+private fun Modifier.menuCard(): Modifier {
+    val shape = cardShape()
+    return if (LocalPinkLilyTheme.current) {
         this
-            .background(Color.White.copy(alpha = 0.42f), CardShape)
-            .border(1.dp, PinkSwoosh.copy(alpha = 0.6f), CardShape)
-    } else if (LocalInterfaceAppleMusic.current) {
+            .background(Color.White.copy(alpha = if (appleMenu()) 0.34f else 0.42f), shape)
+            .pinkGlassEdge(shape, strong = appleMenu())
+    } else if (appleMenu()) {
         this.background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
     } else {
         this.background(MaterialTheme.colorScheme.surfaceContainer)
     }
+}
 
 /** SpatialFlow-style "Now Playing" card: artwork, title/artist and the volume control. */
 @Composable
@@ -320,7 +324,7 @@ fun PlayerMenuSettingsCard() {
                             .clip(CircleShape)
                             .background(
                                 when {
-                                    selected && LocalPinkLilyTheme.current -> PinkSwoosh.copy(alpha = 0.45f)
+                                    selected && LocalPinkLilyTheme.current -> PinkGlassTint.copy(alpha = 0.55f)
                                     selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
                                     LocalPinkLilyTheme.current -> Color.White.copy(alpha = 0.35f)
                                     else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
@@ -421,7 +425,7 @@ fun PlayerMenuExpandedStereoCard() {
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 when {
-                                    selected && LocalPinkLilyTheme.current -> PinkSwoosh.copy(alpha = 0.45f)
+                                    selected && LocalPinkLilyTheme.current -> PinkGlassTint.copy(alpha = 0.55f)
                                     selected -> onSurface.copy(alpha = 0.24f)
                                     else -> Color.Transparent
                                 },

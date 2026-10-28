@@ -55,7 +55,7 @@ fun Modifier.appleGlass(
 ): Modifier {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val pink = LocalPinkLilyTheme.current
-    val tint = tintAlpha ?: if (pink) 0.34f else if (isDark) 0.22f else 0.28f
+    val tint = tintAlpha ?: if (pink) 0.38f else if (isDark) 0.22f else 0.28f
     val tintColor = if (pink) PinkGlassTint else if (isDark) Color.Black else Color.White
     if (backdrop == null || !appleGlassSupported()) {
         // No sampleable backdrop (inside screen content, or pre-Android 13): Haze blur with the same tint.
@@ -69,9 +69,9 @@ fun Modifier.appleGlass(
         effects = {
             vibrancy()
             colorControls(
-                brightness = 0.05f,
+                brightness = if (pink) 0.1f else 0.05f,
                 contrast = 1f,
-                saturation = 1.5f,
+                saturation = if (pink) 1.05f else 1.5f,
             )
             blur(10f.dp.toPx())
             lens(minOf(size.minDimension / 4f, 24.dp.toPx()), minOf(size.minDimension / 2f, 32.dp.toPx()), false)
@@ -79,6 +79,7 @@ fun Modifier.appleGlass(
         onDrawBackdrop = { drawBackdrop -> drawBackdrop() },
         onDrawSurface = {
             drawRect(tintColor.copy(alpha = tint))
+            if (pink) drawRect(Color.White.copy(alpha = 0.12f))
         },
     )
 }

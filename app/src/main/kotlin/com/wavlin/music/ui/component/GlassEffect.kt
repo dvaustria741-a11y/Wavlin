@@ -66,17 +66,23 @@ val LocalPinkNowPlaying = staticCompositionLocalOf { false }
 
 /** A stronger pink frosted style for the bottom bar, so blurred artwork never shows as dark smudges. */
 fun pinkLilyNavHazeStyle(): HazeStyle = HazeStyle(
-    backgroundColor = Color(0xFFFFE9F1),
-    tints = listOf(HazeTint(Color(0xFFFFC2D6).copy(alpha = 0.6f))),
-    blurRadius = 28.dp,
+    backgroundColor = Color(0xFFFFF1F6),
+    tints = listOf(
+        HazeTint(Color(0xFFFFD3E2).copy(alpha = 0.62f)),
+        HazeTint(Color.White.copy(alpha = 0.14f)),
+    ),
+    blurRadius = 32.dp,
     noiseFactor = 0.03f,
 )
 
 /** A pink frosted-glass style for the Secret Pink theme. */
 fun pinkLilyHazeStyle(): HazeStyle = HazeStyle(
-    backgroundColor = Color(0xFFFFE9F1),
-    tints = listOf(HazeTint(Color(0xFFFFB3CC).copy(alpha = 0.42f))),
-    blurRadius = 14.dp,
+    backgroundColor = Color(0xFFFFF1F6),
+    tints = listOf(
+        HazeTint(Color(0xFFFFD0E0).copy(alpha = 0.40f)),
+        HazeTint(Color.White.copy(alpha = 0.16f)),
+    ),
+    blurRadius = 20.dp,
     noiseFactor = 0.04f,
 )
 

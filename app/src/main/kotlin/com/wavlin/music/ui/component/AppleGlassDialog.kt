@@ -128,7 +128,7 @@ fun AppleGlassAccountOverlay(
                                 .appleGlass(
                                     shape,
                                     if (pinkLily) pinkLilyHazeStyle() else HazeMaterials.thin(),
-                                    tintAlpha = 0.45f,
+                                    tintAlpha = if (pinkLily) 0.55f else 0.45f,
                                 )
                                 .then(
                                     if (pinkLily) {
@@ -226,7 +226,7 @@ fun AppleGlassMenuSheet(
                         .appleGlass(
                             shape,
                             if (LocalPinkLilyTheme.current) pinkLilyHazeStyle() else HazeMaterials.thin(),
-                            tintAlpha = 0.4f,
+                            tintAlpha = if (LocalPinkLilyTheme.current) 0.5f else 0.4f,
                             backdrop = backdrop,
                         )
                         .then(

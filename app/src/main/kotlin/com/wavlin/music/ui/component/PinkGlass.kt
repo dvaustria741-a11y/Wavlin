@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 /** Rose tint laid over glass surfaces in the Secret Pink theme. */
-val PinkGlassTint = Color(0xFFFF9EC1)
+val PinkGlassTint = Color(0xFFFFC4D9)
 
 /**
  * Secret Pink glass, drawn instead of the old raster button art. It follows the chosen interface style:
@@ -42,8 +42,8 @@ fun Modifier.pinkGlass(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.White.copy(alpha = if (apple) 0.50f else 0.62f),
-                                PinkGlassTint.copy(alpha = 0.30f),
+                                Color.White.copy(alpha = if (apple) 0.58f else 0.70f),
+                                PinkGlassTint.copy(alpha = 0.24f),
                             ),
                         ),
                     )

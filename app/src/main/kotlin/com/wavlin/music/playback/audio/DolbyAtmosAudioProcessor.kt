@@ -66,8 +66,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private val IMM_TAPS_L_S = doubleArrayOf(0.0073, 0.0191, 0.0310)
         private val IMM_TAPS_R_S = doubleArrayOf(0.0117, 0.0233, 0.0379)
         private val IMM_TAP_GAIN = floatArrayOf(0.14f, 0.09f, 0.06f)
-        private const val IMM_BASE = 0.6f
-        private const val IMM_PER_LEVEL = 0.13f
+        private const val IMM_BASE = 1.0f
+        private const val IMM_PER_LEVEL = 0.2f
+
+        /** "Immersive Dolby Atmos" test mode: stronger reflections plus extra width. */
+        private const val IMM_MODE_MULT = 2.2f
+        private const val IMM_MODE_WIDEN = 0.5f
+        private const val IMM_MODE_DECOR = 0.1f
         private const val IMM_LP_HZ = 5500.0
         private const val IMM_MAX_S = 0.045
 
@@ -129,6 +134,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     @Volatile private var dialogueLevel = 3
     @Volatile private var stereoLevel = 0
     @Volatile private var systemVolume = 0.5f
+    @Volatile private var immersiveMode = false
 
     // ── Format ───────────────────────────────────────────────────────────────
     private var sampleRate = 44100
@@ -207,7 +213,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     // ── Public API (DolbyAtmosManager) ───────────────────────────────────────
 
     /** @param volume system music volume 0..1 (drives the audio regulator). */
-    fun setParameters(enabled: Boolean, dialogueLevel: Int, stereoLevel: Int, volume: Float = 0.5f) {
+    fun setParameters(enabled: Boolean, dialogueLevel: Int, stereoLevel: Int, volume: Float = 0.5f, immersive: Boolean = false) {
+        this.immersiveMode = immersive
         this.dialogueLevel = dialogueLevel.coerceIn(0, 3)
         this.stereoLevel = stereoLevel.coerceIn(0, 3)
         this.systemVolume = volume.coerceIn(0f, 1f)
@@ -293,10 +300,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         }
 
         val dLevel = dialogueLevel
-        val widen = BASE_WIDEN + WIDEN_GAIN[stereoLevel]
-        val decor = BASE_DECOR + DECOR_GAIN[stereoLevel]
+        val imm = immersiveMode
+        val widen = BASE_WIDEN + WIDEN_GAIN[stereoLevel] + (if (imm) IMM_MODE_WIDEN else 0f)
+        val decor = BASE_DECOR + DECOR_GAIN[stereoLevel] + (if (imm) IMM_MODE_DECOR else 0f)
         regScale = 1f - REG_VOLUME_TIGHTEN * systemVolume
-        immGain = IMM_BASE + IMM_PER_LEVEL * stereoLevel
+        immGain = (IMM_BASE + IMM_PER_LEVEL * stereoLevel) * (if (imm) IMM_MODE_MULT else 1f)
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
         if (geqVersion != appliedGeqVersion) updateGraphicEq()
 

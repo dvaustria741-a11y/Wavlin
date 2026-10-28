@@ -77,6 +77,8 @@
     <string name="dolby_atmos_unsupported">Unsupported on current device/route</string>
     <string name="dolby_expanded_stereo">Expanded stereo</string>
     <string name="dolby_earphones_only">(Earphones only)</string>
+    <string name="dolby_immersive_mode">Immersive Dolby Atmos</string>
+    <string name="dolby_immersive_mode_desc">Stronger surround space (test)</string>
     <string name="track_info">Track Info</string>
     <string name="add_playlist">Add Playlist</string>
     <string name="audio_eq">Audio EQ</string>

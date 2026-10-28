@@ -360,6 +360,7 @@ fun PlayerMenuExpandedStereoCard() {
     val atmosDiag by DolbyAtmosManager.liveDiagnostics.collectAsStateWithLifecycle()
     val level by DolbyAtmosManager.expandedStereoLevel.collectAsStateWithLifecycle()
     val onEarphones by DolbyAtmosManager.isHeadphoneRoute.collectAsStateWithLifecycle()
+    val immersive by DolbyAtmosManager.immersiveMode.collectAsStateWithLifecycle()
     if (!atmosEnabled || atmosDiag.capability == DolbyAtmosCapability.UNSUPPORTED) return
 
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -422,6 +423,17 @@ fun PlayerMenuExpandedStereoCard() {
                 }
             }
         }
+        Spacer(Modifier.height(12.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        Spacer(Modifier.height(10.dp))
+        SettingSwitchRow(
+            iconRes = R.drawable.ic_dolby,
+            title = stringResource(R.string.dolby_immersive_mode),
+            subtitle = stringResource(R.string.dolby_immersive_mode_desc),
+            checked = immersive,
+            enabled = true,
+            onCheckedChange = { DolbyAtmosManager.setImmersiveMode(it) },
+        )
     }
 }
 

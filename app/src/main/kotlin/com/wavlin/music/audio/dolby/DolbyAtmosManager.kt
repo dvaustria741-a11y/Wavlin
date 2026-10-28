@@ -41,6 +41,7 @@ object DolbyAtmosManager {
     const val PREFS_NAME = "wavlin_dolby"
     const val KEY_DOLBY_ATMOS_ENABLED = "dolby_atmos_enabled"
     const val KEY_EXPANDED_STEREO = "dolby_expanded_stereo"
+    const val KEY_IMMERSIVE_MODE = "dolby_immersive_mode"
 
     /** Enhanced dialogue is fixed at its maximum (3), matching the system Dolby Atmos setting. */
     const val ENHANCED_DIALOGUE_LEVEL = 3
@@ -71,6 +72,10 @@ object DolbyAtmosManager {
     private val _expandedStereoLevel = MutableStateFlow(3)
     val expandedStereoLevel: StateFlow<Int> = _expandedStereoLevel.asStateFlow()
 
+    /** Test option: much stronger immersive/surround space (reflections + extra width). */
+    private val _immersiveMode = MutableStateFlow(false)
+    val immersiveMode: StateFlow<Boolean> = _immersiveMode.asStateFlow()
+
     private val _isHeadphoneRoute = MutableStateFlow(false)
     val isHeadphoneRoute: StateFlow<Boolean> = _isHeadphoneRoute.asStateFlow()
 
@@ -95,6 +100,7 @@ object DolbyAtmosManager {
         val isEnabled = sp.getBoolean(KEY_DOLBY_ATMOS_ENABLED, false)
         _isAtmosEnabledByUser.value = isEnabled
         _expandedStereoLevel.value = sp.getInt(KEY_EXPANDED_STEREO, 3).coerceIn(0, 3)
+        _immersiveMode.value = sp.getBoolean(KEY_IMMERSIVE_MODE, false)
 
         audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         _isHeadphoneRoute.value = detectHeadphoneRoute()
@@ -258,7 +264,15 @@ object DolbyAtmosManager {
             dialogueLevel = ENHANCED_DIALOGUE_LEVEL,
             stereoLevel = effectiveStereoLevel(),
             volume = volumeFraction,
+            immersive = _immersiveMode.value,
         )
+    }
+
+    /** Toggles the stronger immersive mode (test option). */
+    fun setImmersiveMode(on: Boolean) {
+        _immersiveMode.value = on
+        prefs?.edit()?.putBoolean(KEY_IMMERSIVE_MODE, on)?.apply()
+        syncProcessors()
     }
 
     /** Sets Expanded stereo strength (0..3). */

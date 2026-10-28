@@ -15,6 +15,7 @@ import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -71,6 +72,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         /** "Immersive Dolby Atmos" test mode: stronger reflections plus extra width. */
         private const val IMM_MODE_MULT = 2.2f
+
+        /** Hard ceiling on the immersive reflection strength (3.2 = 320% of the base level), even at max settings. */
+        private const val IMM_GAIN_CAP = 3.2f
         private const val IMM_MODE_WIDEN = 0.5f
         private const val IMM_MODE_DECOR = 0.1f
         private const val IMM_LP_HZ = 5500.0
@@ -304,7 +308,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val widen = BASE_WIDEN + WIDEN_GAIN[stereoLevel] + (if (imm) IMM_MODE_WIDEN else 0f)
         val decor = BASE_DECOR + DECOR_GAIN[stereoLevel] + (if (imm) IMM_MODE_DECOR else 0f)
         regScale = 1f - REG_VOLUME_TIGHTEN * systemVolume
-        immGain = (IMM_BASE + IMM_PER_LEVEL * stereoLevel) * (if (imm) IMM_MODE_MULT else 1f)
+        immGain = min((IMM_BASE + IMM_PER_LEVEL * stereoLevel) * (if (imm) IMM_MODE_MULT else 1f), IMM_GAIN_CAP)
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
         if (geqVersion != appliedGeqVersion) updateGraphicEq()
 

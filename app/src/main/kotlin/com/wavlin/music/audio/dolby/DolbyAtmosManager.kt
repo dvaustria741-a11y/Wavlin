@@ -268,6 +268,13 @@ object DolbyAtmosManager {
         )
     }
 
+    /** Status of the processor that most recently received audio (for the Dolby card). */
+    fun processorStatus(): String {
+        val snapshot = synchronized(processors) { processors.toList() }
+        val best = snapshot.maxByOrNull { it.lastInputNanos } ?: return "Not attached to the player"
+        return best.statusText()
+    }
+
     /** Toggles the stronger immersive mode (test option). */
     fun setImmersiveMode(on: Boolean) {
         _immersiveMode.value = on

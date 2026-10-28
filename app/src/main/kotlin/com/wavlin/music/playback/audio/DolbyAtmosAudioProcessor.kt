@@ -66,7 +66,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // ── Immersive sound: soft early reflections that place the music in a small "room" around you ──
         private val IMM_TAPS_L_S = doubleArrayOf(0.0073, 0.0191, 0.0310)
         private val IMM_TAPS_R_S = doubleArrayOf(0.0117, 0.0233, 0.0379)
-        private val IMM_TAP_GAIN = floatArrayOf(0.14f, 0.09f, 0.06f)
+        private val IMM_TAP_GAIN = floatArrayOf(0.28f, 0.18f, 0.12f)
+
+        /** Alternating polarity between ears so reflections add to the side (enveloping) signal, not the centre. */
+        private val IMM_SIGN_L = floatArrayOf(1f, -1f, 1f)
+        private val IMM_SIGN_R = floatArrayOf(-1f, 1f, -1f)
         private const val IMM_BASE = 1.0f
         private const val IMM_PER_LEVEL = 0.2f
 
@@ -125,7 +129,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // ── Volume maximizer ─────────────────────────────────────────────────
         private const val MASTER_GAIN_DB = 3.0
-        private const val LIM_CEIL = 0.9f
+        private const val LIM_CEIL = 0.89f
         private const val LIM_LOOKAHEAD_S = 0.0015
         private const val LIM_RELEASE_S = 0.08
         private const val CLIP_KNEE = 0.92f
@@ -139,6 +143,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     @Volatile private var stereoLevel = 0
     @Volatile private var systemVolume = 0.5f
     @Volatile private var immersiveMode = false
+
+    /** Diagnostics: when audio last reached [queueInput] (System.nanoTime), 0 = never. */
+    @Volatile var lastInputNanos = 0L
+        private set
 
     // ── Format ───────────────────────────────────────────────────────────────
     private var sampleRate = 44100
@@ -232,6 +240,19 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         geqVersion++
     }
 
+    /** Short human-readable state for the Dolby card, so it's obvious whether the DSP is really running. */
+    fun statusText(): String {
+        val last = lastInputNanos
+        val idleMs = if (last == 0L) Long.MAX_VALUE else (System.nanoTime() - last) / 1_000_000
+        return when {
+            last == 0L || idleMs > 2500 -> "Waiting for audio (play a song)"
+            bytesPerSample == 0 || channelCount != 2 ->
+                "Not applied: unsupported audio format (${channelCount}ch)"
+            !enabled -> "Bypassed (Dolby off)"
+            else -> "Active · ${sampleRate / 1000.0} kHz · ${if (isFloat) "32-bit float" else "16-bit"}"
+        }
+    }
+
     // ── AudioProcessor ───────────────────────────────────────────────────────
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -274,7 +295,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         laBufL = FloatArray(laLen)
         laBufR = FloatArray(laLen)
         laIdx = 0
-        limAtk = (1.0 - exp(-3.0 / laLen)).toFloat()
+        limAtk = (1.0 - exp(-5.0 / laLen)).toFloat()
         limRel = (1.0 - exp(-1.0 / (LIM_RELEASE_S * sr))).toFloat()
 
         clearState()
@@ -286,6 +307,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return
+        lastInputNanos = System.nanoTime()
 
         if (buffer.capacity() < remaining) {
             buffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
@@ -380,8 +402,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             if (il < 0) il += immBuf.size
             var ir = immIdx - immTapR[i]
             if (ir < 0) ir += immBuf.size
-            refL += immBuf[il] * IMM_TAP_GAIN[i]
-            refR += immBuf[ir] * IMM_TAP_GAIN[i]
+            refL += immBuf[il] * IMM_TAP_GAIN[i] * IMM_SIGN_L[i]
+            refR += immBuf[ir] * IMM_TAP_GAIN[i] * IMM_SIGN_R[i]
         }
         if (++immIdx >= immBuf.size) immIdx = 0
         refL *= immGain

@@ -23,6 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import coil3.compose.AsyncImage
 import com.wavlin.music.R
 import com.wavlin.music.audio.dolby.DolbyAtmosCapability
@@ -361,6 +366,13 @@ fun PlayerMenuExpandedStereoCard() {
     val level by DolbyAtmosManager.expandedStereoLevel.collectAsStateWithLifecycle()
     val onEarphones by DolbyAtmosManager.isHeadphoneRoute.collectAsStateWithLifecycle()
     val immersive by DolbyAtmosManager.immersiveMode.collectAsStateWithLifecycle()
+    var dspStatus by remember { mutableStateOf("") }
+    LaunchedEffect(atmosEnabled) {
+        while (true) {
+            dspStatus = DolbyAtmosManager.processorStatus()
+            delay(700)
+        }
+    }
     if (!atmosEnabled || atmosDiag.capability == DolbyAtmosCapability.UNSUPPORTED) return
 
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -433,6 +445,12 @@ fun PlayerMenuExpandedStereoCard() {
             checked = immersive,
             enabled = true,
             onCheckedChange = { DolbyAtmosManager.setImmersiveMode(it) },
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "DSP: $dspStatus",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

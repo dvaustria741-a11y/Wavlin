@@ -275,8 +275,36 @@ object YouTube {
                         }
                     }
 
-            SearchSummaryPage(summaries = mergedSummaries)
+            SearchSummaryPage(summaries = promoteOfficialSong(query, mergedSummaries))
         }
+
+    private fun normalizeForMatch(text: String): String =
+        text.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+    // YouTube sometimes returns a lyric/fan video as the top card even when the query is an exact song title.
+    // If that happens and the Songs section has an official track with the same title, show that track first.
+    private fun promoteOfficialSong(
+        query: String,
+        summaries: List<SearchSummary>,
+    ): List<SearchSummary> {
+        val top = summaries.firstOrNull { it.title == YouTubeConstants.DEFAULT_TOP_RESULT } ?: return summaries
+        val topSong = top.items.firstOrNull() as? SongItem ?: return summaries
+        if (!topSong.isVideoSong) return summaries
+        val songs = summaries.firstOrNull { it.title == "Songs" } ?: return summaries
+        val wanted = normalizeForMatch(query)
+        if (wanted.isEmpty()) return summaries
+        val match =
+            songs.items.firstOrNull {
+                it is SongItem && !it.isVideoSong && !it.isEpisode && normalizeForMatch(it.title) == wanted
+            } ?: return summaries
+        return summaries.mapNotNull { s ->
+            when (s.title) {
+                top.title -> SearchSummary(s.title, (listOf(match) + s.items).distinctBy { it.id })
+                songs.title -> SearchSummary(s.title, s.items.filterNot { it.id == match.id }).takeIf { it.items.isNotEmpty() }
+                else -> s
+            }
+        }
+    }
 
     private fun groupItemsByType(items: List<YTItem>): List<SearchSummary> {
         val grouped =

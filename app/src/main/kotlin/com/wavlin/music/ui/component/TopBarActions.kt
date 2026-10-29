@@ -32,63 +32,21 @@ import coil3.compose.AsyncImage
 import com.wavlin.music.R
 
 /**
- * Top bar actions: Stats and Listen Together share one tonal capsule, and the account sits beside it
- * as a ringed avatar, instead of three loose icon buttons.
+ * Top bar actions: just the account, as a ringed avatar. Stats, History and Listen Together
+ * live in the account drawer.
  */
 @Composable
 fun TopBarActions(
-    onStatsClick: () -> Unit,
-    showListenTogether: Boolean,
-    onListenTogetherClick: () -> Unit,
     onAccountClick: () -> Unit,
     accountImageUrl: String?,
     showUpdateBadge: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val appleMusic = LocalInterfaceAppleMusic.current
     val colors = MaterialTheme.colorScheme
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.padding(end = 12.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .height(40.dp)
-                .clip(CircleShape)
-                .background(if (appleMusic) colors.surfaceContainerHigh else colors.secondaryContainer)
-                .then(
-                    if (appleMusic) {
-                        Modifier.border(BorderStroke(0.5.dp, colors.outlineVariant), CircleShape)
-                    } else {
-                        Modifier
-                    },
-                ),
-        ) {
-            TopBarCapsuleButton(
-                iconRes = R.drawable.stats,
-                contentDescription = stringResource(R.string.stats),
-                tint = if (appleMusic) colors.onSurface else colors.onSecondaryContainer,
-                onClick = onStatsClick,
-            )
-            if (showListenTogether) {
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(18.dp)
-                        .background(colors.outlineVariant),
-                )
-                TopBarCapsuleButton(
-                    iconRes = R.drawable.group_outlined,
-                    contentDescription = stringResource(R.string.together),
-                    tint = if (appleMusic) colors.onSurface else colors.onSecondaryContainer,
-                    onClick = onListenTogetherClick,
-                )
-            }
-        }
-
-        Spacer(Modifier.width(10.dp))
-
         BadgedBox(badge = { if (showUpdateBadge) Badge() }) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -118,27 +76,5 @@ fun TopBarActions(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TopBarCapsuleButton(
-    iconRes: Int,
-    contentDescription: String,
-    tint: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit,
-) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(width = 46.dp, height = 40.dp)
-            .clickable(onClick = onClick),
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(22.dp),
-        )
     }
 }

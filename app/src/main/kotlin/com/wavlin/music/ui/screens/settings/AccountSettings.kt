@@ -88,6 +88,8 @@ fun AccountSettings(
     latestVersionName: String,
     /** Small popover layout (profile header, no title bar / close button). */
     compact: Boolean = false,
+    /** Extra rows shown between the login entry and Integrations/Settings. */
+    middleContent: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -317,6 +319,8 @@ fun AccountSettings(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        middleContent()
 
         Column(
             modifier = Modifier

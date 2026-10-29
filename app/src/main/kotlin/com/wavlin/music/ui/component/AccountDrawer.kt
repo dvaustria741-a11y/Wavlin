@@ -13,17 +13,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
@@ -129,50 +126,44 @@ fun AccountDrawerContent(
     onClose: () -> Unit,
     latestVersionName: String,
 ) {
-    Column(
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(vertical = 12.dp),
+                .navigationBarsPadding(),
     ) {
-        DrawerRow(R.drawable.stats, stringResource(R.string.stats)) {
-            onClose()
-            navController.navigate("stats")
-        }
-        DrawerRow(R.drawable.history, stringResource(R.string.history)) {
-            onClose()
-            navController.navigate("history")
-        }
-        // AccountSettings scrolls on its own, so it needs a bounded height.
-        Box(modifier = Modifier.weight(1f)) {
-            AccountSettings(
-                navController = navController,
-                onClose = onClose,
-                latestVersionName = latestVersionName,
-                compact = true,
-            )
-        }
+        AccountSettings(
+            navController = navController,
+            onClose = onClose,
+            latestVersionName = latestVersionName,
+            compact = true,
+            middleContent = {
+                DrawerEntry(R.drawable.stats, R.string.stats, "stats", navController, onClose)
+                DrawerEntry(R.drawable.history, R.string.history, "history", navController, onClose)
+                DrawerEntry(R.drawable.group_outlined, R.string.together, "listen_together_from_topbar", navController, onClose)
+                Spacer(Modifier.height(12.dp))
+            },
+        )
     }
 }
 
 @Composable
-private fun DrawerRow(
+private fun DrawerEntry(
     iconRes: Int,
-    title: String,
-    onClick: () -> Unit,
+    titleRes: Int,
+    route: String,
+    navController: NavController,
+    onClose: () -> Unit,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 24.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Icon(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(24.dp))
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
-    }
+    PreferenceEntry(
+        title = { Text(stringResource(titleRes)) },
+        icon = { Icon(painterResource(iconRes), contentDescription = null) },
+        onClick = {
+            onClose()
+            navController.navigate(route)
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(4.dp))
 }

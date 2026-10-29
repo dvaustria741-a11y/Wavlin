@@ -1119,24 +1119,6 @@ class MainActivity : ComponentActivity() {
                                         },
                                         actions = {
                                             if (pinkWallpaper) {
-                                            IconButton(onClick = { navController.navigate("stats") }) {
-                                                LilyDiscBox(pinkWallpaper) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.stats),
-                                                        contentDescription = stringResource(R.string.stats),
-                                                    )
-                                                }
-                                            }
-                                            if (listenTogetherInTopBar) {
-                                                IconButton(onClick = { navController.navigate("listen_together_from_topbar") }) {
-                                                    LilyDiscBox(pinkWallpaper) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.group_outlined),
-                                                            contentDescription = stringResource(R.string.together),
-                                                        )
-                                                    }
-                                                }
-                                            }
                                             IconButton(onClick = { showAccountDialog = true }) {
                                                 LilyDiscBox(pinkWallpaper) {
                                                     BadgedBox(badge = {
@@ -1165,9 +1147,6 @@ class MainActivity : ComponentActivity() {
                                             }
                                         } else {
                                                 TopBarActions(
-                                                    onStatsClick = { navController.navigate("stats") },
-                                                    showListenTogether = listenTogetherInTopBar,
-                                                    onListenTogetherClick = { navController.navigate("listen_together_from_topbar") },
                                                     onAccountClick = { showAccountDialog = true },
                                                     accountImageUrl = accountImageUrl,
                                                     showUpdateBadge = latestVersionName != BuildConfig.VERSION_NAME,

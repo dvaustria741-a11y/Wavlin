@@ -764,6 +764,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val d = (delayS * sampleRate).toFloat()
         var pos = voxIdx - d
         if (pos < 0f) pos += voxBuf.size
+        if (pos >= voxBuf.size) pos -= voxBuf.size
         val i0 = pos.toInt()
         val frac = pos - i0
         val i1 = if (i0 + 1 >= voxBuf.size) 0 else i0 + 1
@@ -931,6 +932,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             if (phase > 2.0 * PI) phase -= 2.0 * PI
             var pos = w - d
             if (pos < 0f) pos += buf.size
+            // Float rounding can make a tiny negative pos land exactly on buf.size.
+            if (pos >= buf.size) pos -= buf.size
             val i0 = pos.toInt()
             val frac = pos - i0
             val i1 = if (i0 + 1 >= buf.size) 0 else i0 + 1

@@ -909,7 +909,6 @@
     <string name="wavlin">WAVLIN</string>
     <string name="wanna_play_favorite_song">Want to play their favorite song?</string>
     <string name="yeah">Yeah!</string>
-    <string name="stands_with_palestine">This project stands with Palestine 🇵🇸</string>
 
     <!-- Podcasts -->
     <string name="filter_podcasts">Podcasts</string>
@@ -1182,4 +1181,5 @@
     <string name="settings_desc_updater">Check for new versions</string>
     <string name="settings_desc_changelog">View recent changes</string>
     <string name="settings_desc_about">App information and credits</string>
+    <string name="made_with_love_by" translatable="false">Made with ❤️ by Alias</string>
 </resources>

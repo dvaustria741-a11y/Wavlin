@@ -531,7 +531,7 @@ fun AboutScreen(
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = stringResource(R.string.stands_with_palestine),
+            text = stringResource(R.string.made_with_love_by),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = cs.onSurfaceVariant,

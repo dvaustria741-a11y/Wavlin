@@ -329,8 +329,6 @@ All trademarks, service marks, and intellectual property rights referenced in th
 
 <br/>
 
-**Made with ❤️ by [Mo Agamy](https://github.com/mostafaalagamy)**
-
-**This project stands with Palestine 🇵🇸**
+**Made with ❤️ by [Alias](https://github.com/dvaustria741-a11y)**
 
 </div>

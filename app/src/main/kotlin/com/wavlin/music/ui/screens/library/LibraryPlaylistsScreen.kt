@@ -265,6 +265,11 @@ fun LibraryPlaylistsScreen(
     }
 
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+    var showSpotifyImport by rememberSaveable { mutableStateOf(false) }
+
+    if (showSpotifyImport) {
+        SpotifyImportFlow(onDismiss = { showSpotifyImport = false })
+    }
 
     if (showCreatePlaylistDialog) {
         CreatePlaylistDialog(
@@ -525,6 +530,7 @@ fun LibraryPlaylistsScreen(
 
         // Always visible + button (no scroll hiding)
         GlassOverlay {
+        SpotifyImportButton(onClick = { showSpotifyImport = true })
         GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
             size = 56.dp,

@@ -144,6 +144,11 @@ fun LibraryMixScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val debouncedSearchQuery by viewModel.debouncedSearchQuery.collectAsStateWithLifecycle()
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+    var showSpotifyImport by rememberSaveable { mutableStateOf(false) }
+
+    if (showSpotifyImport) {
+        SpotifyImportFlow(onDismiss = { showSpotifyImport = false })
+    }
     
     if (showCreatePlaylistDialog) {
         CreatePlaylistDialog(
@@ -901,6 +906,7 @@ fun LibraryMixScreen(
 
         // Always visible + button (no scroll hiding)
         GlassOverlay {
+        SpotifyImportButton(onClick = { showSpotifyImport = true })
         GlassIconButton(
             onClick = { showCreatePlaylistDialog = true },
             size = 56.dp,

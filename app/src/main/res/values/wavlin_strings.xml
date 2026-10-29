@@ -1182,4 +1182,12 @@
     <string name="settings_desc_changelog">View recent changes</string>
     <string name="settings_desc_about">App information and credits</string>
     <string name="made_with_love_by" translatable="false">Made with ❤️ by Alias</string>
+    <string name="glass_create" translatable="false">Create</string>
+    <string name="spotify_flow_title" translatable="false">Import from Spotify</string>
+    <string name="spotify_flow_hint" translatable="false">Paste a Spotify playlist, album or track link.</string>
+    <string name="spotify_flow_field" translatable="false">Spotify link</string>
+    <string name="spotify_flow_paste" translatable="false">Paste</string>
+    <string name="spotify_flow_go" translatable="false">Import</string>
+    <string name="spotify_flow_not_found" translatable="false">Not found on YouTube Music</string>
+    <string name="spotify_flow_error" translatable="false">Couldn\'t read Spotify link</string>
 </resources>

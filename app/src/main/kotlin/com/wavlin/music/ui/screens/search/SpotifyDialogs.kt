@@ -14,7 +14,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.DialogWindowProvider
-import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.ui.component.DialogWindowBlur
+import com.wavlin.music.ui.component.glassDialogColor
+import com.wavlin.music.ui.component.glassDialogShape
+import com.wavlin.music.ui.component.rememberWindowBlurAvailable
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.pinkDialogShape
 import com.wavlin.music.ui.component.pinkGlassPanel
@@ -86,42 +89,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-
-/**
- * Glass for dialogs, kept cheap on purpose. A Dialog is its own window, so it can't sample the app's
- * backdrop layers (that needs a RenderEffect or AGSL shader running on every frame). Instead the blur
- * is done by the system compositor on Android 12+ (FLAG_BLUR_BEHIND), which costs the app nothing and is
- * skipped automatically when the device turns cross-window blur off. Without it the card simply gets a
- * more opaque surface, so older or low-end devices never pay for a blur.
- */
-@Composable
-private fun rememberWindowBlurAvailable(): Boolean {
-    val context = LocalContext.current
-    return remember {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)?.isCrossWindowBlurEnabled == true
-    }
-}
-
-@Composable
-private fun DialogWindowBlur(enabled: Boolean, radius: Int = 24) {
-    val view = LocalView.current
-    SideEffect {
-        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
-        window.setDimAmount(if (enabled) 0.18f else 0.45f)
-        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-            window.attributes = window.attributes.apply { blurBehindRadius = radius }
-        }
-    }
-}
-
-@Composable
-private fun glassDialogColor(blurAvailable: Boolean): Color =
-    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (blurAvailable) 0.76f else 0.96f)
-
-@Composable
-private fun glassDialogShape(): Shape = RoundedCornerShape(if (LocalInterfaceAppleMusic.current) 30.dp else 24.dp)
 
 private sealed interface MatchState {
     data class Found(val song: SongItem) : MatchState

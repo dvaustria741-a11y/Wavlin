@@ -496,13 +496,24 @@ fun OnlineSearchResult(
                     modifier = Modifier.fillMaxWidth().alpha(resultsAlpha),
                 ) {
                     if (searchFilter == null) {
-                        searchSummary?.summaries?.forEach { summary ->
+                        searchSummary?.summaries?.forEachIndexed { summaryIndex, summary ->
+                            // The first shelf is the Top result: keep songs, videos and albums, and leave
+                            // artists and playlists to their own filters. A shelf that would end up empty is left as is.
+                            val shelfItems =
+                                if (summaryIndex == 0) {
+                                    summary.items
+                                        .filterNot { it is ArtistItem || it is PlaylistItem }
+                                        .ifEmpty { summary.items }
+                                } else {
+                                    summary.items
+                                }
+
                             item {
                                 NavigationTitle(summary.title)
                             }
 
                             itemsIndexed(
-                                items = summary.items,
+                                items = shelfItems,
                                 key = { index, item -> "${summary.title}/${item.id}/$index" },
                                 itemContent = { index, item -> ytItemContent(item) },
                             )

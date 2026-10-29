@@ -371,13 +371,16 @@ fun PlayerMenuExpandedStereoCard() {
     val onEarphones by DolbyAtmosManager.isHeadphoneRoute.collectAsStateWithLifecycle()
     val immersive by DolbyAtmosManager.immersiveMode.collectAsStateWithLifecycle()
     var dspStatus by remember { mutableStateOf("") }
-    LaunchedEffect(atmosEnabled) {
+    val atmosActive = atmosEnabled && atmosDiag.capability != DolbyAtmosCapability.UNSUPPORTED
+    // Only poll while the card is actually shown, and never on the main thread.
+    LaunchedEffect(atmosActive) {
+        if (!atmosActive) return@LaunchedEffect
         while (true) {
-            dspStatus = DolbyAtmosManager.processorStatus()
+            dspStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { DolbyAtmosManager.processorStatus() }
             delay(700)
         }
     }
-    if (!atmosEnabled || atmosDiag.capability == DolbyAtmosCapability.UNSUPPORTED) return
+    if (!atmosActive) return
 
     val onSurface = MaterialTheme.colorScheme.onSurface
     Column(

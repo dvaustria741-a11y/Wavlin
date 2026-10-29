@@ -141,14 +141,19 @@ fun PlayerMenu(
 
     val varispeedMode by rememberPreference(VarispeedKey, defaultValue = false)
 
-    val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
+    val downloadUtil = LocalDownloadUtil.current
+    // Cold flows are built once per song. Calling the DAO inside the composition body created a new flow on every
+    // recomposition, which cancelled and re-ran the database queries each time.
+    val librarySongFlow = remember(mediaMetadata.id) { database.song(mediaMetadata.id) }
+    val downloadFlow = remember(mediaMetadata.id, downloadUtil) { downloadUtil.getDownload(mediaMetadata.id) }
+    val isPinnedFlow = remember(mediaMetadata.id) { database.speedDialDao.isPinned(mediaMetadata.id) }
+
+    val librarySong by librarySongFlow.collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
 
-    val download by LocalDownloadUtil.current
-        .getDownload(mediaMetadata.id)
-        .collectAsStateWithLifecycle(initialValue = null)
+    val download by downloadFlow.collectAsStateWithLifecycle(initialValue = null)
 
-    val isPinned by database.speedDialDao.isPinned(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = false)
+    val isPinned by isPinnedFlow.collectAsStateWithLifecycle(initialValue = false)
 
     val artists =
         remember(mediaMetadata.artists) {

@@ -1,5 +1,21 @@
 package com.wavlin.music.ui.screens.search
 
+import android.content.Context
+import android.os.Build
+import android.view.WindowManager
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.window.DialogWindowProvider
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.pinkDialogShape
 import com.wavlin.music.ui.component.pinkGlassPanel
 import androidx.compose.foundation.background
@@ -71,6 +87,42 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
+/**
+ * Glass for dialogs, kept cheap on purpose. A Dialog is its own window, so it can't sample the app's
+ * backdrop layers (that needs a RenderEffect or AGSL shader running on every frame). Instead the blur
+ * is done by the system compositor on Android 12+ (FLAG_BLUR_BEHIND), which costs the app nothing and is
+ * skipped automatically when the device turns cross-window blur off. Without it the card simply gets a
+ * more opaque surface, so older or low-end devices never pay for a blur.
+ */
+@Composable
+private fun rememberWindowBlurAvailable(): Boolean {
+    val context = LocalContext.current
+    return remember {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)?.isCrossWindowBlurEnabled == true
+    }
+}
+
+@Composable
+private fun DialogWindowBlur(enabled: Boolean, radius: Int = 24) {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        window.setDimAmount(if (enabled) 0.18f else 0.45f)
+        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            window.attributes = window.attributes.apply { blurBehindRadius = radius }
+        }
+    }
+}
+
+@Composable
+private fun glassDialogColor(blurAvailable: Boolean): Color =
+    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (blurAvailable) 0.76f else 0.96f)
+
+@Composable
+private fun glassDialogShape(): Shape = RoundedCornerShape(if (LocalInterfaceAppleMusic.current) 30.dp else 24.dp)
+
 private sealed interface MatchState {
     data class Found(val song: SongItem) : MatchState
 
@@ -135,31 +187,36 @@ fun SpotifyPlaylistPreviewDialog(
                 ?: (matches[it] as? MatchState.Found)?.song?.thumbnail
         }
 
+    val blurAvailable = rememberWindowBlurAvailable()
+    val glassShape = glassDialogShape()
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        DialogWindowBlur(enabled = !pinkLily && blurAvailable)
         Surface(
             modifier =
                 Modifier
+                    .padding(horizontal = 20.dp)
+                    .widthIn(max = 420.dp)
                     .fillMaxWidth()
-                    .fillMaxHeight(0.9f)
-                    .padding(horizontal = 12.dp)
+                    .fillMaxHeight(0.74f)
                     .let { base ->
                         if (pinkLily) base.pinkGlassPanel(pinkDialogShape()) else base
                     },
-            shape = if (pinkLily) pinkDialogShape() else RoundedCornerShape(28.dp),
-            color = if (pinkLily) Color.Transparent else AlertDialogDefaults.containerColor,
+            shape = if (pinkLily) pinkDialogShape() else glassShape,
+            color = if (pinkLily) Color.Transparent else glassDialogColor(blurAvailable),
+            border = if (pinkLily) null else BorderStroke(1.dp, glassStrokeBrush()),
         ) {
             Column(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .padding(horizontal = if (pinkLily) 30.dp else 16.dp, vertical = if (pinkLily) 34.dp else 20.dp),
+                        .padding(horizontal = if (pinkLily) 26.dp else 16.dp, vertical = if (pinkLily) 28.dp else 16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CoverMosaic(covers = covers)
-                    Spacer(Modifier.width(14.dp))
+                    Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         TextField(
                             value = name,
@@ -167,9 +224,9 @@ fun SpotifyPlaylistPreviewDialog(
                             singleLine = true,
                             textStyle =
                                 if (pinkLily) {
-                                    MaterialTheme.typography.titleLarge.copy(fontFamily = playball, color = PinkInk)
+                                    MaterialTheme.typography.titleMedium.copy(fontFamily = playball, color = PinkInk)
                                 } else {
-                                    MaterialTheme.typography.titleLarge
+                                    MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                                 },
                             colors =
                                 TextFieldDefaults.colors(
@@ -190,12 +247,12 @@ fun SpotifyPlaylistPreviewDialog(
                 if (done < total) {
                     LinearProgressIndicator(
                         progress = { done.toFloat() / total },
-                        modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     )
                 } else {
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     itemsIndexed(collection.tracks) { index, track ->
@@ -203,7 +260,7 @@ fun SpotifyPlaylistPreviewDialog(
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -236,11 +293,11 @@ fun SpotifyPlaylistPreviewDialog(
 
 @Composable
 private fun CoverMosaic(covers: List<String>) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(12.dp)
     Box(
         modifier =
             Modifier
-                .size(96.dp)
+                .size(72.dp)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
@@ -271,7 +328,7 @@ private fun CoverMosaic(covers: List<String>) {
                     painter = painterResource(R.drawable.queue_music),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(32.dp),
                 )
         }
     }
@@ -283,7 +340,7 @@ private fun CoverTile(url: String) {
         model = url,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier.size(36.dp),
     )
 }
 
@@ -362,42 +419,91 @@ fun SpotifyTrackDialog(
     onSearch: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    DefaultDialog(
-        onDismiss = onDismiss,
-        buttons = {
-            TextButton(
-                onClick = {
-                    onSearch()
-                    onDismiss()
-                },
-            ) { Text("Search instead") }
-            TextButton(
-                onClick = {
-                    onPlay()
-                    onDismiss()
-                },
-            ) { Text("Play") }
-        },
+    val pinkLily = LocalPinkLilyTheme.current
+    val artists = match.artists.joinToString(", ") { it.name }.ifEmpty { track.artist }
+    val search = {
+        onSearch()
+        onDismiss()
+    }
+    val play = {
+        onPlay()
+        onDismiss()
+    }
+
+    if (pinkLily) {
+        DefaultDialog(
+            onDismiss = onDismiss,
+            buttons = {
+                TextButton(onClick = search) { Text("Search instead") }
+                TextButton(onClick = play) { Text("Play") }
+            },
+        ) {
+            TrackCardBody(imageUrl = match.thumbnail, title = match.title, artist = artists, artSize = 150.dp)
+        }
+        return
+    }
+
+    val blurAvailable = rememberWindowBlurAvailable()
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        DialogWindowBlur(enabled = blurAvailable)
+        Surface(
+            modifier =
+                Modifier
+                    .padding(horizontal = 28.dp)
+                    .widthIn(max = 300.dp)
+                    .fillMaxWidth(),
+            shape = glassDialogShape(),
+            color = glassDialogColor(blurAvailable),
+            border = BorderStroke(1.dp, glassStrokeBrush()),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
+            ) {
+                TrackCardBody(imageUrl = match.thumbnail, title = match.title, artist = artists, artSize = 150.dp)
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = search) { Text("Search instead", maxLines = 1) }
+                    Spacer(Modifier.width(4.dp))
+                    FilledTonalButton(onClick = play) { Text("Play") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackCardBody(imageUrl: String?, title: String, artist: String, artSize: Dp) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         AsyncImage(
-            model = match.thumbnail,
+            model = imageUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)),
+            modifier = Modifier.size(artSize).clip(RoundedCornerShape(14.dp)),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
-            text = match.title,
-            style = MaterialTheme.typography.titleLarge,
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
-            text = match.artists.joinToString(", ") { it.name }.ifEmpty { track.artist },
-            style = MaterialTheme.typography.bodyLarge,
+            text = artist,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
-            maxLines = 2,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }

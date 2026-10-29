@@ -64,18 +64,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         // ── Diffuse "lubog" background: the background is blurred into a wide, dark, LOUDER cloud (short reverb) ──
         // The blur is what spreads it. Fed mostly by the side signal plus a little of the vocal band.
-        private val DIFF_COMB_L_MS = doubleArrayOf(29.7, 37.1, 41.1, 43.7)
-        private val DIFF_COMB_R_MS = doubleArrayOf(31.3, 36.7, 42.7, 46.1)
+        private val DIFF_COMB_L_MS = doubleArrayOf(17.1, 21.7, 25.3, 29.9)
+        private val DIFF_COMB_R_MS = doubleArrayOf(18.3, 22.9, 26.5, 31.3)
         private const val DIFF_AP_MS_1 = 5.0
         private const val DIFF_AP_MS_2 = 1.7
-        private const val DIFF_FEEDBACK = 0.74f   // longer, floatier tail ("dreamy")
-        private const val DIFF_DAMP = 0.55f       // softer, darker tail
+        private const val DIFF_FEEDBACK = 0.5f    // short tail: a clean blur, not an echo
+        private const val DIFF_DAMP = 0.4f
         private val DIFF_LFO_L_HZ = doubleArrayOf(0.11, 0.17, 0.23, 0.29)
         private val DIFF_LFO_R_HZ = doubleArrayOf(0.13, 0.19, 0.27, 0.31)
-        private const val DIFF_LFO_DEPTH_S = 0.0012  // slow wobble of the delay lengths = gentle shimmer
+        private const val DIFF_LFO_DEPTH_S = 0.0005  // slow wobble of the delay lengths = gentle shimmer
         private const val DIFF_IN_SIDE = 0.5f
         private const val DIFF_IN_MID = 0.25f
-        private const val DIFF_GAIN = 3.5f
+        private const val DIFF_GAIN = 2.2f
         private const val DIFF_MID_PART = 0.3f
 
         /** The singing voice is softened a little too (less harsh/clear, easier on the ears). */
@@ -134,8 +134,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val IMM_MAX_S = 0.045
 
         /** Only the side (background) signal is darkened → vocals stay clear, instruments recede. */
-        private const val SIDE_SHELF_HZ = 2200.0
-        private const val SIDE_SHELF_DB = -9.0
+        private const val SIDE_SHELF_HZ = 2800.0
+        private const val SIDE_SHELF_DB = -6.0
 
         // ── Graphic equalizer (10 bands, like the system Dolby "Graphic equalizer") ──
         private val GEQ_FREQS = doubleArrayOf(31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
@@ -145,19 +145,27 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val GEQ_DB_PER_100_PERCENT = 10f
 
         /** Default curve = the user's own "Custom" preset in the system Dolby (percent per band). */
-        private val DEFAULT_GEQ_PERCENT = floatArrayOf(45f, 64f, 28f, -36f, -27f, -45f, -19f, -36f, -55f, -72f)
+        private val DEFAULT_GEQ_PERCENT = floatArrayOf(44f, 62f, 27f, -34f, -26f, -43f, -18f, -34f, -52f, -69f)
 
         /**
-         * Speaker profile (used when the sound goes out of the phone's own speaker). Phone speakers can't reproduce
-         * deep bass, so the headphone bass boost only wastes headroom and causes rattle/distortion. Instead the lows are
-         * removed and the range the speaker is good at (1-4 kHz) is lifted: cleaner AND louder on the device speaker.
+         * Speaker profile (used when the sound goes out of the phone's own speaker). It uses the SAME graphic-EQ curve
+         * as the earphone profile (the user's system Dolby "Custom" curve), plus a small speaker "optimizer": phone
+         * speakers can't reproduce deep bass, so the lows are removed (high-pass) and the range the speaker is good at
+         * gets a little lift.
          */
-        private val SPEAKER_GEQ_DB = floatArrayOf(0f, 0f, -2f, 0f, 2f, 4f, 5f, 3f, 0f, -2f)
+        private const val SPEAKER_OPT_HZ = 2000.0
+        private const val SPEAKER_OPT_DB = 2.5
+        private const val SPEAKER_OPT_Q = 0.8
         private const val SPEAKER_HPF_HZ = 260.0
         private const val SPEAKER_EXTRA_GAIN_DB = 4.5
 
         /** On the phone speaker the limiter recovers faster: denser, louder sound where the speaker is the limit. */
         private const val SPK_LIM_RELEASE_S = 0.12
+
+        /** Speaker: both speakers are driven to the same level (a one-sided mix would only play from one of them). */
+        private const val SPK_BALANCE_TAU_S = 0.4
+        private const val SPK_BALANCE_MIN = 0.6f
+        private const val SPK_BALANCE_MAX = 1.7f
 
 
         /** Headroom for the EQ boost so the limiter isn't constantly working. */
@@ -293,6 +301,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var appliedSpeaker = false
     private val hpfL = Biquad()
     private val hpfR = Biquad()
+    private val spkOptL = Biquad()
+    private val spkOptR = Biquad()
 
     // ── Multiband ────────────────────────────────────────────────────────────
     private val lp1L = Biquad(); private val lp1R = Biquad() // low split
@@ -327,6 +337,14 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var limAtk = 0.05f
     private var limRel = 0.0003f
     private var limRelSpk = 0.0003f
+    private var spkEnvL = 0f
+    private var spkEnvR = 0f
+    private var spkCoef = 0.0001f
+    private var spkGainL = 1f
+    private var spkGainR = 1f
+    private var spkTgtL = 1f
+    private var spkTgtR = 1f
+    private var spkCounter = 0
 
     // ── Output / buffers ─────────────────────────────────────────────────────
     private var mix = 0f
@@ -425,6 +443,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         apR2 = Allpass(((DIFF_AP_MS_2 * 1.19 / 1000.0) * sr).toInt().coerceAtLeast(4))
         appliedGeqVersion = -1 // rebuild graphic EQ for the new sample rate
         applyHighPass(SPEAKER_HPF_HZ, hpfL, hpfR)
+        applyPeaking(SPEAKER_OPT_HZ, SPEAKER_OPT_DB, SPEAKER_OPT_Q, spkOptL, spkOptR)
         applyLowpass(XOVER_LOW_HZ, lp1L, lp1R)
         applyLowpass(XOVER_HIGH_HZ, lp2L, lp2R)
 
@@ -447,6 +466,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         limAtk = (1.0 - exp(-5.0 / laLen)).toFloat()
         limRel = (1.0 - exp(-1.0 / (LIM_RELEASE_S * sr))).toFloat()
         limRelSpk = (1.0 - exp(-1.0 / (SPK_LIM_RELEASE_S * sr))).toFloat()
+        spkCoef = (1.0 - exp(-1.0 / (SPK_BALANCE_TAU_S * sr))).toFloat()
 
         clearState()
         return inputAudioFormat
@@ -616,8 +636,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         var tl = (m + s) * outGain
         var tr = (m - s) * outGain
         if (appliedSpeaker) {
-            tl = hpfL.process(tl)
-            tr = hpfR.process(tr)
+            tl = spkOptL.process(hpfL.process(tl))
+            tr = spkOptR.process(hpfR.process(tr))
         }
         for (i in geqL.indices) {
             tl = geqL[i].process(tl)
@@ -628,6 +648,22 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         processBands(tl, tr)
 
         // Volume maximizer: master gain → look-ahead limiter → soft clip.
+        if (appliedSpeaker) {
+            spkEnvL += (abs(bandOutL) - spkEnvL) * spkCoef
+            spkEnvR += (abs(bandOutR) - spkEnvR) * spkCoef
+            if (++spkCounter >= 64) {
+                spkCounter = 0
+                val mean = (spkEnvL + spkEnvR) * 0.5f
+                if (mean > 0.001f) {
+                    spkTgtL = (mean / max(spkEnvL, 1e-4f)).coerceIn(SPK_BALANCE_MIN, SPK_BALANCE_MAX)
+                    spkTgtR = (mean / max(spkEnvR, 1e-4f)).coerceIn(SPK_BALANCE_MIN, SPK_BALANCE_MAX)
+                }
+            }
+            spkGainL += (spkTgtL - spkGainL) * 0.002f
+            spkGainR += (spkTgtR - spkGainR) * 0.002f
+            bandOutL *= spkGainL
+            bandOutR *= spkGainR
+        }
         val mg = if (appliedSpeaker) masterGain * speakerExtra else masterGain
         val xl = bandOutL * mg
         val xr = bandOutR * mg
@@ -803,7 +839,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private fun updateGraphicEq() {
         appliedGeqVersion = geqVersion
         appliedSpeaker = speakerMode
-        val gains = if (appliedSpeaker) SPEAKER_GEQ_DB else geqGainsDb
+        val gains = geqGainsDb
         for (i in GEQ_FREQS.indices) {
             applyPeaking(GEQ_FREQS[i], gains[i].toDouble(), GEQ_Q, geqL[i], geqR[i])
         }
@@ -861,7 +897,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         sideShelf.reset(); midShelf.reset()
         combsL.forEach { it.reset() }; combsR.forEach { it.reset() }
         apL1.reset(); apL2.reset(); apR1.reset(); apR2.reset()
-        hpfL.reset(); hpfR.reset()
+        hpfL.reset(); hpfR.reset(); spkOptL.reset(); spkOptR.reset()
         geqL.forEach { it.reset() }
         geqR.forEach { it.reset() }
         lp1L.reset(); lp1R.reset(); lp2L.reset(); lp2R.reset()
@@ -878,6 +914,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         agcWarm = agcWarmFrames
         laBufL.fill(0f); laBufR.fill(0f); laIdx = 0
         limGain = 1f
+        spkEnvL = 0f; spkEnvR = 0f; spkGainL = 1f; spkGainR = 1f; spkTgtL = 1f; spkTgtR = 1f; spkCounter = 0
     }
 
     /** Damped feedback comb filter (Freeverb style) whose delay length wobbles slowly for a dreamy shimmer. */

@@ -5,7 +5,20 @@
 
 package com.wavlin.music.ui.screens.settings
 
-import com.wavlin.music.ui.component.pinkTopBarColors
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -105,7 +118,7 @@ private data class CommunityLink(
 private val leadDeveloper = Contributor(
     name = "Zenkai",
     roleRes = R.string.credits_lead_developer,
-    githubHandle = "mostafaalagamy",
+    githubHandle = "dvaustria741-a11y",
     avatarRes = R.drawable.dev_zenkai,
     polygon = MaterialShapes.Cookie9Sided,
     favoriteSongVideoId = "Mh2JWGWvy_Y"
@@ -160,6 +173,7 @@ private fun ContributorAvatar(
     shape: Shape = CircleShape,
     avatarRes: Int? = null,
     contentDescription: String? = null,
+    border: BorderStroke? = null,
     onClick: (() -> Unit)? = null
 ) {
     val fallback = painterResource(R.drawable.about_icon)
@@ -170,6 +184,7 @@ private fun ContributorAvatar(
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         tonalElevation = 4.dp,
+        border = border,
     ) {
         AsyncImage(
             model = avatarRes ?: avatarUrl,
@@ -184,30 +199,87 @@ private fun ContributorAvatar(
 }
 
 @Composable
-private fun DeveloperSocials(
-    uriHandler: androidx.compose.ui.platform.UriHandler
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+private fun Staggered(index: Int, content: @Composable () -> Unit) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * 70L)
+        shown = true
+    }
+    AnimatedVisibility(
+        visible = shown,
+        enter = fadeIn(tween(380)) + slideInVertically(tween(380)) { it / 8 },
+    ) { content() }
+}
+
+@Composable
+private fun InfoChip(text: String, container: Color, content: Color) {
+    Surface(shape = RoundedCornerShape(10.dp), color = container) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = content,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+        )
+    }
+}
+
+@Composable
+private fun SocialCircle(iconRes: Int, onClick: () -> Unit) {
+    FilledTonalIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(56.dp),
     ) {
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://wavlin.cc") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.language), contentDescription = null)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://github.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.github), contentDescription = null)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://www.instagram.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.instagram), contentDescription = null)
+        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
+private fun LinkTile(
+    iconRes: Int,
+    title: String,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(26.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(tint),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(25.dp),
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (description != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -223,7 +295,8 @@ fun AboutScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val wannaPlayStr = stringResource(R.string.wanna_play_favorite_song)
     val yeahStr = stringResource(R.string.yeah)
-    
+    val cs = MaterialTheme.colorScheme
+
     val windowInsets = LocalPlayerAwareWindowInsets.current
 
     Column(
@@ -234,89 +307,65 @@ fun AboutScreen(
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                windowInsets.only(WindowInsetsSides.Top)
-            )
-        )
-
+        Spacer(Modifier.windowInsetsPadding(windowInsets.only(WindowInsetsSides.Top)))
         Spacer(Modifier.height(16.dp))
 
-        // App Header Section
-        ElevatedCard(
-            shape = RoundedCornerShape(32.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
+        // App header: centered logo tile over a soft gradient wash
+        Staggered(0) {
+            ElevatedCard(
+                shape = RoundedCornerShape(36.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Image(
-                    painter = painterResource(R.drawable.wavlin_logo),
-                    contentDescription = stringResource(R.string.wavlin),
-                    modifier = Modifier.size(84.dp)
-                )
-
-                Spacer(Modifier.width(20.dp))
-        
-                Column {
-                    val wavlinName = stringResource(R.string.wavlin)
-                        .lowercase(Locale.getDefault())
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-
-                    Text(
-                        text = wavlinName,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        letterSpacing = (-0.5).sp
-                    )
-            
-                    Spacer(Modifier.height(8.dp))
-            
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(cs.primaryContainer.copy(alpha = 0.6f), Color.Transparent),
+                            ),
+                        ),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 28.dp, bottom = 26.dp, start = 24.dp, end = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        Box(
+                            modifier = Modifier
+                                .size(108.dp)
+                                .clip(RoundedCornerShape(32.dp))
+                                .background(cs.surface.copy(alpha = 0.75f)),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                text = BuildConfig.VERSION_NAME,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            Image(
+                                painter = painterResource(R.drawable.wavlin_logo),
+                                contentDescription = stringResource(R.string.wavlin),
+                                modifier = Modifier.size(76.dp),
                             )
                         }
-                        
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = BuildConfig.ARCHITECTURE.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        Spacer(Modifier.height(18.dp))
+                        val wavlinName = stringResource(R.string.wavlin)
+                            .lowercase(Locale.getDefault())
+                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                        Text(
+                            text = wavlinName,
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Black,
+                            color = cs.onSurface,
+                            letterSpacing = (-0.5).sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            InfoChip(BuildConfig.VERSION_NAME, cs.primary.copy(alpha = 0.14f), cs.primary)
+                            InfoChip(
+                                BuildConfig.ARCHITECTURE.uppercase(),
+                                cs.secondaryContainer.copy(alpha = 0.7f),
+                                cs.onSecondaryContainer,
                             )
-                        }
-
-                        if (BuildConfig.DEBUG) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = "DEBUG",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                            if (BuildConfig.DEBUG) {
+                                InfoChip("DEBUG", cs.tertiaryContainer.copy(alpha = 0.7f), cs.onTertiaryContainer)
                             }
                         }
                     }
@@ -324,116 +373,154 @@ fun AboutScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Lead Developer Hero Card
-        ElevatedCard(
-            shape = RoundedCornerShape(32.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
+        // Lead developer: gradient banner with the avatar overlapping its bottom edge
+        Staggered(1) {
+            ElevatedCard(
+                shape = RoundedCornerShape(36.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    var leadClickCount by remember(leadDeveloper.name) { mutableIntStateOf(0) }
-            
-                    ContributorAvatar(
-                        avatarUrl = leadDeveloper.avatarUrl,
-                        avatarRes = leadDeveloper.avatarRes,
-                        sizeDp = 110,
-                        shape = leadDeveloper.polygon?.toShape() ?: CircleShape,
-                        contentDescription = leadDeveloper.name,
-                        onClick = {
-                            handleEasterEggClick(
-                                clickCount = leadClickCount,
-                                favoriteSongVideoId = leadDeveloper.favoriteSongVideoId,
-                                coroutineScope = coroutineScope,
-                                snackbarHostState = snackbarHostState,
-                                playerConnection = playerConnection,
-                                wannaPlayStr = wannaPlayStr,
-                                yeahStr = yeahStr,
-                                onCountUpdate = { leadClickCount = it }
-                            )
-                        }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(cs.primary.copy(alpha = 0.55f), cs.tertiary.copy(alpha = 0.5f)),
+                                ),
+                            ),
                     )
-
                     Column(
-                        verticalArrangement = Arrangement.Center
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 46.dp, bottom = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        var leadClickCount by remember(leadDeveloper.name) { mutableIntStateOf(0) }
+                        ContributorAvatar(
+                            avatarUrl = leadDeveloper.avatarUrl,
+                            avatarRes = leadDeveloper.avatarRes,
+                            sizeDp = 112,
+                            shape = leadDeveloper.polygon?.toShape() ?: CircleShape,
+                            contentDescription = leadDeveloper.name,
+                            border = BorderStroke(4.dp, cs.surfaceContainerLow),
+                            onClick = {
+                                handleEasterEggClick(
+                                    clickCount = leadClickCount,
+                                    favoriteSongVideoId = leadDeveloper.favoriteSongVideoId,
+                                    coroutineScope = coroutineScope,
+                                    snackbarHostState = snackbarHostState,
+                                    playerConnection = playerConnection,
+                                    wannaPlayStr = wannaPlayStr,
+                                    yeahStr = yeahStr,
+                                    onCountUpdate = { leadClickCount = it },
+                                )
+                            },
+                        )
+                        Spacer(Modifier.height(14.dp))
                         Text(
                             text = leadDeveloper.name,
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 38.sp,
-                            letterSpacing = (-0.5).sp
+                            color = cs.onSurface,
+                            letterSpacing = (-0.5).sp,
                         )
                         Text(
                             text = stringResource(R.string.credits_lead_developer),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
+                            color = cs.primary,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                        Spacer(Modifier.height(20.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            SocialCircle(R.drawable.language) { uriHandler.openUri("https://wavlin.cc") }
+                            SocialCircle(R.drawable.github) { uriHandler.openUri(leadDeveloper.githubUrl) }
+                            SocialCircle(R.drawable.instagram) { uriHandler.openUri("https://www.instagram.com/mostafaalagamy") }
+                        }
+                        Spacer(Modifier.height(18.dp))
+                        Button(
+                            onClick = { uriHandler.openUri("https://ko-fi.com/zenkaidev") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .height(54.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = cs.primary,
+                                contentColor = cs.onPrimary,
+                            ),
+                        ) {
+                            Icon(painterResource(R.drawable.buymeacoffee), contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(stringResource(R.string.buy_mo_a_coffee), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                        }
                     }
-                }
-                
-                Spacer(Modifier.height(24.dp))
-                
-                DeveloperSocials(uriHandler)
-                
-                Spacer(Modifier.height(16.dp))
-                
-                Button(
-                    onClick = { uriHandler.openUri("https://ko-fi.com/zenkaidev") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Icon(painterResource(R.drawable.buymeacoffee), contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.buy_mo_a_coffee), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
                 }
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(28.dp))
 
-        // Community & Info using standard Group
-        Material3SettingsGroup(
-            title = stringResource(R.string.community_and_info),
-            items = communityLinks.map { link ->
-                Material3SettingsItem(
-                    icon = painterResource(link.iconRes),
-                    title = { Text(stringResource(link.labelRes), fontWeight = FontWeight.SemiBold) },
-                    description = if (link.labelRes == R.string.credits_license_name) {
-                        { Text(stringResource(R.string.credits_license_desc)) }
-                    } else null,
-                    onClick = { uriHandler.openUri(link.url) }
+        // Community & info as link tiles instead of a settings list
+        Staggered(2) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.community_and_info).uppercase(Locale.getDefault()),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 10.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LinkTile(
+                        iconRes = R.drawable.telegram,
+                        title = stringResource(R.string.credits_telegram),
+                        tint = Color(0xFF2AABEE),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { uriHandler.openUri(communityLinks[0].url) },
+                    )
+                    LinkTile(
+                        iconRes = R.drawable.github,
+                        title = stringResource(R.string.credits_view_repo),
+                        tint = Color(0xFF24292F),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { uriHandler.openUri(communityLinks[1].url) },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                LinkTile(
+                    iconRes = R.drawable.info,
+                    title = stringResource(R.string.credits_license_name),
+                    description = stringResource(R.string.credits_license_desc),
+                    tint = Color(0xFF2EAD5B),
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { uriHandler.openUri(communityLinks[2].url) },
                 )
             }
-        )
+        }
 
-        Spacer(Modifier.height(48.dp))
-        
+        Spacer(Modifier.height(40.dp))
+
         Text(
             text = stringResource(R.string.stands_with_palestine),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = cs.onSurfaceVariant,
         )
-        
+
         Spacer(Modifier.height(48.dp))
     }
 
+    // The bar follows the theme animation instead of animating its own container color (see ThemeScreen).
+    val pinkBar = LocalPinkLilyTheme.current
     TopAppBar(
-        colors = pinkTopBarColors(),
+        modifier = Modifier.background(if (pinkBar) Color.Transparent else MaterialTheme.colorScheme.surface),
+        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+        ),
         title = { Text(stringResource(R.string.about)) },
         navigationIcon = {
             IconButton(
@@ -445,7 +532,7 @@ fun AboutScreen(
                     contentDescription = stringResource(R.string.cd_back),
                 )
             }
-        }
+        },
     )
 
     Box(Modifier.fillMaxSize()) {
@@ -453,7 +540,7 @@ fun AboutScreen(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)),
         )
     }
 }

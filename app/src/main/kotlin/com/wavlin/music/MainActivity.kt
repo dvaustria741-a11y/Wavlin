@@ -182,6 +182,8 @@ import com.wavlin.music.playback.MusicService
 import com.wavlin.music.playback.MusicService.MusicBinder
 import com.wavlin.music.playback.PlayerConnection
 import com.wavlin.music.playback.queues.YouTubeQueue
+import com.wavlin.music.ui.component.AccountDrawerContent
+import com.wavlin.music.ui.component.AccountDrawerHost
 import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LilyDiscBox
@@ -1048,6 +1050,23 @@ class MainActivity : ComponentActivity() {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
                     }
 
+                    AccountDrawerHost(
+                        open = showAccountDialog,
+                        onDismiss = {
+                            showAccountDialog = false
+                            homeViewModel.refresh()
+                        },
+                        drawer = {
+                            AccountDrawerContent(
+                                navController = navController,
+                                onClose = {
+                                    showAccountDialog = false
+                                    homeViewModel.refresh()
+                                },
+                                latestVersionName = latestVersionName,
+                            )
+                        },
+                    ) {
                     Scaffold(
                         containerColor = if (pinkWallpaper) Color.Transparent else MaterialTheme.colorScheme.background,
                         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1506,6 +1525,7 @@ class MainActivity : ComponentActivity() {
                         com.wavlin.music.ui.component.GlassOverlayHost(glassOverlayHost)
                         }
                     }
+                    }
 
                     BottomSheetMenu(
                         state = LocalMenuState.current,
@@ -1516,18 +1536,6 @@ class MainActivity : ComponentActivity() {
                         state = LocalBottomSheetPageState.current,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
-
-                    if (showAccountDialog) {
-                        val dismissAccount = {
-                            showAccountDialog = false
-                            homeViewModel.refresh()
-                        }
-                        // Small glass popover anchored top-right, in every theme (Secret Pink only tints it).
-                        com.wavlin.music.ui.component.AppleGlassAccountOverlay(
-                            onDismiss = dismissAccount,
-                            latestVersionName = latestVersionName,
-                        )
-                    }
 
                     sharedSong?.let { song ->
                         playerConnection?.let {

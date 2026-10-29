@@ -144,6 +144,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         /** Default curve = the user's own "Custom" preset in the system Dolby (percent per band). */
         private val DEFAULT_GEQ_PERCENT = floatArrayOf(45f, 64f, 28f, -36f, -27f, -45f, -19f, -36f, -55f, -72f)
 
+        /**
+         * Speaker profile (used when the sound goes out of the phone's own speaker). Phone speakers can't reproduce
+         * deep bass, so the headphone bass boost only wastes headroom and causes rattle/distortion. Instead the lows are
+         * removed and the range the speaker is good at (1-4 kHz) is lifted: cleaner AND louder on the device speaker.
+         */
+        private val SPEAKER_GEQ_DB = floatArrayOf(0f, 0f, -2f, 0f, 1f, 2.5f, 3.5f, 2f, -1f, -3f)
+        private const val SPEAKER_HPF_HZ = 140.0
+        private const val SPEAKER_EXTRA_GAIN_DB = 1.5
+
         /** Headroom for the EQ boost so the limiter isn't constantly working. */
         private const val GEQ_HEADROOM_DB = -2.0
 
@@ -272,6 +281,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     @Volatile private var geqGainsDb = FloatArray(GEQ_FREQS.size) { DEFAULT_GEQ_PERCENT[it] * GEQ_DB_PER_100_PERCENT / 100f }
     @Volatile private var geqVersion = 0
     private var appliedGeqVersion = -1
+    @Volatile private var speakerMode = false
+    private var appliedSpeaker = false
+    private val hpfL = Biquad()
+    private val hpfR = Biquad()
 
     // ── Multiband ────────────────────────────────────────────────────────────
     private val lp1L = Biquad(); private val lp1R = Biquad() // low split
@@ -296,6 +309,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var eqCounter = 0
     private var regScale = 1f
     private val masterGain = 10.0.pow(MASTER_GAIN_DB / 20.0).toFloat()
+    private val speakerExtra = 10.0.pow(SPEAKER_EXTRA_GAIN_DB / 20.0).toFloat()
 
     // ── Look-ahead limiter ───────────────────────────────────────────────────
     private var laBufL = FloatArray(1)
@@ -319,7 +333,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     // ── Public API (DolbyAtmosManager) ───────────────────────────────────────
 
     /** @param volume system music volume 0..1 (drives the audio regulator). */
-    fun setParameters(enabled: Boolean, dialogueLevel: Int, stereoLevel: Int, volume: Float = 0.5f, immersive: Boolean = false) {
+    fun setParameters(
+        enabled: Boolean,
+        dialogueLevel: Int,
+        stereoLevel: Int,
+        volume: Float = 0.5f,
+        immersive: Boolean = false,
+        speaker: Boolean = false,
+    ) {
+        this.speakerMode = speaker
         this.immersiveMode = immersive
         this.dialogueLevel = dialogueLevel.coerceIn(0, 3)
         this.stereoLevel = stereoLevel.coerceIn(0, 3)
@@ -343,7 +365,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             bytesPerSample == 0 || channelCount != 2 ->
                 "Not applied: unsupported audio format (${channelCount}ch)"
             !enabled -> "Bypassed (Dolby off)"
-            else -> "Active · ${sampleRate / 1000.0} kHz · ${if (isFloat) "32-bit float" else "16-bit"}"
+            else -> "Active · ${if (appliedSpeaker) "speaker" else "earphone"} profile · ${sampleRate / 1000.0} kHz · ${if (isFloat) "32-bit float" else "16-bit"}"
         }
     }
 
@@ -389,6 +411,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         apR1 = Allpass(((DIFF_AP_MS_1 * 1.13 / 1000.0) * sr).toInt().coerceAtLeast(4))
         apR2 = Allpass(((DIFF_AP_MS_2 * 1.19 / 1000.0) * sr).toInt().coerceAtLeast(4))
         appliedGeqVersion = -1 // rebuild graphic EQ for the new sample rate
+        applyHighPass(SPEAKER_HPF_HZ, hpfL, hpfR)
         applyLowpass(XOVER_LOW_HZ, lp1L, lp1R)
         applyLowpass(XOVER_HIGH_HZ, lp2L, lp2R)
 
@@ -445,7 +468,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         regScale = 1f - REG_VOLUME_TIGHTEN * systemVolume
         immGain = min((IMM_BASE + IMM_PER_LEVEL * stereoLevel) * (if (imm) IMM_MODE_MULT else 1f), IMM_GAIN_CAP)
         if (dLevel != appliedDialogue) updateDialogueFilter(dLevel)
-        if (geqVersion != appliedGeqVersion) updateGraphicEq()
+        val spk = speakerMode
+        if (geqVersion != appliedGeqVersion || spk != appliedSpeaker) updateGraphicEq()
 
         val frames = remaining / (bytesPerSample * 2)
         if (isFloat) {
@@ -577,6 +601,10 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // Graphic equalizer (10 bands).
         var tl = (m + s) * outGain
         var tr = (m - s) * outGain
+        if (appliedSpeaker) {
+            tl = hpfL.process(tl)
+            tr = hpfR.process(tr)
+        }
         for (i in geqL.indices) {
             tl = geqL[i].process(tl)
             tr = geqR[i].process(tr)
@@ -586,8 +614,9 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         processBands(tl, tr)
 
         // Volume maximizer: master gain → look-ahead limiter → soft clip.
-        val xl = bandOutL * masterGain
-        val xr = bandOutR * masterGain
+        val mg = if (appliedSpeaker) masterGain * speakerExtra else masterGain
+        val xl = bandOutL * mg
+        val xr = bandOutR * mg
         val pk = max(abs(xl), abs(xr))
         val tg = if (pk > LIM_CEIL) LIM_CEIL / pk else 1f
         limGain += (tg - limGain) * (if (tg < limGain) limAtk else limRel)
@@ -717,6 +746,18 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         targets.forEach { it.set(nb0, nb1, nb0, na1, na2) }
     }
 
+    private fun applyHighPass(hz: Double, vararg targets: Biquad) {
+        val w0 = 2.0 * PI * hz / sampleRate
+        val cosW = cos(w0)
+        val alpha = sin(w0) / (2.0 * BUTTERWORTH_Q)
+        val a0 = 1.0 + alpha
+        val nb0 = ((1.0 + cosW) / 2.0 / a0).toFloat()
+        val nb1 = (-(1.0 + cosW) / a0).toFloat()
+        val na1 = ((-2.0 * cosW) / a0).toFloat()
+        val na2 = ((1.0 - alpha) / a0).toFloat()
+        targets.forEach { it.set(nb0, nb1, nb0, na1, na2) }
+    }
+
     private fun applyPeaking(hz: Double, gainDb: Double, q: Double, vararg targets: Biquad) {
         val a = 10.0.pow(gainDb / 40.0)
         val w0 = 2.0 * PI * hz / sampleRate
@@ -747,7 +788,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
     private fun updateGraphicEq() {
         appliedGeqVersion = geqVersion
-        val gains = geqGainsDb
+        appliedSpeaker = speakerMode
+        val gains = if (appliedSpeaker) SPEAKER_GEQ_DB else geqGainsDb
         for (i in GEQ_FREQS.indices) {
             applyPeaking(GEQ_FREQS[i], gains[i].toDouble(), GEQ_Q, geqL[i], geqR[i])
         }
@@ -803,6 +845,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f
         sideShelf.reset(); midShelf.reset()
+        hpfL.reset(); hpfR.reset()
         geqL.forEach { it.reset() }
         geqR.forEach { it.reset() }
         lp1L.reset(); lp1R.reset(); lp2L.reset(); lp2R.reset()

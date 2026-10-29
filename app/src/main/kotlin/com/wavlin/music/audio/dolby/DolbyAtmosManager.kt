@@ -265,6 +265,7 @@ object DolbyAtmosManager {
             stereoLevel = effectiveStereoLevel(),
             volume = volumeFraction,
             immersive = _immersiveMode.value,
+            speaker = !_isHeadphoneRoute.value,
         )
     }
 

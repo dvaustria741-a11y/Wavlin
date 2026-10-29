@@ -81,7 +81,7 @@ import com.wavlin.music.constants.PureBlackMiniPlayerKey
 import com.wavlin.music.constants.SecretPinkThemeUnlockedKey
 import com.wavlin.music.constants.SelectedThemeColorKey
 import com.wavlin.music.ui.component.TextFieldDialog
-import com.wavlin.music.ui.component.pinkTopBarColors
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.theme.DefaultThemeColor
 import com.wavlin.music.ui.theme.SecretPinkThemeColor
 import com.wavlin.music.ui.theme.WavlinTheme
@@ -146,8 +146,14 @@ fun ThemeScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        val pinkBar = LocalPinkLilyTheme.current
+        val barBackground = if (pinkBar) Color.Transparent else MaterialTheme.colorScheme.surface
         TopAppBar(
-            colors = pinkTopBarColors(),
+            modifier = Modifier.background(barBackground),
+            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent,
+            ),
             title = { Text(stringResource(R.string.theme_colors)) },
             navigationIcon = {
                 IconButton(onClick = { navController.navigateUp() }) {

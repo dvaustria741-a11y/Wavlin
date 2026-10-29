@@ -243,8 +243,8 @@ fun AppNavigationBar(
  * as an equal item, instead of the full-width Material 3 navigation bar.
  */
 /**
- * Shared state for the gliding tab pill: the pill follows the tap immediately and the real navigation starts a
- * moment later, so the heavy screen composition cannot swallow the first frames of the glide.
+ * Shared state for the gliding tab pill: the pill and the page transition start on the same frame and use the same
+ * spring stiffness, so the page glides together with the pill.
  */
 @Stable
 private class TabGlide(
@@ -279,7 +279,6 @@ private fun rememberTabGlide(foundIndex: Int): TabGlide {
             pendingIndex = index
             navJob?.cancel()
             navJob = scope.launch {
-                delay(170)
                 navigate()
                 delay(800)
                 pendingIndex = null

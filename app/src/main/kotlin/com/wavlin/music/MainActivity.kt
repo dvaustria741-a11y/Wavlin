@@ -240,6 +240,14 @@ import java.util.Locale
 import javax.inject.Inject
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+/** Same stiffness as the tab pill's glide, so the page and the pill travel together. */
+private val TabSlideSpec =
+    androidx.compose.animation.core.spring<androidx.compose.ui.unit.IntOffset>(
+        dampingRatio = 1f,
+        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+        visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold,
+    )
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     companion object {
@@ -1106,15 +1114,21 @@ class MainActivity : ComponentActivity() {
                                     }
                                     TopAppBar(
                                         title = {
-                                            if (pinkWallpaper) {
-                                                com.wavlin.music.ui.component.ScriptTitle(
-                                                    text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                    style = if (appleStyle) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
-                                                )
+                                            androidx.compose.animation.Crossfade(
+                                                targetState = currentTitleRes,
+                                                animationSpec = androidx.compose.animation.core.tween(220),
+                                                label = "topBarTitle",
+                                            ) { titleRes ->
+                                                if (pinkWallpaper) {
+                                                    com.wavlin.music.ui.component.ScriptTitle(
+                                                        text = titleRes?.let { stringResource(it) } ?: "",
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = titleRes?.let { stringResource(it) } ?: "",
+                                                        style = if (appleStyle) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                                                    )
+                                                }
                                             }
                                         },
                                         actions = {
@@ -1431,9 +1445,9 @@ class MainActivity : ComponentActivity() {
                                             // Tab to tab: the new tab glides in from the side of the tab that was tapped.
                                             val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
                                             slideInHorizontally(
-                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                TabSlideSpec,
                                             ) { dir * it } +
-                                                fadeIn(tween(260, delayMillis = 40))
+                                                fadeIn(tween(220))
                                         } else if (currentRouteIndex == -1 || currentRouteIndex > previousRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
@@ -1447,9 +1461,9 @@ class MainActivity : ComponentActivity() {
                                         if (currentRouteIndex != -1 && targetRouteIndex != -1) {
                                             val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
                                             slideOutHorizontally(
-                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                TabSlideSpec,
                                             ) { -dir * it } +
-                                                fadeOut(tween(240))
+                                                fadeOut(tween(200))
                                         } else if (targetRouteIndex == -1 || targetRouteIndex > currentRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {
@@ -1463,9 +1477,9 @@ class MainActivity : ComponentActivity() {
                                         if (currentRouteIndex != -1 && previousRouteIndex != -1) {
                                             val dir = if (currentRouteIndex > previousRouteIndex) 1 else -1
                                             slideInHorizontally(
-                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                TabSlideSpec,
                                             ) { dir * it } +
-                                                fadeIn(tween(260, delayMillis = 40))
+                                                fadeIn(tween(220))
                                         } else if (previousRouteIndex != -1 && previousRouteIndex < currentRouteIndex) {
                                             slideInHorizontally { it / 8 } + fadeIn(tween(200))
                                         } else {
@@ -1479,9 +1493,9 @@ class MainActivity : ComponentActivity() {
                                         if (currentRouteIndex != -1 && targetRouteIndex != -1) {
                                             val dir = if (targetRouteIndex > currentRouteIndex) 1 else -1
                                             slideOutHorizontally(
-                                                tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                TabSlideSpec,
                                             ) { -dir * it } +
-                                                fadeOut(tween(240))
+                                                fadeOut(tween(200))
                                         } else if (currentRouteIndex != -1 && currentRouteIndex < targetRouteIndex) {
                                             slideOutHorizontally { -it / 8 } + fadeOut(tween(200))
                                         } else {

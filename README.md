@@ -43,13 +43,19 @@
 
 <h1><a id="screenshots"></a>Screenshots</h1>
 
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Discover - Home screen" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Beautiful player - Now Playing" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Live lyrics - Player lyrics" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Your sound - Player options" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Better library - Library" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Always in reach - Mini-player and tab bar" width="24%" />
-<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_7.png" alt="Make it yours - Theme and colors" width="24%" />
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Discover - Home screen" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Beautiful player - Now Playing" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Live lyrics - Player lyrics" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Your sound - Player options" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Better library - Library" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Always in reach - Mini-player and tab bar" width="80%" />
+
+<img src="https://github.com/dvaustria741-a11y/Wavlin/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_7.png" alt="Make it yours - Theme and colors" width="80%" />
 
 </div>
 

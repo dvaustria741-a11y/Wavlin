@@ -1059,9 +1059,7 @@ fun PlayerQueueButton(
             )
         } else {
             val baseTint =
-                if (pinkGlass) {
-                    com.wavlin.music.ui.theme.PinkInk
-                } else if (isActive) {
+                if (isActive) {
                     iconButtonColor
                 } else {
                     when (playerBackground) {

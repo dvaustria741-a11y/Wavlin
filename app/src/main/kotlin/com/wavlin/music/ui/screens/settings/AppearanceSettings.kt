@@ -105,7 +105,6 @@ import com.wavlin.music.constants.SwipeSensitivityKey
 import com.wavlin.music.constants.SwipeThumbnailKey
 import com.wavlin.music.constants.SwipeToRemoveSongKey
 import com.wavlin.music.constants.SwipeToSongKey
-import com.wavlin.music.constants.UseNewMiniPlayerDesignKey
 import com.wavlin.music.constants.UseNewPlayerDesignKey
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.EnumDialog
@@ -172,11 +171,6 @@ fun AppearanceSettings(
 
     var showMiniPlayerBackgroundDialog by rememberSaveable { mutableStateOf(false) }
 
-    val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) =
-        rememberPreference(
-            UseNewMiniPlayerDesignKey,
-            defaultValue = true,
-        )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) =
         rememberPreference(
             HidePlayerThumbnailKey,
@@ -1115,64 +1109,20 @@ fun AppearanceSettings(
                 buildList {
                     add(
                         Material3SettingsItem(
-                            icon = painterResource(R.drawable.nav_bar),
-                            title = { Text(stringResource(R.string.new_mini_player_design)) },
-                            trailingContent = {
-                                Switch(
-                                    checked = useNewMiniPlayerDesign,
-                                    onCheckedChange = onUseNewMiniPlayerDesignChange,
-                                    thumbContent = {
-                                        Icon(
-                                            painter =
-                                                painterResource(
-                                                    id = if (useNewMiniPlayerDesign) R.drawable.check else R.drawable.close,
-                                                ),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(SwitchDefaults.IconSize),
-                                        )
+                            icon = painterResource(R.drawable.gradient),
+                            title = { Text(stringResource(R.string.mini_player_background_style)) },
+                            description = {
+                                Text(
+                                    when (miniPlayerBackground) {
+                                        MiniPlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
+                                        MiniPlayerBackgroundStyle.TRANSPARENT -> stringResource(R.string.transparent)
+                                        MiniPlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+                                        MiniPlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
+                                        MiniPlayerBackgroundStyle.PURE_BLACK -> stringResource(R.string.pure_black)
                                     },
                                 )
                             },
-                            onClick = { onUseNewMiniPlayerDesignChange(!useNewMiniPlayerDesign) },
-                        ),
-                    )
-                    add(
-                        Material3SettingsItem(
-                            icon = painterResource(R.drawable.gradient),
-                            title = {
-                                Text(
-                                    text = stringResource(R.string.mini_player_background_style),
-                                    color =
-                                        if (!useNewMiniPlayerDesign) {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                )
-                            },
-                            description = {
-                                Text(
-                                    text =
-                                        if (!useNewMiniPlayerDesign) {
-                                            stringResource(R.string.mini_player_background_not_available)
-                                        } else {
-                                            when (miniPlayerBackground) {
-                                                MiniPlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                                                MiniPlayerBackgroundStyle.TRANSPARENT -> stringResource(R.string.transparent)
-                                                MiniPlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                                                MiniPlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                                                MiniPlayerBackgroundStyle.PURE_BLACK -> stringResource(R.string.pure_black)
-                                            }
-                                        },
-                                    color =
-                                        if (!useNewMiniPlayerDesign) {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                )
-                            },
-                            onClick = { if (useNewMiniPlayerDesign) showMiniPlayerBackgroundDialog = true },
+                            onClick = { showMiniPlayerBackgroundDialog = true },
                         ),
                     )
                 },

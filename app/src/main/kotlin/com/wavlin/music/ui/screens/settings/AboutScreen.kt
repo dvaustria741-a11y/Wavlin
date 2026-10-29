@@ -123,7 +123,7 @@ private val leadDeveloper = Contributor(
     githubHandle = "dvaustria741-a11y",
     avatarRes = R.drawable.dev_zenkai,
     polygon = MaterialShapes.Cookie9Sided,
-    favoriteSongVideoId = "Mh2JWGWvy_Y"
+    favoriteSongVideoId = "Lk3UlEyIW84"
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

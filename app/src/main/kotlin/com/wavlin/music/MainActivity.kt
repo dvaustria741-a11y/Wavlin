@@ -173,7 +173,6 @@ import com.wavlin.music.constants.SlimNavBarHeight
 import com.wavlin.music.constants.SlimNavBarKey
 import com.wavlin.music.constants.StopMusicOnTaskClearKey
 import com.wavlin.music.constants.UpdateNotificationsEnabledKey
-import com.wavlin.music.constants.UseNewMiniPlayerDesignKey
 import com.wavlin.music.db.MusicDatabase
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.db.entities.SearchHistory
@@ -745,7 +744,6 @@ class MainActivity : ComponentActivity() {
                     navigationItems.mapIndexed { i, s -> s.route to i }.toMap()
                 }
                 val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
-                val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                 val (defaultOpenTabInt) = rememberPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME.name)
                 val defaultOpenTab = remember(defaultOpenTabInt) {
                     try {
@@ -842,7 +840,7 @@ class MainActivity : ComponentActivity() {
                         collapsedBound =
                             bottomInset +
                                 (if (!showRail && shouldShowNavigationBar) navPadding else 0.dp) +
-                                (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
+                                MiniPlayerBottomSpacing +
                                 MiniPlayerHeight,
                         expandedBound = maxHeight,
                     )
@@ -1322,7 +1320,7 @@ class MainActivity : ComponentActivity() {
                                                     val progress = playerBottomSheetState.progress
                                                     alpha =
                                                         if (progress > 0f ||
-                                                            (useNewMiniPlayerDesign && !shouldShowNavigationBar)
+                                                            !shouldShowNavigationBar
                                                         ) {
                                                             0f
                                                         } else {
@@ -1352,7 +1350,7 @@ class MainActivity : ComponentActivity() {
                                             .graphicsLayer {
                                                 val progress = playerBottomSheetState.progress
                                                 alpha =
-                                                    if (progress > 0f || (useNewMiniPlayerDesign && !shouldShowNavigationBar)) 0f else 1f
+                                                    if (progress > 0f || !shouldShowNavigationBar) 0f else 1f
                                             }.background(baseBg),
                                 )
                             }

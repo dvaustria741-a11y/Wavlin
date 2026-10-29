@@ -368,42 +368,9 @@ fun ListenTogetherSettings(
 
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             IntegrationCard(
-                title = stringResource(R.string.settings),
+                title = "Profile",
                 items =
                     listOf(
-                        IntegrationCardItem(
-                            icon = painterResource(R.drawable.person),
-                            title = { Text(stringResource(R.string.listen_together_blocked_users)) },
-                            description = {
-                                Text(
-                                    if (blockedUsernames.isNotEmpty()) {
-                                        stringResource(R.string.listen_together_blocked_users_count, blockedUsernames.size)
-                                    } else {
-                                        stringResource(R.string.listen_together_no_blocked_users)
-                                    },
-                                )
-                            },
-                            onClick =
-                                if (blockedUsernames.isNotEmpty()) {
-                                    { showBlockedUsersDialog = true }
-                                } else {
-                                    null
-                                },
-                        ),
-                        IntegrationCardItem(
-                            icon = painterResource(R.drawable.cloud),
-                            title = { Text(stringResource(R.string.listen_together_server_url)) },
-                            description = {
-                                Text(
-                                    selectedServer?.let { server ->
-                                        "${server.name} - ${server.location}"
-                                    } ?: serverUrl,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            onClick = { showServerUrlDialog = true },
-                        ),
                         IntegrationCardItem(
                             icon = painterResource(R.drawable.person),
                             title = { Text(stringResource(R.string.listen_together_username)) },
@@ -424,6 +391,57 @@ fun ListenTogetherSettings(
                                     }
                                 },
                         ),
+                        IntegrationCardItem(
+                            icon = painterResource(R.drawable.person),
+                            title = { Text(stringResource(R.string.listen_together_blocked_users)) },
+                            description = {
+                                Text(
+                                    if (blockedUsernames.isNotEmpty()) {
+                                        stringResource(R.string.listen_together_blocked_users_count, blockedUsernames.size)
+                                    } else {
+                                        stringResource(R.string.listen_together_no_blocked_users)
+                                    },
+                                )
+                            },
+                            onClick =
+                                if (blockedUsernames.isNotEmpty()) {
+                                    { showBlockedUsersDialog = true }
+                                } else {
+                                    null
+                                },
+                        ),
+                    ),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            IntegrationCard(
+                title = "Server",
+                items =
+                    listOf(
+                        IntegrationCardItem(
+                            icon = painterResource(R.drawable.cloud),
+                            title = { Text(stringResource(R.string.listen_together_server_url)) },
+                            description = {
+                                Text(
+                                    selectedServer?.let { server ->
+                                        "${server.name} - ${server.location}"
+                                    } ?: serverUrl,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            onClick = { showServerUrlDialog = true },
+                        ),
+                    ),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            IntegrationCard(
+                title = "Room controls",
+                items =
+                    listOf(
                         IntegrationCardItem(
                             icon = painterResource(R.drawable.done),
                             title = { Text(stringResource(R.string.listen_together_auto_approval_joins)) },
@@ -502,6 +520,15 @@ fun ListenTogetherSettings(
                             },
                             onClick = { syncHostVolume = !syncHostVolume },
                         ),
+                    ),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            IntegrationCard(
+                title = "Troubleshooting",
+                items =
+                    listOf(
                         IntegrationCardItem(
                             icon = painterResource(R.drawable.bug_report),
                             title = { Text(stringResource(R.string.listen_together_view_logs)) },

@@ -228,30 +228,35 @@ fun SpotifyPlaylistPreviewDialog(
                 }
 
                 Spacer(Modifier.height(8.dp))
-                Row(
+                val doImport = { download: Boolean ->
+                    onImport(
+                        name.trim(),
+                        matches.mapNotNull { (index, state) -> (state as? MatchState.Found)?.let { index to it.song } }.toMap(),
+                        download,
+                    )
+                    onDismiss()
+                }
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(4.dp))
-                    val doImport = { download: Boolean ->
-                        onImport(
-                            name.trim(),
-                            matches.mapNotNull { (index, state) -> (state as? MatchState.Found)?.let { index to it.song } }.toMap(),
-                            download,
-                        )
-                        onDismiss()
-                    }
-                    OutlinedButton(
-                        enabled = name.isNotBlank(),
-                        onClick = { doImport(false) },
-                    ) { Text(if (done < total) "Import ($found)" else "Import", maxLines = 1) }
-                    Spacer(Modifier.width(8.dp))
                     Button(
                         enabled = name.isNotBlank(),
                         onClick = { doImport(true) },
+                        modifier = Modifier.fillMaxWidth(),
                     ) { Text("Import & download", maxLines = 1) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                        OutlinedButton(
+                            enabled = name.isNotBlank(),
+                            onClick = { doImport(false) },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(if (done < total) "Import ($found)" else "Import", maxLines = 1) }
+                    }
                 }
             }
         }

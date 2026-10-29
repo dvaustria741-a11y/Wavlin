@@ -88,7 +88,8 @@ fun BoxScope.SpotifyImportButton(onClick: () -> Unit) {
                         .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                 ).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 84.dp),
     ) {
-        Image(
+        // Original import artwork, drawn as a tinted Icon so it follows the theme like the + button.
+        Icon(
             painter = painterResource(R.drawable.ic_spotify_import),
             contentDescription = null,
             modifier = Modifier.size(30.dp),

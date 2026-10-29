@@ -245,7 +245,7 @@ private val TabSlideSpec =
     androidx.compose.animation.core.spring<androidx.compose.ui.unit.IntOffset>(
         dampingRatio = 1f,
         stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-        visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold,
+        visibilityThreshold = androidx.compose.ui.unit.IntOffset(1, 1),
     )
 
 @AndroidEntryPoint

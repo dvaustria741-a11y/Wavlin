@@ -70,10 +70,6 @@ import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import com.wavlin.music.ui.component.FilledIconButton
-import com.wavlin.music.ui.component.PinkNowPlayingHeader
-import com.wavlin.music.ui.component.PinkSliderThumb
-import com.wavlin.music.ui.component.PinkSliderTrack
-import com.wavlin.music.ui.component.LocalPinkNowPlaying
 import com.wavlin.music.ui.theme.PinkInk
 import com.wavlin.music.ui.theme.playball
 import androidx.compose.material3.Icon
@@ -247,7 +243,7 @@ fun BottomSheetPlayer(
             UseNewPlayerDesignKey,
             defaultValue = true,
         )
-    val appleMusicPlayer = LocalInterfaceAppleMusic.current && !LocalPinkNowPlaying.current
+    val appleMusicPlayer = LocalInterfaceAppleMusic.current
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val (hideStatusBarOnFullscreen) = rememberPreference(HideStatusBarOnFullscreenKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
@@ -531,14 +527,10 @@ fun BottomSheetPlayer(
 
     val TextBackgroundColor by animateColorAsState(
         targetValue =
-            if (LocalPinkNowPlaying.current) {
-                PinkInk
-            } else {
-                when (playerBackground) {
-                    PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
-                    PlayerBackgroundStyle.BLUR -> Color.White
-                    PlayerBackgroundStyle.GRADIENT -> Color.White
-                }
+            when (playerBackground) {
+                PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
+                PlayerBackgroundStyle.BLUR -> Color.White
+                PlayerBackgroundStyle.GRADIENT -> Color.White
             },
         label = "TextBackgroundColor",
     )
@@ -820,29 +812,6 @@ fun BottomSheetPlayer(
                         .then(if (playerGlassBackdrop != null) Modifier.layerBackdrop(playerGlassBackdrop) else Modifier)
                         .background(bottomSheetBackgroundColor),
             ) {
-                if (LocalPinkNowPlaying.current) {
-                    // Secret Pink: watercolor wallpaper with lily corners.
-                    Image(
-                        painter = painterResource(R.drawable.lily_player_bg),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.lily_player_top),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.TopCenter,
-                        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.lily_player_bottom),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.BottomCenter,
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-                    )
-                } else
                 when (playerBackground) {
                     PlayerBackgroundStyle.BLUR -> {
                         AnimatedContent(
@@ -1031,16 +1000,11 @@ fun BottomSheetPlayer(
                     ) { title ->
                         Text(
                             text = title,
-                            style =
-                                if (LocalPinkNowPlaying.current) {
-                                    MaterialTheme.typography.titleLarge.copy(fontFamily = playball, fontSize = 32.sp)
-                                } else {
-                                    MaterialTheme.typography.titleLarge
-                                },
-                            fontWeight = if (LocalPinkNowPlaying.current) FontWeight.Normal else FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = if (LocalPinkNowPlaying.current) PinkInk else TextBackgroundColor,
+                            color = TextBackgroundColor,
                             modifier =
                                 Modifier
                                     .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
@@ -1080,7 +1044,7 @@ fun BottomSheetPlayer(
                                     mediaMetadata.artists.forEachIndexed { index, artist ->
                                         val tag = "artist_${artist.id.orEmpty()}"
                                         pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
-                                        withStyle(SpanStyle(color = if (LocalPinkNowPlaying.current) Color(0xFFB03A6A) else TextBackgroundColor, fontSize = 16.sp)) {
+                                        withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
                                             append(artist.name)
                                         }
                                         pop()
@@ -1387,7 +1351,7 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            when (if (LocalPinkNowPlaying.current || appleMusicPlayer) SliderStyle.SLIM else sliderStyle) {
+            when (if (appleMusicPlayer) SliderStyle.SLIM else sliderStyle) {
                 SliderStyle.DEFAULT -> {
                     Slider(
                         value = (sliderPosition ?: effectivePosition).toFloat(),
@@ -1499,26 +1463,22 @@ fun BottomSheetPlayer(
                         },
                         enabled = !isListenTogetherGuest,
                         thumb = {
-                            if (LocalPinkNowPlaying.current) PinkSliderThumb() else Spacer(modifier = Modifier.size(0.dp))
+                            Spacer(modifier = Modifier.size(0.dp))
                         },
                         track = { sliderState ->
-                            if (LocalPinkNowPlaying.current) {
-                                PinkSliderTrack(sliderState = sliderState)
-                            } else {
-                                PlayerSliderTrack(
-                                    sliderState = sliderState,
-                                    colors =
-                                        if (appleMusicPlayer) {
-                                            SliderDefaults.colors(
-                                                activeTrackColor = TextBackgroundColor,
-                                                inactiveTrackColor = TextBackgroundColor.copy(alpha = 0.25f),
-                                            )
-                                        } else {
-                                            PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
-                                        },
-                                    trackHeight = if (appleMusicPlayer) appleTrackHeight else 10.dp,
-                                )
-                            }
+                            PlayerSliderTrack(
+                                sliderState = sliderState,
+                                colors =
+                                    if (appleMusicPlayer) {
+                                        SliderDefaults.colors(
+                                            activeTrackColor = TextBackgroundColor,
+                                            inactiveTrackColor = TextBackgroundColor.copy(alpha = 0.25f),
+                                        )
+                                    } else {
+                                        PlayerSliderColors.getSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                    },
+                                trackHeight = if (appleMusicPlayer) appleTrackHeight else 10.dp,
+                            )
                         },
                         modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
                     )
@@ -2074,20 +2034,6 @@ fun BottomSheetPlayer(
                             .padding(bottom = bottomPadding)
                             .animateContentSize(),
                 ) {
-                    if (LocalPinkNowPlaying.current && !showInlineLyrics) {
-                        val pinkQueueTitle by playerConnection.queueTitle.collectAsState()
-                        Box(modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))) {
-                            PinkNowPlayingHeader(queueTitle = pinkQueueTitle)
-                            mediaMetadata?.let { md ->
-                                PlayerMoreDotsButton(
-                                    mediaMetadata = md,
-                                    state = state,
-                                    tint = com.wavlin.music.ui.theme.PinkInk,
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 8.dp),
-                                )
-                            }
-                        }
-                    }
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
@@ -2419,7 +2365,7 @@ private fun PlayerChip(
     enabled: Boolean = true,
 ) {
     val contentColor = if (isActive) iconButtonColor else textColor
-    if (LocalInterfaceAppleMusic.current && !LocalPinkNowPlaying.current) {
+    if (LocalInterfaceAppleMusic.current) {
         // Apple Music: icon-only round buttons instead of labelled chips.
         Box(
             contentAlignment = Alignment.Center,

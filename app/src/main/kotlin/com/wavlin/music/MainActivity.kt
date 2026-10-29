@@ -163,8 +163,6 @@ import com.wavlin.music.constants.NavigationBarHeight
 import com.wavlin.music.constants.PauseSearchHistoryKey
 import com.wavlin.music.constants.PreferredLyricsProvider
 import com.wavlin.music.constants.PreferredLyricsProviderKey
-import com.wavlin.music.constants.PinkNowPlayingModifiedKey
-import com.wavlin.music.constants.ShowIntroKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.SYSTEM_DEFAULT
 import com.wavlin.music.constants.SelectedThemeColorKey
@@ -188,9 +186,6 @@ import com.wavlin.music.ui.component.AppNavigationBar
 import com.wavlin.music.ui.component.LocalHazeState
 import com.wavlin.music.ui.component.LilyDiscBox
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
-import com.wavlin.music.ui.component.IntroState
-import com.wavlin.music.ui.component.WavlinIntro
-import com.wavlin.music.ui.component.LocalPinkNowPlaying
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.wavlin.music.ui.component.AppNavigationRail
@@ -707,8 +702,6 @@ class MainActivity : ComponentActivity() {
                         .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface),
             ) {
                 val pinkWallpaper = selectedThemeColorInt == SecretPinkThemeColor.toArgb() && !useDarkTheme
-                val (pinkNowPlayingModified, _) = rememberPreference(PinkNowPlayingModifiedKey, defaultValue = true)
-                var showIntro by remember { mutableStateOf(!IntroState.shown && dataStore.get(ShowIntroKey, true)) }
                 val density = LocalDensity.current
                 val configuration = LocalWindowInfo.current
                 val cutoutInsets = WindowInsets.displayCutout
@@ -1050,7 +1043,6 @@ class MainActivity : ComponentActivity() {
                     LocalHazeState provides hazeState,
                     LocalPinkLilyTheme provides pinkWallpaper,
                     com.wavlin.music.ui.component.LocalCropAlbumArt provides cropAlbumArtPref,
-                    LocalPinkNowPlaying provides (pinkWallpaper && pinkNowPlayingModified),
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
@@ -1513,16 +1505,6 @@ class MainActivity : ComponentActivity() {
                         }
                         com.wavlin.music.ui.component.GlassOverlayHost(glassOverlayHost)
                         }
-                    }
-
-                    if (showIntro) {
-                        WavlinIntro(
-                            pink = pinkWallpaper,
-                            onFinished = {
-                                IntroState.shown = true
-                                showIntro = false
-                            },
-                        )
                     }
 
                     BottomSheetMenu(

@@ -479,8 +479,6 @@ private fun ThumbnailHeader(
     modifier: Modifier = Modifier,
     action: (@Composable BoxScope.() -> Unit)? = null,
 ) {
-    // Secret Pink draws its own "Now Playing" header above the player.
-    if (com.wavlin.music.ui.component.LocalPinkNowPlaying.current) return
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = RoomRole.NONE)
     val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
@@ -599,20 +597,19 @@ private fun ThumbnailItem(
             },
         contentAlignment = Alignment.Center
     ) {
-        val pinkFrame = com.wavlin.music.ui.component.LocalPinkNowPlaying.current
         androidx.compose.foundation.layout.BoxWithConstraints(
             modifier = Modifier,
             contentAlignment = Alignment.Center,
         ) {
-        val side = if (pinkFrame) minOf(dimensions.thumbnailSize, maxWidth, maxHeight) else dimensions.thumbnailSize
+        val side = dimensions.thumbnailSize
         Box(
             modifier = Modifier.size(side),
             contentAlignment = Alignment.Center,
         ) {
         Box(
             modifier = Modifier
-                .size(if (pinkFrame) side * 0.9f else side)
-                .clip(RoundedCornerShape(if (pinkFrame) 18.dp else if (com.wavlin.music.ui.component.LocalInterfaceAppleMusic.current) 14.dp else dimensions.cornerRadius))
+                .size(side)
+                .clip(RoundedCornerShape(if (com.wavlin.music.ui.component.LocalInterfaceAppleMusic.current) 14.dp else dimensions.cornerRadius))
         ) {
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
@@ -642,15 +639,6 @@ private fun ThumbnailItem(
                     .align(Alignment.TopEnd)
                     .padding(8.dp),
                 tintColor = textBackgroundColor
-            )
-        }
-        if (pinkFrame) {
-            // Secret Pink: glass frame drawn over the artwork.
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(R.drawable.lily_cover_frame),
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
-                modifier = Modifier.matchParentSize(),
             )
         }
         }

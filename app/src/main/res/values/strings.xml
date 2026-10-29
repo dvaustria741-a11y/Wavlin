@@ -349,12 +349,6 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
-    <string name="pink_now_playing_style">Now Playing style</string>
-    <string name="pink_now_playing_default">Default</string>
-    <string name="pink_now_playing_modified">Modified</string>
-    <string name="intro_welcome_to">Welcome to</string>
-    <string name="intro_show_animation">Launch intro animation</string>
-    <string name="intro_show_animation_desc">Play the welcome animation when the app starts</string>
     <string name="app_icon">App icon</string>
     <string name="app_icon_desc">Choose the icon Wavlin shows on your home screen and app drawer</string>
     <string name="app_icon_default">Default</string>

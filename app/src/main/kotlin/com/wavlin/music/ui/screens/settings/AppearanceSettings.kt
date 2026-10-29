@@ -205,7 +205,6 @@ fun AppearanceSettings(
             defaultValue = LyricsPosition.CENTER,
         )
     val (lyricsClick, onLyricsClickChange) = rememberPreference(LyricsClickKey, defaultValue = true)
-    val (showIntro, onShowIntroChange) = rememberPreference(com.wavlin.music.constants.ShowIntroKey, defaultValue = true)
     val (lyricsScroll, onLyricsScrollChange) =
         rememberPreference(
             LyricsScrollKey,
@@ -1005,17 +1004,6 @@ fun AppearanceSettings(
                                 )
                             },
                             onClick = { onEnableHighRefreshRateChange(!enableHighRefreshRate) },
-                        ),
-                    )
-                    add(
-                        Material3SettingsItem(
-                            icon = painterResource(R.drawable.speed),
-                            title = { Text(stringResource(R.string.intro_show_animation)) },
-                            description = { Text(stringResource(R.string.intro_show_animation_desc)) },
-                            trailingContent = {
-                                Switch(checked = showIntro, onCheckedChange = onShowIntroChange)
-                            },
-                            onClick = { onShowIntroChange(!showIntro) },
                         ),
                     )
                     add(

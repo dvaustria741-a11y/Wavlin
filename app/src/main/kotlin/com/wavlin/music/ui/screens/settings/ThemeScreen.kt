@@ -74,7 +74,6 @@ import com.materialkolor.rememberDynamicColorScheme
 import com.wavlin.music.R
 import com.wavlin.music.constants.DarkModeKey
 import com.wavlin.music.constants.DynamicThemeKey
-import com.wavlin.music.constants.PinkNowPlayingModifiedKey
 import com.wavlin.music.constants.PreviousDarkModeBeforeSecretPinkKey
 import com.wavlin.music.constants.PureBlackKey
 import com.wavlin.music.constants.PureBlackMiniPlayerKey
@@ -201,28 +200,6 @@ fun ThemeScreen(
                     onDarkModeChange = onDarkModeChange,
                     onSelectedThemeColorChange = handleColorSelection
                 )
-            }
-
-            AnimatedVisibility(
-                visible = selectedThemeColor == SecretPinkThemeColor,
-                enter = fadeIn(tween(250)) + expandVertically(),
-                exit = fadeOut(tween(150)) + shrinkVertically()
-            ) {
-                var pinkNowPlayingModified by rememberPreference(PinkNowPlayingModifiedKey, defaultValue = true)
-                ThemeSection(title = stringResource(R.string.pink_now_playing_style)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FilterChip(
-                            selected = !pinkNowPlayingModified,
-                            onClick = { pinkNowPlayingModified = false },
-                            label = { Text(stringResource(R.string.pink_now_playing_default)) }
-                        )
-                        FilterChip(
-                            selected = pinkNowPlayingModified,
-                            onClick = { pinkNowPlayingModified = true },
-                            label = { Text(stringResource(R.string.pink_now_playing_modified)) }
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(140.dp))

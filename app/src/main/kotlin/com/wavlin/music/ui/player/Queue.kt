@@ -1153,14 +1153,8 @@ fun PlayerQueueButton(
 
     val alphaFactor = if (enabled) 1f else 0.35f
 
-    val pinkGlass = com.wavlin.music.ui.component.LocalPinkNowPlaying.current
     val appliedModifier =
-        if (pinkGlass) {
-            modifier
-                .then(Modifier.pinkGlassPanel(RoundedCornerShape(16.dp)))
-                .then(Modifier.clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, onClick = onClick))
-                .alpha(alphaFactor)
-        } else if (isActive) {
+        if (isActive) {
             modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
         } else {
             modifier

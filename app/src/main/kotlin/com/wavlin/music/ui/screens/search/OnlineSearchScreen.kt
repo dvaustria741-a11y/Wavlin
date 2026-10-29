@@ -407,9 +407,7 @@ fun OnlineSearchScreen(
                                 onDismiss()
                                 navController.navigate("new_release")
                             },
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            accent = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f),
                         )
                         CategoryCard(
@@ -419,9 +417,7 @@ fun OnlineSearchScreen(
                                 onDismiss()
                                 navController.navigate("charts_screen")
                             },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            accent = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -437,9 +433,7 @@ fun OnlineSearchScreen(
                                 onDismiss()
                                 navController.navigate("mood_and_genres")
                             },
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                            iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            accent = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.weight(1f),
                         )
                         CategoryCard(
@@ -449,9 +443,7 @@ fun OnlineSearchScreen(
                                 onDismiss()
                                 navController.navigate("podcasts_hub")
                             },
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            iconContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            iconTint = MaterialTheme.colorScheme.primary,
+                            accent = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary, 0.5f),
                             modifier = Modifier.weight(1f),
                         )
                     }

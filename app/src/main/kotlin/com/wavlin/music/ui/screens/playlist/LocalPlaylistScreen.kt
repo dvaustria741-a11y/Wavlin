@@ -848,9 +848,8 @@ fun LocalPlaylistScreen(
             headerItems = 2,
         )
 
-        val heroButtonModifier =
-            if (overlayTop) Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)) else Modifier
-        val heroIconTint = if (overlayTop) Color.White else LocalContentColor.current
+        val heroButtonModifier = heroTopButtonModifier(overlayTop)
+        val heroIconTint = heroTopIconTint(overlayTop)
         TopAppBar(
             modifier = if (overlayTop) Modifier else Modifier.hazeEffect(state = LocalHazeState.current, style = HazeMaterials.ultraThin()),
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -1269,11 +1268,11 @@ fun LocalPlaylistHeader(
         // Hero: full-bleed cover, half the screen, fading into the page with the title on top
         val heroBase =
             when {
-                LocalPinkLilyTheme.current -> MaterialTheme.colorScheme.background
+                LocalPinkLilyTheme.current -> heroFadeColor()
                 pureBlack -> Color.Black
                 else -> MaterialTheme.colorScheme.surfaceContainer
             }
-        val heroText = if (heroBase.luminance() > 0.5f) Color.Black else Color.White
+        val heroText = heroTitleColor(heroBase)
         Box(
             modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         ) {
@@ -1480,7 +1479,7 @@ fun LocalPlaylistHeader(
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + AppBarHeight)
-                        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent))),
+                        .background(Brush.verticalGradient(listOf(heroTopScrimColor(), Color.Transparent))),
             )
             Column(
                 modifier =

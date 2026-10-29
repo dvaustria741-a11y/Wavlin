@@ -5,6 +5,7 @@
 
 package com.wavlin.music.ui.screens.library
 
+import androidx.compose.foundation.Image
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,9 +88,10 @@ fun BoxScope.SpotifyImportButton(onClick: () -> Unit) {
                         .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                 ).padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 84.dp),
     ) {
-        Icon(
+        Image(
             painter = painterResource(R.drawable.ic_spotify_import),
             contentDescription = null,
+            modifier = Modifier.size(30.dp),
         )
     }
 }

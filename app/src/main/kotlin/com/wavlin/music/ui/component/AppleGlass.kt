@@ -52,6 +52,8 @@ fun Modifier.appleGlass(
     /** Dark/light tint laid over the glass. Big surfaces (dialogs) pass a higher value so text stays readable. */
     tintAlpha: Float? = null,
     backdrop: LayerBackdrop? = LocalGlassBackdrop.current,
+    /** The lens is an AGSL shader that runs on every pixel of the surface, so big surfaces (the menu sheet) turn it off. */
+    lensEnabled: Boolean = true,
 ): Modifier {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val pink = LocalPinkLilyTheme.current
@@ -74,7 +76,9 @@ fun Modifier.appleGlass(
                 saturation = if (pink) 1.05f else 1.5f,
             )
             blur(10f.dp.toPx())
-            lens(minOf(size.minDimension / 4f, 24.dp.toPx()), minOf(size.minDimension / 2f, 32.dp.toPx()), false)
+            if (lensEnabled) {
+                lens(minOf(size.minDimension / 4f, 24.dp.toPx()), minOf(size.minDimension / 2f, 32.dp.toPx()), false)
+            }
         },
         onDrawBackdrop = { drawBackdrop -> drawBackdrop() },
         onDrawSurface = {

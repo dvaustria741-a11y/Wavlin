@@ -228,6 +228,7 @@ fun AppleGlassMenuSheet(
                             if (LocalPinkLilyTheme.current) pinkLilyHazeStyle() else HazeMaterials.thin(),
                             tintAlpha = if (LocalPinkLilyTheme.current) 0.5f else 0.4f,
                             backdrop = backdrop,
+                            lensEnabled = false,
                         )
                         .then(
                             if (LocalPinkLilyTheme.current) {

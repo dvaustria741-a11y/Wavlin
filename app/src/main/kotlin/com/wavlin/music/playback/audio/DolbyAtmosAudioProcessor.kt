@@ -68,8 +68,11 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private val DIFF_COMB_R_MS = doubleArrayOf(31.3, 36.7, 42.7, 46.1)
         private const val DIFF_AP_MS_1 = 5.0
         private const val DIFF_AP_MS_2 = 1.7
-        private const val DIFF_FEEDBACK = 0.62f
-        private const val DIFF_DAMP = 0.45f
+        private const val DIFF_FEEDBACK = 0.74f   // longer, floatier tail ("dreamy")
+        private const val DIFF_DAMP = 0.55f       // softer, darker tail
+        private val DIFF_LFO_L_HZ = doubleArrayOf(0.11, 0.17, 0.23, 0.29)
+        private val DIFF_LFO_R_HZ = doubleArrayOf(0.13, 0.19, 0.27, 0.31)
+        private const val DIFF_LFO_DEPTH_S = 0.0012  // slow wobble of the delay lengths = gentle shimmer
         private const val DIFF_IN_SIDE = 0.5f
         private const val DIFF_IN_MID = 0.25f
         private const val DIFF_GAIN = 3.5f
@@ -404,8 +407,12 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         applyHighShelf(SIDE_SHELF_HZ, SIDE_SHELF_DB, sideShelf)
         applyHighShelf(MID_SHELF_HZ, MID_SHELF_DB, midShelf)
-        combsL = Array(DIFF_COMB_L_MS.size) { Comb(((DIFF_COMB_L_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8)) }
-        combsR = Array(DIFF_COMB_R_MS.size) { Comb(((DIFF_COMB_R_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8)) }
+        combsL = Array(DIFF_COMB_L_MS.size) {
+            Comb(((DIFF_COMB_L_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8), (DIFF_LFO_DEPTH_S * sr).toFloat(), DIFF_LFO_L_HZ[it], it * 1.3, sr)
+        }
+        combsR = Array(DIFF_COMB_R_MS.size) {
+            Comb(((DIFF_COMB_R_MS[it] / 1000.0) * sr).toInt().coerceAtLeast(8), (DIFF_LFO_DEPTH_S * sr).toFloat(), DIFF_LFO_R_HZ[it], 0.7 + it * 1.1, sr)
+        }
         apL1 = Allpass(((DIFF_AP_MS_1 / 1000.0) * sr).toInt().coerceAtLeast(4))
         apL2 = Allpass(((DIFF_AP_MS_2 / 1000.0) * sr).toInt().coerceAtLeast(4))
         apR1 = Allpass(((DIFF_AP_MS_1 * 1.13 / 1000.0) * sr).toInt().coerceAtLeast(4))
@@ -845,6 +852,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f
         sideShelf.reset(); midShelf.reset()
+        combsL.forEach { it.reset() }; combsR.forEach { it.reset() }
+        apL1.reset(); apL2.reset(); apR1.reset(); apR2.reset()
         hpfL.reset(); hpfR.reset()
         geqL.forEach { it.reset() }
         geqR.forEach { it.reset() }
@@ -864,19 +873,31 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         limGain = 1f
     }
 
-    /** Damped feedback comb filter (Freeverb style). */
-    private class Comb(size: Int) {
-        private val buf = FloatArray(size)
-        private var idx = 0
+    /** Damped feedback comb filter (Freeverb style) whose delay length wobbles slowly for a dreamy shimmer. */
+    private class Comb(private val delay: Int, private val depth: Float, rateHz: Double, startPhase: Double, sr: Double) {
+        private val buf = FloatArray(delay + depth.toInt() + 4)
+        private var w = 0
         private var store = 0f
+        private var phase = startPhase
+        private val inc = 2.0 * PI * rateHz / sr
 
         fun process(x: Float, feedback: Float, damp: Float): Float {
-            val out = buf[idx]
+            val d = delay + depth * sin(phase).toFloat()
+            phase += inc
+            if (phase > 2.0 * PI) phase -= 2.0 * PI
+            var pos = w - d
+            if (pos < 0f) pos += buf.size
+            val i0 = pos.toInt()
+            val frac = pos - i0
+            val i1 = if (i0 + 1 >= buf.size) 0 else i0 + 1
+            val out = buf[i0] + (buf[i1] - buf[i0]) * frac
             store = out * (1f - damp) + store * damp
-            buf[idx] = x + store * feedback
-            if (++idx >= buf.size) idx = 0
+            buf[w] = x + store * feedback
+            if (++w >= buf.size) w = 0
             return out
         }
+
+        fun reset() { buf.fill(0f); store = 0f }
     }
 
     private class Allpass(size: Int) {
@@ -890,6 +911,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             if (++idx >= buf.size) idx = 0
             return out
         }
+
+        fun reset() { buf.fill(0f); idx = 0 }
     }
 
     private class Biquad {

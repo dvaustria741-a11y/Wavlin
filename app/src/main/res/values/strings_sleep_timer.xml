@@ -5,4 +5,7 @@
     <string name="sleep_timer_custom_label" translatable="false">Minutes</string>
     <string name="sleep_timer_custom_range" translatable="false">%1$d to %2$d minutes</string>
     <string name="sleep_timer_start" translatable="false">Start</string>
+    <string name="sleep_timer_unit_h" translatable="false">h</string>
+    <string name="sleep_timer_stop" translatable="false">Stop timer</string>
+    <string name="sleep_timer_add_time" translatable="false">Add time</string>
 </resources>

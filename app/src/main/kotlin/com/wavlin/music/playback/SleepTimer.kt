@@ -106,6 +106,15 @@ class SleepTimer(
     }
 
     /**
+     * Pushes the end of a running countdown back by [minute] minutes. Does nothing when no countdown is
+     * running (e.g. "end of song" mode), because there is no clock to extend.
+     */
+    fun addMinutes(minute: Int) {
+        if (triggerTime == -1L || minute <= 0) return
+        triggerTime += minute.minutes.inWholeMilliseconds
+    }
+
+    /**
      * Notify the sleep timer that a song transition has occurred outside of normal
      * player callbacks (e.g. during crossfade player swap). If "end of song" mode
      * is active, this will pause the player and deactivate the timer.

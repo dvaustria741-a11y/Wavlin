@@ -79,6 +79,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.wavlin.music.R
+import com.wavlin.music.utils.makeTimeString
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.delay
@@ -91,6 +92,44 @@ private const val SLEEP_MAX = 1440
 private const val SLIDER_MIN = 5f
 private const val SLIDER_MAX = 120f
 private const val SLIDER_STEP = 5
+private val ADD_TIME_OPTIONS = listOf(5, 10, 15, 30, 60)
+
+/**
+ * Lets other screens (the player's more menu, the queue bar) ask the player to open the sleep timer card.
+ * The card itself lives in the player, so they just raise this flag and the player consumes it.
+ */
+object SleepTimerOverlayRequest {
+    var requested by androidx.compose.runtime.mutableStateOf(false)
+}
+
+/** Big readout: minutes below an hour, whole hours ("2 h"), or hours:minutes ("1:30 h") above. */
+private fun sleepReadout(
+    minutes: Int,
+    minUnit: String,
+    hourUnit: String,
+): Pair<String, String> =
+    when {
+        minutes < 60 -> minutes.toString() to minUnit
+        minutes % 60 == 0 -> (minutes / 60).toString() to hourUnit
+        else -> "%d:%02d".format(minutes / 60, minutes % 60) to hourUnit
+    }
+
+/** Short chip label: "45", "1 h", "1 h 30", "2 h". */
+private fun sleepChipLabel(
+    minutes: Int,
+    hourUnit: String,
+): String =
+    when {
+        minutes < 60 -> minutes.toString()
+        minutes % 60 == 0 -> "${minutes / 60} $hourUnit"
+        else -> "${minutes / 60} $hourUnit ${minutes % 60}"
+    }
+
+private fun addTimeLabel(
+    minutes: Int,
+    minUnit: String,
+    hourUnit: String,
+): String = if (minutes >= 60 && minutes % 60 == 0) "+${minutes / 60} $hourUnit" else "+$minutes $minUnit"
 
 /**
  * Sleep timer card, drawn in the main composition (not in a dialog window) so it can be real glass.
@@ -114,6 +153,13 @@ fun BoxScope.SleepTimerOverlay(
     onStart: () -> Unit,
     onDismiss: () -> Unit,
     backdrop: LayerBackdrop?,
+    // When a timer is already running the card shows what is left instead of the picker.
+    running: Boolean = false,
+    endOfSong: Boolean = false,
+    canAddTime: Boolean = false,
+    timeLeftMs: Long = 0L,
+    onStop: () -> Unit = {},
+    onAddMinutes: (Int) -> Unit = {},
 ) {
     BackHandler(enabled = visible, onBack = onDismiss)
     val apple = LocalInterfaceAppleMusic.current
@@ -212,18 +258,30 @@ fun BoxScope.SleepTimerOverlay(
                     onClick = {},
                 ),
         ) {
-            SleepTimerCardContent(
-                minutes = minutes,
-                onMinutesChange = onMinutesChange,
-                isAtDefault = isAtDefault,
-                onSetDefault = onSetDefault,
-                onEndOfSong = onEndOfSong,
-                onStart = onStart,
-                onDismiss = onDismiss,
-                apple = apple,
-                customOpen = customOpen,
-                onCustomOpenChange = { customOpen = it },
-            )
+            if (running) {
+                SleepTimerRunningContent(
+                    endOfSong = endOfSong,
+                    canAddTime = canAddTime,
+                    timeLeftMs = timeLeftMs,
+                    onStop = onStop,
+                    onAddMinutes = onAddMinutes,
+                    onDismiss = onDismiss,
+                    apple = apple,
+                )
+            } else {
+                SleepTimerCardContent(
+                    minutes = minutes,
+                    onMinutesChange = onMinutesChange,
+                    isAtDefault = isAtDefault,
+                    onSetDefault = onSetDefault,
+                    onEndOfSong = onEndOfSong,
+                    onStart = onStart,
+                    onDismiss = onDismiss,
+                    apple = apple,
+                    customOpen = customOpen,
+                    onCustomOpenChange = { customOpen = it },
+                )
+            }
         }
     }
     }
@@ -244,6 +302,8 @@ private fun SleepTimerCardContent(
     onCustomOpenChange: (Boolean) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val minUnit = stringResource(R.string.sleep_timer_unit_min)
+    val hourUnit = stringResource(R.string.sleep_timer_unit_h)
     var customText by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val customValid = customText.toIntOrNull()?.let { it in SLEEP_MIN..SLEEP_MAX } == true
@@ -297,15 +357,16 @@ private fun SleepTimerCardContent(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
             )
+            val (readoutValue, readoutUnit) = sleepReadout(minutes, minUnit, hourUnit)
             Text(
-                text = minutes.toString(),
+                text = readoutValue,
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = cs.primary,
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                text = stringResource(R.string.sleep_timer_unit_min),
+                text = readoutUnit,
                 style = MaterialTheme.typography.titleSmall,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(top = 10.dp),
@@ -318,7 +379,7 @@ private fun SleepTimerCardContent(
         ) {
             SLEEP_PRESETS.forEach { preset ->
                 SleepChip(
-                    label = preset.toString(),
+                    label = sleepChipLabel(preset, hourUnit),
                     selected = !customOpen && minutes == preset,
                     onClick = {
                         onCustomOpenChange(false)
@@ -456,6 +517,105 @@ private fun SleepTimerCardContent(
                 shape = RoundedCornerShape(24.dp),
             ) {
                 Text(stringResource(R.string.sleep_timer_start))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SleepTimerRunningContent(
+    endOfSong: Boolean,
+    canAddTime: Boolean,
+    timeLeftMs: Long,
+    onStop: () -> Unit,
+    onAddMinutes: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    apple: Boolean,
+) {
+    val cs = MaterialTheme.colorScheme
+    val minUnit = stringResource(R.string.sleep_timer_unit_min)
+    val hourUnit = stringResource(R.string.sleep_timer_unit_h)
+    Column(
+        modifier = Modifier
+            .animateContentSize(spring(dampingRatio = 0.9f, stiffness = 380f))
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(cs.primary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.bedtime),
+                    contentDescription = null,
+                    tint = cs.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            Text(
+                text = stringResource(R.string.sleep_timer),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            if (endOfSong) {
+                Text(
+                    text = stringResource(R.string.end_of_song),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.primary,
+                )
+            } else {
+                Text(
+                    text = makeTimeString(timeLeftMs.coerceAtLeast(0L)),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.primary,
+                    maxLines = 1,
+                )
+            }
+        }
+
+        if (canAddTime && !endOfSong) {
+            Text(
+                text = stringResource(R.string.sleep_timer_add_time),
+                style = MaterialTheme.typography.labelLarge,
+                color = cs.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ADD_TIME_OPTIONS.forEach { option ->
+                    SleepChip(
+                        label = addTimeLabel(option, minUnit, hourUnit),
+                        selected = false,
+                        onClick = { onAddMinutes(option) },
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
+            }
+            Button(
+                onClick = onStop,
+                modifier = Modifier.height(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = cs.error, contentColor = cs.onError),
+            ) {
+                Text(stringResource(R.string.sleep_timer_stop))
             }
         }
     }

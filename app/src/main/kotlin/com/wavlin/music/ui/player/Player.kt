@@ -696,6 +696,13 @@ fun BottomSheetPlayer(
     var showSleepTimerDialog by remember {
         mutableStateOf(false)
     }
+    // Other screens (the more menu, the queue bar) ask for the card through this flag.
+    LaunchedEffect(com.wavlin.music.ui.component.SleepTimerOverlayRequest.requested) {
+        if (com.wavlin.music.ui.component.SleepTimerOverlayRequest.requested) {
+            com.wavlin.music.ui.component.SleepTimerOverlayRequest.requested = false
+            showSleepTimerDialog = true
+        }
+    }
 
     val sleepTimerDefault by rememberPreference(SleepTimerDefaultKey, 30f)
     var sleepTimerValue by remember { mutableFloatStateOf(sleepTimerDefault) }
@@ -1300,13 +1307,7 @@ fun BottomSheetPlayer(
                     PlayerChip(
                         icon = R.drawable.bedtime,
                         label = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else stringResource(R.string.sleep_timer),
-                        onClick = {
-                            if (sleepTimerEnabled) {
-                                playerConnection.service.sleepTimer?.clear()
-                            } else {
-                                showSleepTimerDialog = true
-                            }
-                        },
+                        onClick = { showSleepTimerDialog = true },
                         isActive = sleepTimerEnabled,
                         enabled = !isListenTogetherGuest,
                         textButtonColor = textButtonColor,
@@ -2163,6 +2164,20 @@ fun BottomSheetPlayer(
             },
             onDismiss = { showSleepTimerDialog = false },
             backdrop = com.wavlin.music.ui.component.LocalPlayerGlassBackdrop.current,
+            running = sleepTimerEnabled,
+            endOfSong =
+                playerConnection.service.sleepTimer
+                    ?.let { it.pauseWhenSongEnd && it.triggerTime == -1L } == true,
+            canAddTime = (playerConnection.service.sleepTimer?.triggerTime ?: -1L) != -1L,
+            timeLeftMs = sleepTimerTimeLeft,
+            onStop = {
+                playerConnection.service.sleepTimer?.clear()
+                showSleepTimerDialog = false
+            },
+            onAddMinutes = { added ->
+                playerConnection.service.sleepTimer?.addMinutes(added)
+                sleepTimerTimeLeft += added * 60_000L
+            },
         )
 
     }

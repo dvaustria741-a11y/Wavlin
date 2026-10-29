@@ -152,9 +152,13 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
          * deep bass, so the headphone bass boost only wastes headroom and causes rattle/distortion. Instead the lows are
          * removed and the range the speaker is good at (1-4 kHz) is lifted: cleaner AND louder on the device speaker.
          */
-        private val SPEAKER_GEQ_DB = floatArrayOf(0f, 0f, -2f, 0f, 1f, 2.5f, 3.5f, 2f, -1f, -3f)
-        private const val SPEAKER_HPF_HZ = 140.0
-        private const val SPEAKER_EXTRA_GAIN_DB = 1.5
+        private val SPEAKER_GEQ_DB = floatArrayOf(0f, 0f, -2f, 0f, 2f, 4f, 5f, 3f, 0f, -2f)
+        private const val SPEAKER_HPF_HZ = 260.0
+        private const val SPEAKER_EXTRA_GAIN_DB = 4.5
+
+        /** On the phone speaker the limiter recovers faster: denser, louder sound where the speaker is the limit. */
+        private const val SPK_LIM_RELEASE_S = 0.12
+
 
         /** Headroom for the EQ boost so the limiter isn't constantly working. */
         private const val GEQ_HEADROOM_DB = -2.0
@@ -171,7 +175,8 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
          */
         private val LEVEL_TARGET = floatArrayOf(0.30f, 0.25f, 0.09f)
         private const val LEVEL_GAMMA = 0.7f       // 0 = off, 1 = fully flat
-        private const val LEVEL_G_MIN = 0.75f      // max cut  (~ -2.5 dB)
+        private const val LEVEL_G_MIN = 0.75f      // earphones: max cut (~ -2.5 dB) keeps the boost steady
+        private const val LEVEL_G_MIN_SPEAKER = 1.0f // speaker: no cut, loud songs keep the full boost
         private const val LEVEL_G_MAX = 2.8f       // max lift (~ +9 dB)
         private const val AGC_ATTACK_S = 4.0
         private const val AGC_RELEASE_S = 8.0
@@ -321,6 +326,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var limGain = 1f
     private var limAtk = 0.05f
     private var limRel = 0.0003f
+    private var limRelSpk = 0.0003f
 
     // ── Output / buffers ─────────────────────────────────────────────────────
     private var mix = 0f
@@ -440,6 +446,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         laIdx = 0
         limAtk = (1.0 - exp(-5.0 / laLen)).toFloat()
         limRel = (1.0 - exp(-1.0 / (LIM_RELEASE_S * sr))).toFloat()
+        limRelSpk = (1.0 - exp(-1.0 / (SPK_LIM_RELEASE_S * sr))).toFloat()
 
         clearState()
         return inputAudioFormat
@@ -626,7 +633,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         val xr = bandOutR * mg
         val pk = max(abs(xl), abs(xr))
         val tg = if (pk > LIM_CEIL) LIM_CEIL / pk else 1f
-        limGain += (tg - limGain) * (if (tg < limGain) limAtk else limRel)
+        limGain += (tg - limGain) * (if (tg < limGain) limAtk else (if (appliedSpeaker) limRelSpk else limRel))
         val dl = laBufL[laIdx]
         val dr = laBufR[laIdx]
         laBufL[laIdx] = xl
@@ -670,7 +677,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
             agcCounter = 0
             for (b in 0 until 3) {
                 agcGain[b] = (LEVEL_TARGET[b] / max(bandAgc[b], AGC_FLOOR)).pow(LEVEL_GAMMA)
-                    .coerceIn(LEVEL_G_MIN, LEVEL_G_MAX)
+                    .coerceIn(if (appliedSpeaker) LEVEL_G_MIN_SPEAKER else LEVEL_G_MIN, LEVEL_G_MAX)
             }
         }
 

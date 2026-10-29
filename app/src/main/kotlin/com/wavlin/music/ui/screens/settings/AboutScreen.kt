@@ -10,6 +10,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.runtime.LaunchedEffect
@@ -174,9 +176,35 @@ private fun ContributorAvatar(
     avatarRes: Int? = null,
     contentDescription: String? = null,
     border: BorderStroke? = null,
+    plain: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val fallback = painterResource(R.drawable.about_icon)
+    if (plain) {
+        // The artwork already has its own shape and transparent corners: draw it as is, no clip, background or ring.
+        AsyncImage(
+            model = avatarRes ?: avatarUrl,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Fit,
+            modifier = modifier
+                .size(sizeDp.dp)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClick,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
+            placeholder = fallback,
+            fallback = fallback,
+            error = fallback,
+        )
+        return
+    }
     Surface(
         onClick = onClick ?: {},
         enabled = onClick != null,
@@ -395,17 +423,16 @@ fun AboutScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 46.dp, bottom = 24.dp),
+                            .padding(top = 36.dp, bottom = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         var leadClickCount by remember(leadDeveloper.name) { mutableIntStateOf(0) }
                         ContributorAvatar(
                             avatarUrl = leadDeveloper.avatarUrl,
                             avatarRes = leadDeveloper.avatarRes,
-                            sizeDp = 112,
-                            shape = leadDeveloper.polygon?.toShape() ?: CircleShape,
+                            sizeDp = 128,
                             contentDescription = leadDeveloper.name,
-                            border = BorderStroke(4.dp, cs.surfaceContainerLow),
+                            plain = true,
                             onClick = {
                                 handleEasterEggClick(
                                     clickCount = leadClickCount,

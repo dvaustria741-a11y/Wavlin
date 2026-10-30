@@ -178,6 +178,7 @@ fun SharedPlaylistScreen(
                             onShuffle = { play(current.songs, shuffle = true) },
                             onPlay = { play(current.songs) },
                             onMenu = { showSaveDialog = true },
+                            menuIcon = R.drawable.playlist_add,
                         )
                     }
 

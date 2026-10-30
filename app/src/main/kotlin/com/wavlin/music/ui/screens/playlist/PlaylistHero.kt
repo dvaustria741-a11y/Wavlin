@@ -115,6 +115,7 @@ internal fun PlaylistHeroHeader(
     onPlay: () -> Unit,
     onMenu: () -> Unit,
     modifier: Modifier = Modifier,
+    menuIcon: Int = R.drawable.more_vert,
 ) {
     val covers =
         remember(coverUrls) {
@@ -224,7 +225,7 @@ internal fun PlaylistHeroHeader(
                 modifier = headerButtonSize(4).headerGlass(4),
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(R.drawable.more_vert), contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(painterResource(menuIcon), contentDescription = null, modifier = Modifier.size(20.dp))
                 }
             }
 

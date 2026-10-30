@@ -31,10 +31,24 @@ object DolbyAtmosV2Manager {
     private val DAP_PROXY_UUID: UUID = UUID.fromString("9d4921da-8225-4f29-aefa-39537a04bcaa")
     private val DAP_SW_UUID: UUID = UUID.fromString("6ab06da4-c516-4611-8166-452799218539")
 
-    private class DapEffect(
+    private val EFFECT_TYPE_NULL: UUID = UUID.fromString("ec7178ec-e5e1-4432-a3f4-4657e6795210")
+
+    /** The public SDK only exposes AudioEffect's no-arg constructor, so the UUID-based one is reached via reflection. */
+    private fun newDapEffect(
         uuid: UUID,
         session: Int,
-    ) : AudioEffect(AudioEffect.EFFECT_TYPE_NULL, uuid, 0, session)
+    ): AudioEffect {
+        val intType = Int::class.javaPrimitiveType!!
+        val ctor =
+            AudioEffect::class.java.getDeclaredConstructor(
+                UUID::class.java,
+                UUID::class.java,
+                intType,
+                intType,
+            )
+        ctor.isAccessible = true
+        return ctor.newInstance(EFFECT_TYPE_NULL, uuid, 0, session)
+    }
 
     private var prefs: SharedPreferences? = null
     private var effect: AudioEffect? = null
@@ -129,7 +143,7 @@ object DolbyAtmosV2Manager {
     private fun createEffect() {
         val uuid = findDapUuid() ?: return
         try {
-            val created = DapEffect(uuid, sessionId)
+            val created = newDapEffect(uuid, sessionId)
             if (created.setEnabled(true) != AudioEffect.SUCCESS) {
                 created.release()
                 Log.w(TAG, "Dolby DAP effect refused to enable on session $sessionId")

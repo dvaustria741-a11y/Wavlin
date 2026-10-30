@@ -91,6 +91,12 @@
     <string name="xiaomi_sound_unsupported">Not available on this device</string>
     <string name="xiaomi_sound_failed">Could not attach to Mi Sound</string>
     <string name="xiaomi_sound_open">Open Mi Sound settings</string>
+    <string name="dts_sound">DTS Sound</string>
+    <string name="dts_sound_active">Using the system DTS engine</string>
+    <string name="dts_sound_off">Disabled</string>
+    <string name="dts_sound_unsupported">Not available on this device</string>
+    <string name="dts_sound_failed">Could not attach to DTS</string>
+    <string name="dts_sound_open">Open DTS Sound settings</string>
     <string name="track_info">Track Info</string>
     <string name="add_playlist">Add Playlist</string>
     <string name="audio_eq">Audio EQ</string>

@@ -1,6 +1,7 @@
 package com.wavlin.music.ui.menu
 
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,8 @@ import com.wavlin.music.audio.dolby.DolbyAtmosManager
 import com.wavlin.music.audio.dolby.DolbyAtmosV2Manager
 import com.wavlin.music.audio.dolby.DolbyV2Availability
 import com.wavlin.music.audio.SystemEffectAvailability
+import com.wavlin.music.audio.SystemEffectController
+import com.wavlin.music.audio.dts.DtsSoundManager
 import com.wavlin.music.audio.xiaomi.XiaomiSoundManager
 import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
@@ -540,15 +543,52 @@ fun PlayerMenuDolbyV2Card() {
 
 @Composable
 fun PlayerMenuXiaomiSoundCard() {
+    SystemEffectCard(
+        controller = XiaomiSoundManager,
+        iconRes = R.drawable.graphic_eq,
+        titleRes = R.string.xiaomi_sound,
+        activeRes = R.string.xiaomi_sound_active,
+        offRes = R.string.xiaomi_sound_off,
+        unsupportedRes = R.string.xiaomi_sound_unsupported,
+        failedRes = R.string.xiaomi_sound_failed,
+        openRes = R.string.xiaomi_sound_open,
+    )
+}
+
+@Composable
+fun PlayerMenuDtsSoundCard() {
+    SystemEffectCard(
+        controller = DtsSoundManager,
+        iconRes = R.drawable.equalizer,
+        titleRes = R.string.dts_sound,
+        activeRes = R.string.dts_sound_active,
+        offRes = R.string.dts_sound_off,
+        unsupportedRes = R.string.dts_sound_unsupported,
+        failedRes = R.string.dts_sound_failed,
+        openRes = R.string.dts_sound_open,
+    )
+}
+
+@Composable
+private fun SystemEffectCard(
+    controller: SystemEffectController,
+    iconRes: Int,
+    @StringRes titleRes: Int,
+    @StringRes activeRes: Int,
+    @StringRes offRes: Int,
+    @StringRes unsupportedRes: Int,
+    @StringRes failedRes: Int,
+    @StringRes openRes: Int,
+) {
     val context = LocalContext.current
-    val enabled by XiaomiSoundManager.isEnabled.collectAsStateWithLifecycle()
-    val active by XiaomiSoundManager.isActive.collectAsStateWithLifecycle()
-    val availability by XiaomiSoundManager.availability.collectAsStateWithLifecycle()
-    val launchIntent = remember { XiaomiSoundManager.launchIntent(context) }
+    val enabled by controller.isEnabled.collectAsStateWithLifecycle()
+    val active by controller.isActive.collectAsStateWithLifecycle()
+    val availability by controller.availability.collectAsStateWithLifecycle()
+    val launchIntent = remember(controller) { controller.launchIntent(context) }
     val available = availability == SystemEffectAvailability.AVAILABLE
 
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { XiaomiSoundManager.refreshAvailability() }
+    LaunchedEffect(controller) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { controller.refreshAvailability() }
     }
 
     Column(
@@ -560,18 +600,18 @@ fun PlayerMenuXiaomiSoundCard() {
                 .padding(16.dp),
     ) {
         SettingSwitchRow(
-            iconRes = R.drawable.graphic_eq,
-            title = stringResource(R.string.xiaomi_sound),
+            iconRes = iconRes,
+            title = stringResource(titleRes),
             subtitle =
                 when {
-                    availability == SystemEffectAvailability.UNSUPPORTED -> stringResource(R.string.xiaomi_sound_unsupported)
-                    enabled && active -> stringResource(R.string.xiaomi_sound_active)
-                    enabled -> stringResource(R.string.xiaomi_sound_failed)
-                    else -> stringResource(R.string.xiaomi_sound_off)
+                    availability == SystemEffectAvailability.UNSUPPORTED -> stringResource(unsupportedRes)
+                    enabled && active -> stringResource(activeRes)
+                    enabled -> stringResource(failedRes)
+                    else -> stringResource(offRes)
                 },
             checked = enabled,
             enabled = available || enabled,
-            onCheckedChange = { XiaomiSoundManager.setEnabled(it) },
+            onCheckedChange = { controller.setEnabled(it) },
         )
         if (enabled && launchIntent != null) {
             Spacer(Modifier.height(10.dp))
@@ -597,7 +637,7 @@ fun PlayerMenuXiaomiSoundCard() {
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
-                    text = stringResource(R.string.xiaomi_sound_open),
+                    text = stringResource(openRes),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )

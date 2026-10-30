@@ -379,6 +379,7 @@ fun PlayerMenu(
                 PlayerMenuExpandedStereoCard()
                 PlayerMenuDolbyV2Card()
                 PlayerMenuXiaomiSoundCard()
+                PlayerMenuDtsSoundCard()
             }
         }
 

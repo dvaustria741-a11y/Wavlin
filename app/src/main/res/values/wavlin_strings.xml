@@ -1067,6 +1067,17 @@
     <string name="spotify_reload_page">Reload page</string>
     <string name="spotify_clear_session">Clear web session</string>
     <string name="spotify_session_cleared">Spotify web session cleared</string>
+    <string name="login_manual_entry_hint">Having trouble signing in? Enter your cookie manually</string>
+    <string name="login_manual_entry">Manual entry</string>
+    <string name="login_manual_title">Manual YouTube Music login</string>
+    <string name="login_manual_description">Paste the full Cookie header from music.youtube.com. It must include SAPISID and stays on this device.</string>
+    <string name="login_cookie_label">Cookie</string>
+    <string name="login_cookie_required">Please paste your YouTube Music cookie.</string>
+    <string name="login_cookie_invalid">This cookie has no SAPISID, so it is not a signed-in YouTube Music cookie.</string>
+    <string name="login_visitor_data_label">Visitor data (optional)</string>
+    <string name="login_datasync_id_label">DataSync ID (optional)</string>
+    <string name="login_manual_how_to_title">How to get your cookie</string>
+    <string name="login_manual_how_to_steps">1. Open music.youtube.com in a browser and sign in.\n2. Open the developer tools (F12 on a computer) and go to the Network tab.\n3. Refresh the page and click any request to music.youtube.com.\n4. Copy the whole value of the \"cookie\" request header.</string>
     <string name="spotify_manual_entry_hint">Having trouble signing in? Enter the sp_dc token manually</string>
     <string name="spotify_manual_entry">Manual entry</string>
     <string name="spotify_manual_title">Manual Spotify login</string>

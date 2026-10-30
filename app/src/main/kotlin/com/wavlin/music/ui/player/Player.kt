@@ -1267,7 +1267,18 @@ fun BottomSheetPlayer(
                         Modifier
                             .fillMaxWidth()
                             .let { if (appleMusicPlayer) it else it.horizontalScroll(rememberScrollState()) }
-                            .padding(horizontal = PlayerHorizontalPadding),
+                            .padding(horizontal = PlayerHorizontalPadding)
+                            .let {
+                                // Apple Music: the actions share one translucent capsule instead of six loose discs.
+                                if (appleMusicPlayer) {
+                                    it
+                                        .clip(CircleShape)
+                                        .background(TextBackgroundColor.copy(alpha = 0.10f))
+                                        .padding(horizontal = 6.dp, vertical = 5.dp)
+                                } else {
+                                    it
+                                }
+                            },
                 ) {
                     PlayerChip(
                         icon = if (download?.state == Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download,
@@ -2381,21 +2392,46 @@ private fun PlayerChip(
 ) {
     val contentColor = if (isActive) iconButtonColor else textColor
     if (LocalInterfaceAppleMusic.current) {
-        // Apple Music: icon-only round buttons instead of labelled chips.
+        // Apple Music: icon-only buttons. Inactive ones sit flat inside the shared capsule; the active one lights up.
+        val interactionSource = remember { MutableInteractionSource() }
+        val pressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (pressed) 0.86f else 1f,
+            animationSpec = spring(dampingRatio = 0.55f, stiffness = 700f),
+            label = "playerChipScale",
+        )
+        val background by animateColorAsState(
+            targetValue = if (isActive) textButtonColor else Color.Transparent,
+            animationSpec = tween(220),
+            label = "playerChipBackground",
+        )
+        val tint by animateColorAsState(
+            targetValue = if (isActive) iconButtonColor else textColor.copy(alpha = 0.92f),
+            animationSpec = tween(220),
+            label = "playerChipTint",
+        )
         Box(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
                     .size(44.dp)
-                    .alpha(if (enabled) 1f else 0.4f)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }.alpha(if (enabled) 1f else 0.4f)
                     .clip(CircleShape)
-                    .background(if (isActive) textButtonColor else textColor.copy(alpha = 0.12f))
-                    .clickable(enabled = enabled, onClick = onClick),
+                    .background(background)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        enabled = enabled,
+                        onClick = onClick,
+                    ),
         ) {
             Icon(
                 painter = painterResource(icon),
                 contentDescription = label,
-                tint = contentColor,
+                tint = tint,
                 modifier = Modifier.size(22.dp),
             )
         }

@@ -50,7 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
@@ -64,6 +66,7 @@ import com.wavlin.music.db.entities.PlaylistSong
 import com.wavlin.music.extensions.move
 import com.wavlin.music.ui.component.ItemThumbnail
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.artworkShape
 import com.wavlin.music.ui.player.queueGlass
 import dev.chrisbanes.haze.HazeState
@@ -137,8 +140,18 @@ fun PlaylistEditPage(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(if (pureBlack) Color.Black else colors.background)
-                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { },
+                .then(
+                    if (LocalPinkLilyTheme.current) {
+                        // Secret Pink draws its gingham wallpaper instead of a flat fill.
+                        Modifier.paint(
+                            painter = painterResource(R.drawable.bg_pink_gingham),
+                            sizeToIntrinsics = false,
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Modifier.background(if (pureBlack) Color.Black else colors.background)
+                    },
+                ).clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { },
     ) {
         val bottomInset = LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
         val bottomPadding = with(LocalDensity.current) { bottomInset.getBottom(this).toDp() }

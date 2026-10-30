@@ -23,6 +23,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.systemBars
+import com.wavlin.music.ui.menu.PlayerMenuQuickActions
+import com.wavlin.music.ui.menu.PlayerQuickAction
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -276,54 +281,53 @@ fun ColumnScope.PlaylistShareSheet(
         ownerName = ownerName,
         modifier =
             Modifier
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .padding(horizontal = 4.dp, vertical = 4.dp)
                 .drawWithContent {
                     cardLayer.record { this@drawWithContent.drawContent() }
                     drawLayer(cardLayer)
                 },
     )
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-    ) {
-        ShareTarget(
-            iconRes = R.drawable.link,
-            label = stringResource(R.string.copy_link),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            onClick = {
-                share { text ->
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText(playlist.playlist.name, text))
-                    Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
-                }
-            },
-        )
-        ShareTarget(
-            iconRes = R.drawable.share_chat,
-            label = stringResource(R.string.share_via_whatsapp),
-            containerColor = Color(0xFF25D366),
-            contentColor = Color.White,
-            onClick = { share { sendTo(context, it, WHATSAPP_PACKAGE) } },
-        )
-        ShareTarget(
-            iconRes = R.drawable.share_chat,
-            label = stringResource(R.string.share_via_sms),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            onClick = { share { openSms(context, it) } },
-        )
-        ShareTarget(
-            iconRes = R.drawable.more_horiz,
-            label = stringResource(R.string.share_more),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            onClick = { share { sendTo(context, it, targetPackage = null) } },
+    Spacer(Modifier.height(12.dp))
+
+    val circle = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+        PlayerMenuQuickActions(
+            listOf(
+                PlayerQuickAction(
+                    iconRes = R.drawable.link,
+                    label = stringResource(R.string.copy_link),
+                    circleColor = circle,
+                    onClick = {
+                        share { text ->
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText(playlist.playlist.name, text))
+                            Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                ),
+                PlayerQuickAction(
+                    iconRes = R.drawable.share_chat,
+                    label = stringResource(R.string.share_via_whatsapp),
+                    circleColor = Color(0xFF25D366).copy(alpha = 0.35f),
+                    onClick = { share { sendTo(context, it, WHATSAPP_PACKAGE) } },
+                ),
+                PlayerQuickAction(
+                    iconRes = R.drawable.share_chat,
+                    label = stringResource(R.string.share_via_sms),
+                    circleColor = circle,
+                    onClick = { share { openSms(context, it) } },
+                ),
+                PlayerQuickAction(
+                    iconRes = R.drawable.more_horiz,
+                    label = stringResource(R.string.share_more),
+                    circleColor = circle,
+                    onClick = { share { sendTo(context, it, targetPackage = null) } },
+                ),
+            ),
         )
     }
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()))
 }
 
 @Composable
@@ -453,34 +457,6 @@ private fun CoverMosaic(
                     }
                 }
         }
-    }
-}
-
-@Composable
-private fun ShareTarget(
-    iconRes: Int,
-    label: String,
-    containerColor: Color,
-    onClick: () -> Unit,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(64.dp).clip(CircleShape).background(containerColor),
-        ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(text = label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
 

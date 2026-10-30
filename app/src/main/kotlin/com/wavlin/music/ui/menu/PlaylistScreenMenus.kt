@@ -11,6 +11,13 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -74,81 +81,76 @@ fun LocalPlaylistMenu(
 
     val (showExportDialog, setShowExportDialog) = remember { mutableStateOf(false) }
 
-    val downloadMenuItem =
-        when (downloadState) {
-            Download.STATE_COMPLETED -> {
-                Material3MenuItemData(
-                    title = { Text(stringResource(R.string.remove_download)) },
-                    description = { Text(stringResource(R.string.remove_download_playlist_desc)) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.offline),
-                            contentDescription = null,
-                        )
-                    },
-                    onClick = {
-                        onDownload()
-                        onDismiss()
-                    },
-                )
-            }
-
-            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                Material3MenuItemData(
-                    title = { Text(stringResource(R.string.downloading)) },
-                    description = { Text(stringResource(R.string.download_in_progress_desc)) },
-                    icon = {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    },
-                    onClick = {
-                        onDownload()
-                        onDismiss()
-                    },
-                )
-            }
-
-            else -> {
-                Material3MenuItemData(
-                    title = { Text(stringResource(R.string.action_download)) },
-                    description = { Text(stringResource(R.string.download_playlist_desc)) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.download),
-                            contentDescription = null,
-                        )
-                    },
-                    onClick = {
-                        onDownload()
-                        onDismiss()
-                    },
-                )
-            }
-        }
-
     val isYouTubePlaylist = playlist.playlist.browseId != null
 
-    val menuItems =
+    val circle = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val shareLabel = stringResource(R.string.share)
+    val quickActions =
         buildList {
             add(
-                Material3MenuItemData(
-                    title = { Text(stringResource(R.string.edit)) },
-                    description = { Text(stringResource(R.string.edit_playlist)) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.edit),
-                            contentDescription = null,
-                        )
-                    },
+                PlayerQuickAction(
+                    iconRes = R.drawable.edit,
+                    label = stringResource(R.string.edit),
+                    circleColor = circle,
                     onClick = {
                         onEdit()
                         onDismiss()
                     },
                 ),
             )
+            if (!isGuest) {
+                add(
+                    PlayerQuickAction(
+                        iconRes = R.drawable.queue_music,
+                        label = stringResource(R.string.add_to_queue),
+                        circleColor = circle,
+                        onClick = {
+                            onQueue()
+                            onDismiss()
+                        },
+                    ),
+                )
+            }
+            add(
+                PlayerQuickAction(
+                    iconRes = if (downloadState == Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download,
+                    label =
+                        stringResource(
+                            when (downloadState) {
+                                Download.STATE_COMPLETED -> R.string.remove_download
+                                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> R.string.downloading
+                                else -> R.string.action_download
+                            },
+                        ),
+                    circleColor = circle,
+                    onClick = {
+                        onDownload()
+                        onDismiss()
+                    },
+                ),
+            )
+            add(
+                PlayerQuickAction(
+                    iconRes = R.drawable.share,
+                    label = shareLabel,
+                    circleColor = circle,
+                    onClick = {
+                        onDismiss()
+                        shareMenuState.show(expandFully = true) {
+                            PlaylistShareSheet(
+                                playlist = playlist,
+                                songs = songs,
+                                ownerName = shareOwnerName.ifBlank { context.getString(R.string.app_name) },
+                                onDismiss = shareMenuState::dismiss,
+                            )
+                        }
+                    },
+                ),
+            )
+        }
 
+    val menuItems =
+        buildList {
             // Show sync button only for YouTube playlists
             if (isYouTubePlaylist) {
                 add(
@@ -169,52 +171,6 @@ fun LocalPlaylistMenu(
                 )
             }
 
-            if (!isGuest) {
-                add(
-                    Material3MenuItemData(
-                        title = { Text(stringResource(R.string.add_to_queue)) },
-                        description = { Text(stringResource(R.string.add_to_queue_desc)) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.queue_music),
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onQueue()
-                            onDismiss()
-                        },
-                    ),
-                )
-            }
-
-            add(downloadMenuItem)
-
-            add(
-                Material3MenuItemData(
-                    title = { Text(stringResource(R.string.share)) },
-                    description = { Text(stringResource(R.string.share_playlist_desc)) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.share),
-                            contentDescription = null,
-                        )
-                    },
-                    onClick = {
-                        onDismiss()
-                        shareMenuState.show(expandFully = true) {
-                            PlaylistShareSheet(
-                                playlist = playlist,
-                                songs = songs,
-                                ownerName = shareOwnerName.ifBlank { context.getString(R.string.app_name) },
-                                onDismiss = shareMenuState::dismiss,
-                            )
-                        }
-                    },
-                ),
-            )
-
-            // Export menu group
             add(
                 Material3MenuItemData(
                     title = { Text(stringResource(R.string.export_playlist)) },
@@ -246,7 +202,24 @@ fun LocalPlaylistMenu(
             )
         }
 
-    Material3MenuGroup(items = menuItems)
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()),
+    ) {
+        item {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+            ) {
+                PlayerMenuHeaderCard(
+                    title = playlist.playlist.name,
+                    subtitle = pluralStringResource(R.plurals.n_song, songs.size, songs.size),
+                    thumbnailUrl = playlist.playlist.thumbnailUrl ?: songs.firstOrNull()?.song?.song?.thumbnailUrl,
+                )
+                PlayerMenuQuickActions(quickActions)
+                PlayerMenuListCard(menuItems)
+            }
+        }
+    }
 
     if (showExportDialog) {
         ExportDialog(

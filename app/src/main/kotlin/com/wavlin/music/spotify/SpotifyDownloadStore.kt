@@ -59,4 +59,21 @@ object SpotifyDownloadStore {
         _trackToSong.value = _trackToSong.value + (spotifyTrackId to songId)
         _hiddenSongIds.value = _hiddenSongIds.value + songId
     }
+
+    /** Forgets a downloaded song, e.g. after it was removed from its Spotify playlist's download list. */
+    @Synchronized
+    fun forget(
+        context: Context,
+        songId: String,
+    ) {
+        ensureLoaded(context)
+        val editor =
+            context.applicationContext
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+        _trackToSong.value.filterValues { it == songId }.keys.forEach { editor.remove(KEY_PREFIX + it) }
+        editor.apply()
+        _trackToSong.value = _trackToSong.value.filterValues { it != songId }
+        _hiddenSongIds.value = _hiddenSongIds.value - songId
+    }
 }

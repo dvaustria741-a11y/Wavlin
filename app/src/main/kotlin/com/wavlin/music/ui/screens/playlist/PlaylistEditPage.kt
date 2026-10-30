@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -42,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.R
 import com.wavlin.music.db.entities.PlaylistSong
+import com.wavlin.music.db.entities.Song
 import com.wavlin.music.extensions.move
 import com.wavlin.music.ui.component.ItemThumbnail
 import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
@@ -74,12 +77,14 @@ import dev.chrisbanes.haze.hazeSource
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-/**
- * Spotify-style "Edit playlist" page. It works on a copy of the playlist, so nothing touches the database
- * until Save: songs can be removed (minus button, or Select for several at once) and dragged into a new order.
- *
- * [onSave] receives the final order of the kept songs and the songs that were removed.
- */
+/** One row of the edit page: [key] identifies it, [song] is what gets shown. */
+@Immutable
+data class EditPlaylistEntry(
+    val key: String,
+    val song: Song,
+)
+
+/** Edit page for a local playlist: songs can be removed and dragged into a new order. */
 @Composable
 fun PlaylistEditPage(
     songs: List<PlaylistSong>,
@@ -87,13 +92,47 @@ fun PlaylistEditPage(
     onDismiss: () -> Unit,
     onSave: (order: List<PlaylistSong>, removed: List<PlaylistSong>) -> Unit,
 ) {
-    val original = remember { songs.sortedBy { it.map.position } }
-    val editItems = remember { mutableStateListOf<PlaylistSong>().apply { addAll(original) } }
-    val selection = remember { mutableStateListOf<Int>() }
+    val byKey = remember(songs) { songs.associateBy { it.map.id.toString() } }
+    val entries =
+        remember(songs) {
+            songs.sortedBy { it.map.position }.map { EditPlaylistEntry(it.map.id.toString(), it.song) }
+        }
+    SongListEditPage(
+        entries = entries,
+        pureBlack = pureBlack,
+        allowReorder = true,
+        onDismiss = onDismiss,
+        onSave = { order, removed ->
+            onSave(
+                order.mapNotNull { byKey[it.key] },
+                removed.mapNotNull { byKey[it.key] },
+            )
+        },
+    )
+}
+
+/**
+ * Spotify-style "Edit playlist" page. It works on a copy of the list, so nothing is applied until Save:
+ * songs can be removed (minus button, or Select for several at once) and, when [allowReorder] is true,
+ * dragged into a new order. Lists that are sorted by the app (Liked, Downloaded, Cached) pass false.
+ *
+ * [onSave] receives the final order of the kept songs and the songs that were removed.
+ */
+@Composable
+fun SongListEditPage(
+    entries: List<EditPlaylistEntry>,
+    pureBlack: Boolean,
+    allowReorder: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (order: List<EditPlaylistEntry>, removed: List<EditPlaylistEntry>) -> Unit,
+) {
+    val original = remember { entries.toList() }
+    val editItems = remember { mutableStateListOf<EditPlaylistEntry>().apply { addAll(original) } }
+    val selection = remember { mutableStateListOf<String>() }
     var selecting by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
-    val changed = editItems.map { it.map.id } != original.map { it.map.id }
+    val changed = editItems.map { it.key } != original.map { it.key }
     val haze = remember { HazeState() }
     val lazyListState = rememberLazyListState()
     val reorderState =
@@ -199,7 +238,7 @@ fun PlaylistEditPage(
                         onClick = {
                             onSave(
                                 editItems.toList(),
-                                original.filter { o -> editItems.none { it.map.id == o.map.id } },
+                                original.filter { o -> editItems.none { it.key == o.key } },
                             )
                             onDismiss()
                         },
@@ -226,19 +265,20 @@ fun PlaylistEditPage(
                         .fillMaxWidth()
                         .hazeSource(haze),
             ) {
-                items(items = editItems, key = { it.map.id }) { song ->
-                    ReorderableItem(state = reorderState, key = song.map.id) { isDragging ->
-                        val checked = song.map.id in selection
+                items(items = editItems, key = { it.key }) { song ->
+                    ReorderableItem(state = reorderState, key = song.key) { isDragging ->
+                        val checked = song.key in selection
                         EditSongRow(
                             song = song,
+                            allowReorder = allowReorder,
                             selecting = selecting,
                             checked = checked,
                             dragging = isDragging,
                             onRemove = { editItems.remove(song) },
                             onToggle = {
-                                if (checked) selection.remove(song.map.id) else selection.add(song.map.id)
+                                if (checked) selection.remove(song.key) else selection.add(song.key)
                             },
-                            handleModifier = Modifier.draggableHandle(enabled = !selecting),
+                            handleModifier = Modifier.draggableHandle(enabled = allowReorder && !selecting),
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -279,7 +319,7 @@ fun PlaylistEditPage(
                     enabled = selection.isNotEmpty(),
                     emphasized = true,
                     onClick = {
-                        editItems.removeAll { it.map.id in selection }
+                        editItems.removeAll { it.key in selection }
                         exitSelecting()
                     },
                     modifier = Modifier.weight(1f),
@@ -318,7 +358,8 @@ private fun PillAction(
 
 @Composable
 private fun EditSongRow(
-    song: PlaylistSong,
+    song: EditPlaylistEntry,
+    allowReorder: Boolean,
     selecting: Boolean,
     checked: Boolean,
     dragging: Boolean,
@@ -411,15 +452,19 @@ private fun EditSongRow(
             )
         }
 
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(44.dp).then(handleModifier),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.drag_handle),
-                contentDescription = null,
-                tint = colors.onSurfaceVariant.copy(alpha = if (selecting) 0.3f else 1f),
-            )
+        if (allowReorder) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(44.dp).then(handleModifier),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.drag_handle),
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant.copy(alpha = if (selecting) 0.3f else 1f),
+                )
+            }
+        } else {
+            Spacer(Modifier.size(12.dp))
         }
     }
 }

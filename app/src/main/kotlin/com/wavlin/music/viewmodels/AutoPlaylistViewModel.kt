@@ -24,6 +24,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -87,6 +88,26 @@ constructor(
 
     fun syncUploadedSongs() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncUploadedSongs() }
+    }
+
+    /**
+     * YouTube Music processes an upload in the background, so the song is usually not in the library yet
+     * when the upload finishes. Re-syncs until [expectedNew] more songs appear (or about two minutes pass).
+     */
+    fun syncUploadedSongsAfterUpload(expectedNew: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isRefreshing.value = true
+            try {
+                val before = database.uploadedSongEntitiesByNameAsc().size
+                repeat(8) { attempt ->
+                    delay(if (attempt == 0) 4_000L else 15_000L)
+                    syncUtils.syncUploadedSongsSuspend()
+                    if (database.uploadedSongEntitiesByNameAsc().size >= before + expectedNew) return@launch
+                }
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
     }
 
     fun refresh() {

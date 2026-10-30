@@ -97,9 +97,11 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.wavlin.innertube.YouTube
+import com.wavlin.music.LocalDatabase
 import com.wavlin.music.LocalDownloadUtil
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
+import com.wavlin.music.LocalSyncUtils
 import com.wavlin.music.R
 import com.wavlin.music.constants.HideExplicitKey
 import com.wavlin.music.constants.SongSortDescendingKey
@@ -113,6 +115,10 @@ import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.ui.component.DefaultDialog
 import com.wavlin.music.ui.component.DraggableScrollbar
 import com.wavlin.music.ui.component.EmptyPlaceholder
+import com.wavlin.music.ui.component.GlassIconButton
+import com.wavlin.music.ui.component.GlassOverlay
+import com.wavlin.music.ui.component.LocalInterfaceAppleMusic
+import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.glassPanel
 import com.wavlin.music.ui.component.glassStrokeBrush
 import com.wavlin.music.ui.component.HideOnScrollFAB
@@ -230,6 +236,19 @@ fun AutoPlaylistScreen(
     }
 
     val scope = rememberCoroutineScope()
+    val database = LocalDatabase.current
+    val syncUtils = LocalSyncUtils.current
+
+    var showEditPage by rememberSaveable { mutableStateOf(false) }
+    val screenPureBlack by rememberPreference(com.wavlin.music.constants.PureBlackKey, defaultValue = false)
+    val (screenDarkMode, _) =
+        rememberEnumPreference(
+            com.wavlin.music.constants.DarkModeKey,
+            defaultValue = com.wavlin.music.ui.screens.settings.DarkMode.AUTO,
+        )
+    val screenDarkTheme =
+        screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.ON ||
+            (screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.AUTO && androidx.compose.foundation.isSystemInDarkTheme())
 
     // Upload state
     var showUploadDialog by remember { mutableStateOf(false) }
@@ -355,8 +374,8 @@ fun AutoPlaylistScreen(
 
                             showUploadDialog = false
 
-                            // Refresh uploaded songs
-                            viewModel.syncUploadedSongs()
+                            // YouTube Music needs a while to process an upload, so keep checking until it shows up
+                            viewModel.syncUploadedSongsAfterUpload(expectedNew = successCount)
                         } else {
                             showUploadDialog = false
                         }
@@ -590,6 +609,17 @@ fun AutoPlaylistScreen(
                                 },
                                 modifier = Modifier.weight(1f),
                             )
+                            if (playlistType == PlaylistType.LIKE || playlistType == PlaylistType.DOWNLOAD) {
+                                androidx.compose.material3.IconButton(
+                                    onClick = { showEditPage = true },
+                                    modifier = Modifier.padding(horizontal = 6.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.edit),
+                                        contentDescription = stringResource(R.string.edit_playlist),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -711,22 +741,22 @@ fun AutoPlaylistScreen(
             )
         }
 
-        // Upload FAB for uploaded playlist - positioned above mini player
+        // Upload button for the uploaded playlist: real liquid glass in Apple Music style, Material 3 otherwise
         if (playlistType == PlaylistType.UPLOADED) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = state.isScrollingUp(),
-                enter = androidx.compose.animation.slideInVertically { it },
-                exit = androidx.compose.animation.slideOutVertically { it },
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .windowInsetsPadding(
-                            LocalPlayerAwareWindowInsets.current
-                                .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
-                        ).padding(16.dp),
-            ) {
-                FloatingActionButton(
-                    onClick = {
+            GlassOverlay {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = state.isScrollingUp(),
+                    enter = androidx.compose.animation.slideInVertically { it },
+                    exit = androidx.compose.animation.slideOutVertically { it },
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .windowInsetsPadding(
+                                LocalPlayerAwareWindowInsets.current
+                                    .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+                            ).padding(16.dp),
+                ) {
+                    val openPicker = {
                         filePickerLauncher.launch(
                             arrayOf(
                                 "audio/mpeg",
@@ -737,15 +767,36 @@ fun AutoPlaylistScreen(
                                 "audio/x-ms-wma",
                             ),
                         )
-                    },
-                    containerColor = Color.Transparent,
-                    shape = CircleShape,
-                    modifier = Modifier.glassPanel(shape = CircleShape),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.upload),
-                        contentDescription = stringResource(R.string.upload_songs),
-                    )
+                    }
+                    if (LocalInterfaceAppleMusic.current || LocalPinkLilyTheme.current) {
+                        GlassIconButton(
+                            onClick = { openPicker() },
+                            size = 56.dp,
+                            contentDescription = stringResource(R.string.upload_songs),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.upload),
+                                contentDescription = null,
+                            )
+                        }
+                    } else {
+                        // Built from a plain Surface: Material3's FloatingActionButton draws a polygon artifact behind a circle here
+                        androidx.compose.material3.Surface(
+                            onClick = { openPicker() },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier.size(56.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    painter = painterResource(R.drawable.upload),
+                                    contentDescription = stringResource(R.string.upload_songs),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -880,6 +931,39 @@ fun AutoPlaylistScreen(
                 }
             },
         )
+
+        val editableSongs = songs
+        if (showEditPage && editableSongs != null && (playlistType == PlaylistType.LIKE || playlistType == PlaylistType.DOWNLOAD)) {
+            SongListEditPage(
+                entries = editableSongs.distinctBy { it.id }.map { EditPlaylistEntry(it.id, it) },
+                pureBlack = screenPureBlack && screenDarkTheme,
+                allowReorder = false,
+                onDismiss = { showEditPage = false },
+                onSave = { _, removed ->
+                    removed.forEach { entry ->
+                        when (playlistType) {
+                            PlaylistType.LIKE -> {
+                                if (entry.song.song.liked) {
+                                    val unliked = entry.song.song.toggleLike()
+                                    database.query { update(unliked) }
+                                    syncUtils.likeSong(unliked)
+                                }
+                            }
+
+                            PlaylistType.DOWNLOAD ->
+                                DownloadService.sendRemoveDownload(
+                                    context,
+                                    ExoDownloadService::class.java,
+                                    entry.song.song.id,
+                                    false,
+                                )
+
+                            else -> Unit
+                        }
+                    }
+                },
+            )
+        }
     }
 }
 

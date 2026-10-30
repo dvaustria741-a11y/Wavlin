@@ -128,6 +128,17 @@ fun CachePlaylistScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
+    var showEditPage by rememberSaveable { mutableStateOf(false) }
+    val screenPureBlack by rememberPreference(com.wavlin.music.constants.PureBlackKey, defaultValue = false)
+    val (screenDarkMode, _) =
+        rememberEnumPreference(
+            com.wavlin.music.constants.DarkModeKey,
+            defaultValue = com.wavlin.music.ui.screens.settings.DarkMode.AUTO,
+        )
+    val screenDarkTheme =
+        screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.ON ||
+            (screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.AUTO && androidx.compose.foundation.isSystemInDarkTheme())
+
     val sortedSongs = remember(cachedSongs, sortType, sortDescending) {
         val sorted = when (sortType) {
             SongSortType.CREATE_DATE -> cachedSongs.sortedBy { it.song.dateDownload ?: LocalDateTime.MIN }
@@ -257,6 +268,15 @@ fun CachePlaylistScreen(
                                 },
                                 modifier = Modifier.weight(1f),
                             )
+                            IconButton(
+                                onClick = { showEditPage = true },
+                                modifier = Modifier.padding(horizontal = 6.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.edit),
+                                    contentDescription = stringResource(R.string.edit_playlist),
+                                )
+                            }
                         }
                     }
                 }
@@ -479,6 +499,18 @@ fun CachePlaylistScreen(
                 }
             }
         )
+
+        if (showEditPage) {
+            SongListEditPage(
+                entries = cachedSongs.distinctBy { it.id }.map { EditPlaylistEntry(it.id, it) },
+                pureBlack = screenPureBlack && screenDarkTheme,
+                allowReorder = false,
+                onDismiss = { showEditPage = false },
+                onSave = { _, removed ->
+                    removed.forEach { viewModel.removeSongFromCache(it.song.song.id) }
+                },
+            )
+        }
     }
 }
 

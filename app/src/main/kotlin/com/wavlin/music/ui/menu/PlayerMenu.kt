@@ -8,6 +8,7 @@ package com.wavlin.music.ui.menu
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.res.Configuration
@@ -281,6 +282,12 @@ fun PlayerMenu(
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
+    var showDolby by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = showDolby) { showDolby = false }
+    // Stagger steps each group waits for the other to clear out of the way.
+    val mainWait = 4
+    val dolbyWait = 3
+
     LazyColumn(
         contentPadding =
             PaddingValues(
@@ -292,10 +299,10 @@ fun PlayerMenu(
     ) {
         item {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             ) {
                 if (isQueueTrigger != true) {
+                    Box(modifier = Modifier.padding(bottom = 12.dp)) {
                     PlayerMenuNowPlayingCard(
                         mediaMetadata = mediaMetadata,
                         volumeProvider = { if (isCasting) castVolume else systemVolume.volume },
@@ -309,9 +316,11 @@ fun PlayerMenu(
                         },
                         castDeviceName = if (isCasting) castDeviceName else null,
                     )
+                    }
                 }
 
                 val colors = MaterialTheme.colorScheme
+                MenuSlideItem(visible = !showDolby, index = 0, waitFor = dolbyWait) {
                 PlayerMenuQuickActions(
                     actions =
                         listOf(
@@ -337,14 +346,10 @@ fun PlayerMenu(
                                 onClick = { showChoosePlaylistDialog = true },
                             ),
                             PlayerQuickAction(
-                                iconRes = R.drawable.sleep_timer,
-                                label = stringResource(R.string.sleep_timer),
+                                iconRes = R.drawable.ic_dolby,
+                                label = stringResource(R.string.dolby_atmos),
                                 circleColor = colors.onSurface.copy(alpha = 0.12f),
-                                onClick = {
-                                    // Same card as the player's own sleep timer button.
-                                    com.wavlin.music.ui.component.SleepTimerOverlayRequest.requested = true
-                                    onDismiss()
-                                },
+                                onClick = { showDolby = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.info,
@@ -357,9 +362,11 @@ fun PlayerMenu(
                             ),
                         ),
                 )
+                }
 
                 val isPodcastTrack = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
                 if (artists.isNotEmpty() && !isPodcastTrack) {
+                    MenuSlideItem(visible = !showDolby, index = 1, waitFor = dolbyWait) {
                     PlayerMenuRowCard(
                         iconRes = R.drawable.artist,
                         title = stringResource(R.string.view_artist),
@@ -373,19 +380,28 @@ fun PlayerMenu(
                             }
                         },
                     )
+                    }
                 }
 
-                PlayerMenuSettingsCard()
-                PlayerMenuExpandedStereoCard()
-                PlayerMenuDolbyV2Card()
-                PlayerMenuXiaomiSoundCard()
-                PlayerMenuDtsSoundCard()
+                MenuSlideItem(visible = !showDolby, index = 2, waitFor = dolbyWait) { PlayerMenuSettingsCard() }
+
+                MenuSlideItem(visible = showDolby, index = 0, waitFor = mainWait) {
+                    PlayerMenuRowCard(
+                        iconRes = R.drawable.arrow_back,
+                        title = stringResource(R.string.back),
+                        onClick = { showDolby = false },
+                    )
+                }
+                MenuSlideItem(visible = showDolby, index = 1, waitFor = mainWait) { PlayerMenuDolbyAtmosCard() }
+                MenuSlideItem(visible = showDolby, index = 2, waitFor = mainWait) { PlayerMenuExpandedStereoCard() }
+                MenuSlideItem(visible = showDolby, index = 3, waitFor = mainWait) { PlayerMenuDolbyV2Card() }
+                MenuSlideItem(visible = showDolby, index = 4, waitFor = mainWait) { PlayerMenuXiaomiSoundCard() }
+                MenuSlideItem(visible = showDolby, index = 5, waitFor = mainWait) { PlayerMenuDtsSoundCard() }
             }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
-
         item {
+            MenuSlideItem(visible = !showDolby, index = 3, waitFor = dolbyWait) {
             val startingRadioText = stringResource(R.string.starting_radio)
             PlayerMenuListCard(
                 items =
@@ -437,11 +453,12 @@ fun PlayerMenu(
                         ),
                     ),
             )
+            }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
+            MenuSlideItem(visible = !showDolby, index = 4, waitFor = dolbyWait) {
             // Check if this is a podcast episode (album ID doesn't start with MPREb_)
             val isPodcast = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
 
@@ -542,11 +559,12 @@ fun PlayerMenu(
                         )
                     },
             )
+            }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
+            MenuSlideItem(visible = !showDolby, index = 5, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     listOf(
@@ -617,11 +635,12 @@ fun PlayerMenu(
                         },
                     ),
             )
+            }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
+            MenuSlideItem(visible = !showDolby, index = 6, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     buildList {
@@ -678,11 +697,12 @@ fun PlayerMenu(
                         }
                     },
             )
+            }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
+            MenuSlideItem(visible = !showDolby, index = 7, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     buildList {
@@ -735,6 +755,7 @@ fun PlayerMenu(
 
                     },
             )
+            }
         }
     }
 }

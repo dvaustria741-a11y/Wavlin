@@ -5,6 +5,15 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -287,14 +296,11 @@ internal fun menuSwitchColors() =
         )
     }
 
-/** Player theme picker and Dolby Atmos switch. */
+/** Player theme picker. */
 @Composable
 fun PlayerMenuSettingsCard() {
     val (playerBackground, onPlayerBackgroundChange) =
         rememberEnumPreference(PlayerBackgroundStyleKey, PlayerBackgroundStyle.DEFAULT)
-    val atmosEnabled by DolbyAtmosManager.isAtmosEnabledByUser.collectAsStateWithLifecycle()
-    val atmosDiag by DolbyAtmosManager.liveDiagnostics.collectAsStateWithLifecycle()
-    val atmosSupported = atmosDiag.capability != DolbyAtmosCapability.UNSUPPORTED
 
     Column(
         modifier =
@@ -351,9 +357,24 @@ fun PlayerMenuSettingsCard() {
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** Dolby Atmos switch, first card of the Dolby sub-page. */
+@Composable
+fun PlayerMenuDolbyAtmosCard() {
+    val atmosEnabled by DolbyAtmosManager.isAtmosEnabledByUser.collectAsStateWithLifecycle()
+    val atmosDiag by DolbyAtmosManager.liveDiagnostics.collectAsStateWithLifecycle()
+    val atmosSupported = atmosDiag.capability != DolbyAtmosCapability.UNSUPPORTED
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
         SettingSwitchRow(
             iconRes = R.drawable.ic_dolby,
             title = stringResource(R.string.dolby_atmos),
@@ -370,6 +391,35 @@ fun PlayerMenuSettingsCard() {
                 DolbyAtmosManager.setAtmosEnabled(it)
             },
         )
+    }
+}
+
+/**
+ * Menu card that slides in from / out to the left, staggered by [index] so a group of cards moves one by one.
+ * [waitFor] is how many stagger steps the entering group waits for the other group to clear out first.
+ */
+@Composable
+fun MenuSlideItem(
+    visible: Boolean,
+    index: Int,
+    waitFor: Int,
+    content: @Composable () -> Unit,
+) {
+    val step = 45
+    val enterDelay = (waitFor + index) * step
+    val exitDelay = index * step
+    AnimatedVisibility(
+        visible = visible,
+        enter =
+            slideInHorizontally(tween(340, enterDelay, FastOutSlowInEasing)) { -it } +
+                fadeIn(tween(260, enterDelay)) +
+                expandVertically(tween(300, enterDelay, FastOutSlowInEasing)),
+        exit =
+            slideOutHorizontally(tween(300, exitDelay, FastOutSlowInEasing)) { -it } +
+                fadeOut(tween(220, exitDelay)) +
+                shrinkVertically(tween(300, exitDelay, FastOutSlowInEasing)),
+    ) {
+        Box(modifier = Modifier.padding(bottom = 12.dp)) { content() }
     }
 }
 

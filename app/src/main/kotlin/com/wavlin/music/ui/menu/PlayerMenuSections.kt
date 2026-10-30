@@ -264,7 +264,7 @@ fun PlayerMenuRowCard(
 
 /** White switch so the menu never picks up the dynamic accent colour. */
 @Composable
-private fun menuSwitchColors() =
+internal fun menuSwitchColors() =
     if (LocalPinkLilyTheme.current) {
         androidx.compose.material3.SwitchDefaults.colors()
     } else {
@@ -553,6 +553,53 @@ fun PlayerMenuListCard(items: List<com.wavlin.music.ui.component.Material3MenuIt
                     }
                 }
             }
+        }
+    }
+}
+
+/** Header for the lyrics menu: same card as "Now Playing", showing the track and where its lyrics come from. */
+@Composable
+fun LyricsMenuHeaderCard(
+    mediaMetadata: MediaMetadata,
+    provider: String?,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
+        AsyncImage(
+            model = mediaMetadata.thumbnailUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = listOfNotNull(stringResource(R.string.lyrics), provider?.takeIf { it.isNotBlank() }).joinToString(" · "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = mediaMetadata.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = mediaMetadata.artists.joinToString { it.name },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

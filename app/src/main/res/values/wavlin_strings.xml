@@ -1254,4 +1254,8 @@
     <string name="spotify_flow_go" translatable="false">Import</string>
     <string name="spotify_flow_not_found" translatable="false">Not found on YouTube Music</string>
     <string name="spotify_flow_error" translatable="false">Couldn\'t read Spotify link</string>
+    <string name="spotify_save_to_library">Save to your playlists</string>
+    <string name="spotify_save_as_new">Save as new playlist</string>
+    <string name="spotify_add_to_existing">Or add to an existing playlist</string>
+    <string name="spotify_no_editable_playlists">You don\'t have any playlists yet</string>
 </resources>

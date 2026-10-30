@@ -42,15 +42,30 @@ object SpotifyImporter {
         tracks: List<SpotifyTrack>,
         preMatched: Map<Int, SongItem> = emptyMap(),
         download: Boolean = false,
+        /** Cover for a newly created playlist (e.g. the Spotify playlist's own cover). */
+        coverUrl: String? = null,
+        /** When set, the songs are added to this existing playlist instead of creating a new one. */
+        targetPlaylistId: String? = null,
     ) {
         val appContext = context.applicationContext
         scope.launch {
             try {
                 toast(appContext, "Importing ${tracks.size} tracks...")
                 // bookmarkedAt is what makes a playlist show up in the Library (same as the Create playlist dialog)
-                val entity = PlaylistEntity(name = name, bookmarkedAt = LocalDateTime.now(), isEditable = true)
-                database.withTransaction { insert(entity) }
-                val playlist = database.playlist(entity.id).first()
+                val playlist =
+                    if (targetPlaylistId != null) {
+                        database.playlist(targetPlaylistId).first()
+                    } else {
+                        val entity =
+                            PlaylistEntity(
+                                name = name,
+                                bookmarkedAt = LocalDateTime.now(),
+                                isEditable = true,
+                                thumbnailUrl = coverUrl,
+                            )
+                        database.withTransaction { insert(entity) }
+                        database.playlist(entity.id).first()
+                    }
                 if (playlist == null) {
                     toast(appContext, "Couldn't create the playlist")
                     return@launch
@@ -77,10 +92,15 @@ object SpotifyImporter {
                                 }.awaitAll()
                         }
                     chunkStart += chunk.size
-                    val ids = results.mapNotNull { it.second }
+                    var ids = results.mapNotNull { it.second }
+                    if (targetPlaylistId != null && ids.isNotEmpty()) {
+                        // Adding to an existing playlist: leave out songs it already has
+                        val already = database.playlistDuplicates(targetPlaylistId, ids).toSet()
+                        ids = ids.filterNot { it in already }
+                    }
                     missing += results.filter { it.second == null }.map { it.first.query }
                     if (ids.isNotEmpty()) {
-                        val current = database.playlist(entity.id).first() ?: playlist
+                        val current = database.playlist(playlist.id).first() ?: playlist
                         database.addSongsToPlaylist(current, ids.map { it to null })
                         imported += ids.size
                         if (download) ids.forEach { id -> queueDownload(appContext, database, id) }

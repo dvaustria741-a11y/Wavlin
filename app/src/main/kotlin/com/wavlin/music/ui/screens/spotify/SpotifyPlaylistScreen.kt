@@ -67,8 +67,6 @@ import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import com.wavlin.music.playback.ExoDownloadService
-import com.wavlin.music.ui.screens.playlist.EditPlaylistEntry
-import com.wavlin.music.ui.screens.playlist.SongListEditPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -92,7 +90,9 @@ import com.wavlin.music.LocalDatabase
 import com.wavlin.music.LocalPlayerAwareWindowInsets
 import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
+import com.wavlin.music.spotify.SpotifyImporter
 import com.wavlin.music.spotify.account.thumbnailUrl
+import com.wavlin.music.spotify.account.toImportTrack
 import com.wavlin.music.ui.component.IconButton
 import com.wavlin.music.ui.component.pinkTopBarColors
 import com.wavlin.music.ui.utils.backToMain
@@ -116,6 +116,7 @@ fun SpotifyPlaylistScreen(
     val title = playlist?.name ?: stringResource(R.string.spotify)
 
     var showDownloadSheet by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
 
     val downloadUtil = com.wavlin.music.LocalDownloadUtil.current
     val downloads by downloadUtil.downloads.collectAsStateWithLifecycle()
@@ -164,29 +165,6 @@ fun SpotifyPlaylistScreen(
     ) {
         val connection = playerConnection ?: return
         scope.launch { playSpotifyTracks(context, database, connection, title, tracks, startIndex, shuffle) }
-    }
-
-    // Edit playlist: the playlist itself lives on Spotify (read-only here), so this edits the songs downloaded from it
-    var showEditPage by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var editEntries by remember { mutableStateOf<List<EditPlaylistEntry>?>(null) }
-    val screenPureBlack by com.wavlin.music.utils.rememberPreference(com.wavlin.music.constants.PureBlackKey, defaultValue = false)
-    val (screenDarkMode, _) =
-        com.wavlin.music.utils.rememberEnumPreference(
-            com.wavlin.music.constants.DarkModeKey,
-            defaultValue = com.wavlin.music.ui.screens.settings.DarkMode.AUTO,
-        )
-    val screenDarkTheme =
-        screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.ON ||
-            (screenDarkMode == com.wavlin.music.ui.screens.settings.DarkMode.AUTO && androidx.compose.foundation.isSystemInDarkTheme())
-    androidx.compose.runtime.LaunchedEffect(showEditPage) {
-        if (showEditPage) {
-            val ids = (state as? SpotifyPlaylistState.Loaded)?.tracks?.mapNotNull { trackToSong[it.id] }?.distinct().orEmpty()
-            editEntries =
-                withContext(Dispatchers.IO) { if (ids.isEmpty()) emptyList() else database.getSongsByIds(ids) }
-                    .map { EditPlaylistEntry(it.id, it) }
-        } else {
-            editEntries = null
-        }
     }
 
     val listState = rememberLazyListState()
@@ -368,16 +346,14 @@ fun SpotifyPlaylistScreen(
         },
         actions = {
             val loaded = state as? SpotifyPlaylistState.Loaded
-            if (loaded != null && loaded.tracks.any { it.id in trackToSong }) {
+            if (loaded != null && loaded.tracks.isNotEmpty()) {
                 IconButton(
-                    onClick = { showEditPage = true },
+                    onClick = { showSaveDialog = true },
                     onLongClick = {},
                     modifier = heroButtonModifier,
                 ) {
-                    Icon(painterResource(R.drawable.edit), contentDescription = stringResource(R.string.edit_playlist), tint = heroIconTint)
+                    Icon(painterResource(R.drawable.playlist_add), contentDescription = stringResource(R.string.spotify_save_to_library), tint = heroIconTint)
                 }
-            }
-            if (loaded != null && loaded.tracks.isNotEmpty()) {
                 IconButton(
                     onClick = { showDownloadSheet = true },
                     onLongClick = {},
@@ -389,18 +365,29 @@ fun SpotifyPlaylistScreen(
         },
     )
 
-    val pendingEdit = editEntries
-    if (showEditPage && pendingEdit != null) {
-        SongListEditPage(
-            entries = pendingEdit,
-            pureBlack = screenPureBlack && screenDarkTheme,
-            allowReorder = false,
-            onDismiss = { showEditPage = false },
-            onSave = { _, removed ->
-                removed.forEach { entry ->
-                    DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, entry.song.song.id, false)
-                    com.wavlin.music.spotify.SpotifyDownloadStore.forget(context, entry.song.song.id)
-                }
+    val loadedForSave = state as? SpotifyPlaylistState.Loaded
+    if (showSaveDialog && loadedForSave != null) {
+        SpotifySaveDialog(
+            onDismiss = { showSaveDialog = false },
+            onSaveNew = {
+                showSaveDialog = false
+                SpotifyImporter.start(
+                    context = context,
+                    database = database,
+                    name = title,
+                    tracks = loadedForSave.tracks.map { it.toImportTrack() },
+                    coverUrl = playlist?.thumbnailUrl(),
+                )
+            },
+            onAddToExisting = { target ->
+                showSaveDialog = false
+                SpotifyImporter.start(
+                    context = context,
+                    database = database,
+                    name = target.playlist.name,
+                    tracks = loadedForSave.tracks.map { it.toImportTrack() },
+                    targetPlaylistId = target.id,
+                )
             },
         )
     }

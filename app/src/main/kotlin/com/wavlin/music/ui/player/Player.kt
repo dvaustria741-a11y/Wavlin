@@ -26,6 +26,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -1257,106 +1258,116 @@ fun BottomSheetPlayer(
             }
 
             if (useNewPlayerDesign) {
-                Spacer(Modifier.height(12.dp))
-                val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
-                Row(
-                    horizontalArrangement = if (appleMusicPlayer) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .let { if (appleMusicPlayer) it else it.horizontalScroll(rememberScrollState()) }
-                            .padding(horizontal = PlayerHorizontalPadding)
-                            .let {
-                                // Apple Music: the actions share one translucent capsule instead of six loose discs.
-                                if (appleMusicPlayer) {
-                                    it
-                                        .clip(CircleShape)
-                                        .background(TextBackgroundColor.copy(alpha = 0.10f))
-                                        .padding(horizontal = 6.dp, vertical = 5.dp)
-                                } else {
-                                    it
-                                }
-                            },
+                // Full screen lyrics: the action row folds away so the title block sinks and the lyrics get the room.
+                AnimatedVisibility(
+                    visible = !isFullScreen,
+                    enter = expandVertically(expandFrom = Alignment.Top) + slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
                 ) {
-                    PlayerChip(
-                        icon = if (download?.state == Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download,
-                        label =
-                            stringResource(
-                                when (download?.state) {
-                                    Download.STATE_COMPLETED -> R.string.remove_download
-                                    Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> R.string.downloading
-                                    else -> R.string.action_download
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        val isLandscapeNow = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                        val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
+                        Row(
+                            horizontalArrangement = if (appleMusicPlayer) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .let { if (appleMusicPlayer) it else it.horizontalScroll(rememberScrollState()) }
+                                    .padding(horizontal = PlayerHorizontalPadding)
+                                    .let {
+                                        // Apple Music: the actions share one translucent capsule instead of six loose discs.
+                                        if (appleMusicPlayer) {
+                                            it
+                                                .clip(CircleShape)
+                                                .background(TextBackgroundColor.copy(alpha = 0.10f))
+                                                .padding(horizontal = 6.dp, vertical = 5.dp)
+                                        } else {
+                                            it
+                                        }
+                                    },
+                        ) {
+                            PlayerChip(
+                                icon = if (download?.state == Download.STATE_COMPLETED) R.drawable.offline else R.drawable.download,
+                                label =
+                                    stringResource(
+                                        when (download?.state) {
+                                            Download.STATE_COMPLETED -> R.string.remove_download
+                                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> R.string.downloading
+                                            else -> R.string.action_download
+                                        },
+                                    ),
+                                onClick = {
+                                    val md = mediaMetadata
+                                    when (download?.state) {
+                                        Download.STATE_COMPLETED, Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
+                                            DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, md.id, false)
+                                        else -> {
+                                            database.transaction { insert(md) }
+                                            showDownloadDestinationDialog = true
+                                        }
+                                    }
                                 },
-                            ),
-                        onClick = {
-                            val md = mediaMetadata
-                            when (download?.state) {
-                                Download.STATE_COMPLETED, Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                    DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, md.id, false)
-                                else -> {
-                                    database.transaction { insert(md) }
-                                    showDownloadDestinationDialog = true
-                                }
+                                isActive = download?.state == Download.STATE_COMPLETED || download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            PlayerChip(
+                                icon = R.drawable.queue_music,
+                                label = stringResource(R.string.queue),
+                                onClick = { queueSheetState.expandSoft() },
+                                isActive = false,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            PlayerChip(
+                                icon = R.drawable.bedtime,
+                                label = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else stringResource(R.string.sleep_timer),
+                                onClick = { showSleepTimerDialog = true },
+                                isActive = sleepTimerEnabled,
+                                enabled = !isListenTogetherGuest,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            PlayerChip(
+                                icon = R.drawable.shuffle,
+                                label = stringResource(R.string.shuffle),
+                                onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                                isActive = shuffleModeEnabled,
+                                enabled = !isListenTogetherGuest,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            PlayerChip(
+                                icon = R.drawable.lyrics,
+                                label = stringResource(R.string.lyrics),
+                                onClick = { showInlineLyrics = !showInlineLyrics },
+                                isActive = showInlineLyrics,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            PlayerChip(
+                                icon = if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
+                                label = stringResource(R.string.repeat),
+                                onClick = { playerConnection.player.toggleRepeatMode() },
+                                isActive = repeatMode != Player.REPEAT_MODE_OFF,
+                                enabled = !isListenTogetherGuest,
+                                textButtonColor = textButtonColor,
+                                iconButtonColor = iconButtonColor,
+                                textColor = TextBackgroundColor,
+                            )
+                            // Landscape has no "Now Playing" header, so the 3 dots live at the end of the row there.
+                            if (isLandscapeNow) {
+                                PlayerMoreDotsButton(mediaMetadata = mediaMetadata, state = state, tint = TextBackgroundColor)
                             }
-                        },
-                        isActive = download?.state == Download.STATE_COMPLETED || download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    PlayerChip(
-                        icon = R.drawable.queue_music,
-                        label = stringResource(R.string.queue),
-                        onClick = { queueSheetState.expandSoft() },
-                        isActive = false,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    PlayerChip(
-                        icon = R.drawable.bedtime,
-                        label = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else stringResource(R.string.sleep_timer),
-                        onClick = { showSleepTimerDialog = true },
-                        isActive = sleepTimerEnabled,
-                        enabled = !isListenTogetherGuest,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    PlayerChip(
-                        icon = R.drawable.shuffle,
-                        label = stringResource(R.string.shuffle),
-                        onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
-                        isActive = shuffleModeEnabled,
-                        enabled = !isListenTogetherGuest,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    PlayerChip(
-                        icon = R.drawable.lyrics,
-                        label = stringResource(R.string.lyrics),
-                        onClick = { showInlineLyrics = !showInlineLyrics },
-                        isActive = showInlineLyrics,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    PlayerChip(
-                        icon = if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat,
-                        label = stringResource(R.string.repeat),
-                        onClick = { playerConnection.player.toggleRepeatMode() },
-                        isActive = repeatMode != Player.REPEAT_MODE_OFF,
-                        enabled = !isListenTogetherGuest,
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        textColor = TextBackgroundColor,
-                    )
-                    // Landscape has no "Now Playing" header, so the 3 dots live at the end of the row there.
-                    if (isLandscapeNow) {
-                        PlayerMoreDotsButton(mediaMetadata = mediaMetadata, state = state, tint = TextBackgroundColor)
+                        }
+            
                     }
                 }
             }

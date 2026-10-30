@@ -534,6 +534,32 @@
     <string name="error_title">Error</string>
     <string name="error_eq_apply_failed">Failed to apply equalizer profile: %1$s</string>
 
+    <!-- Custom equalizer -->
+    <string name="eq_tab_custom">Custom</string>
+    <string name="eq_tab_profiles">Profiles</string>
+    <string name="eq_status_off">Off</string>
+    <string name="eq_status_custom">Custom curve</string>
+    <string name="eq_band_description">%1$s Hz band</string>
+    <string name="eq_gesture_hint">Drag a band to shape the sound. Tap to jump, double-tap to reset.</string>
+    <string name="eq_preamp">Preamp</string>
+    <string name="eq_preamp_value">%1$s dB</string>
+    <string name="eq_preamp_auto">Auto</string>
+    <string name="eq_reset">Reset</string>
+    <string name="eq_save_preset">Save preset</string>
+    <string name="eq_preset_name">Preset name</string>
+    <string name="eq_delete_preset">Delete %1$s</string>
+    <string name="eq_preset_flat">Flat</string>
+    <string name="eq_preset_bass_boost">Bass boost</string>
+    <string name="eq_preset_treble_boost">Treble boost</string>
+    <string name="eq_preset_vocal">Vocal</string>
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_electronic">Electronic</string>
+    <string name="eq_preset_hip_hop">Hip-hop</string>
+    <string name="eq_preset_classical">Classical</string>
+    <string name="eq_preset_acoustic">Acoustic</string>
+    <string name="eq_preset_loudness">Loudness</string>
+
     <!-- EQ Wizard -->
     <string name="wizard_select_model">Select Model</string>
     <string name="wizard_select_profiles">Select Profiles</string>

@@ -1,5 +1,7 @@
 package com.wavlin.music.ui.screens.equalizer
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -8,10 +10,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -60,20 +65,30 @@ fun EqFrequencyResponseGraph(
     bands: List<ParametricEQBand>,
     preamp: Double,
     modifier: Modifier = Modifier,
+    showBandMarkers: Boolean = false,
+    graphHeight: androidx.compose.ui.unit.Dp = 200.dp,
 ) {
     val textMeasurer = rememberTextMeasurer()
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
     val curveColor = MaterialTheme.colorScheme.primary
-    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
     val zeroLineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+    val markerRingColor = MaterialTheme.colorScheme.surfaceContainer
     val labelStyle = TextStyle(fontSize = 10.sp, color = labelColor)
 
     // Pre-compute coefficients and response curve
     val graphData = remember(bands, preamp) {
         computeGraphData(bands, preamp)
     }
+
+    // The visible dB range eases between steps so the grid does not jump while sliders move
+    val animatedHalfRange by animateFloatAsState(
+        targetValue = graphData.dbTop.toFloat(),
+        animationSpec = tween(durationMillis = 320),
+        label = "eqGraphRange",
+    )
 
     Surface(
         modifier = modifier
@@ -86,7 +101,7 @@ fun EqFrequencyResponseGraph(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(graphHeight)
                 .padding(4.dp)
         ) {
             val plotLeft = GRAPH_PADDING_LEFT
@@ -96,10 +111,13 @@ fun EqFrequencyResponseGraph(
             val plotWidth = plotRight - plotLeft
             val plotHeight = plotBottom - plotTop
 
-            val dbTop = graphData.dbTop
-            val dbBottom = graphData.dbBottom
-            val dbRange = graphData.dbRange
+            val dbTop = animatedHalfRange.toDouble()
+            val dbBottom = -dbTop
+            val dbRange = 2.0 * dbTop
             val dbStep = graphData.dbStep
+            // Grid lines are laid out for the target range and shown once the animated range reaches them
+            val gridStart = graphData.dbBottom
+            val gridEnd = graphData.dbTop
 
             // Helper: frequency -> x
             fun freqToX(freq: Double): Float {
@@ -116,8 +134,12 @@ fun EqFrequencyResponseGraph(
 
             // Draw horizontal grid lines + dB labels
             clipRect(0f, 0f, size.width, size.height) {
-                var db = dbBottom
-                while (db <= dbTop) {
+                var db = gridStart
+                while (db <= gridEnd) {
+                    if (abs(db) > dbTop + 0.01) {
+                        db += dbStep
+                        continue
+                    }
                     val y = dbToY(db)
                     val isZero = abs(db) < 0.01
                     drawLine(
@@ -157,11 +179,12 @@ fun EqFrequencyResponseGraph(
                 if (graphData.points.isNotEmpty()) {
                     val curvePath = Path()
                     val fillPath = Path()
+                    val zeroY = dbToY(0.0)
 
                     val firstX = freqToX(graphData.points.first().first)
                     val firstY = dbToY(graphData.points.first().second)
                     curvePath.moveTo(firstX, firstY)
-                    fillPath.moveTo(firstX, plotBottom)
+                    fillPath.moveTo(firstX, zeroY)
                     fillPath.lineTo(firstX, firstY)
 
                     for (i in 1 until graphData.points.size) {
@@ -172,13 +195,25 @@ fun EqFrequencyResponseGraph(
                         fillPath.lineTo(x, y)
                     }
 
-                    // Close fill path down to bottom of plot
+                    // Fill between the curve and the 0 dB line so boosts and cuts read at a glance
                     val lastX = freqToX(graphData.points.last().first)
-                    fillPath.lineTo(lastX, plotBottom)
+                    fillPath.lineTo(lastX, zeroY)
                     fillPath.close()
 
                     drawPath(fillPath, color = fillColor)
-                    drawPath(curvePath, color = curveColor, style = Stroke(width = 2.dp.toPx()))
+                    drawPath(
+                        curvePath,
+                        color = curveColor,
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
+
+                    if (showBandMarkers) {
+                        graphData.markers.forEach { (freq, markerDb) ->
+                            val center = Offset(freqToX(freq), dbToY(markerDb))
+                            drawCircle(color = markerRingColor, radius = 5.5.dp.toPx(), center = center)
+                            drawCircle(color = curveColor, radius = 3.5.dp.toPx(), center = center)
+                        }
+                    }
                 }
             }
         }
@@ -202,6 +237,8 @@ private fun DrawScope.drawDbLabel(
 // Pre-computed graph data
 private data class GraphData(
     val points: List<Pair<Double, Double>>, // (frequency, totalDb)
+    val markers: List<Pair<Double, Double>>, // (band frequency, totalDb at that frequency)
+    val peakDb: Double,   // highest point of the combined response
     val dbTop: Double,    // top of visible range
     val dbBottom: Double, // bottom of visible range
     val dbRange: Double,  // dbTop - dbBottom
@@ -244,14 +281,24 @@ private fun computeGraphData(bands: List<ParametricEQBand>, preamp: Double): Gra
     val peakAbs = max(abs(minDb), abs(maxDb))
     val halfRange = max(ceil((peakAbs + 1.0) / dbStep) * dbStep, dbStep)
 
+    val markers = bands.map { band ->
+        band.frequency to coeffsList.sumOf { magnitudeResponseDb(it, band.frequency) }
+    }
+
     return GraphData(
         points = points,
+        markers = markers,
+        peakDb = maxDb,
         dbTop = halfRange,
         dbBottom = -halfRange,
         dbRange = 2.0 * halfRange,
         dbStep = dbStep
     )
 }
+
+/** Highest point (dB) of the combined response of [bands]; used to size an anti-clipping preamp. */
+internal fun responsePeakDb(bands: List<ParametricEQBand>): Double =
+    computeGraphData(bands, 0.0).peakDb
 
 private fun computeBiquadCoefficients(
     frequency: Double,

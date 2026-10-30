@@ -1074,7 +1074,7 @@ private val QueueSideMargin = 12.dp
  */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
-private fun Modifier.queueGlass(
+internal fun Modifier.queueGlass(
     hazeState: HazeState,
     shape: Shape,
     pureBlack: Boolean,

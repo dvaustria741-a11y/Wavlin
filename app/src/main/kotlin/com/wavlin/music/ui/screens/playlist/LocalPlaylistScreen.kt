@@ -227,6 +227,9 @@ fun LocalPlaylistScreen(
             true,
         )
     var locked by rememberPreference(PlaylistEditLockKey, defaultValue = true)
+    // Editing now happens on the dedicated edit page, so the old inline unlock is always off.
+    LaunchedEffect(Unit) { if (!locked) locked = true }
+    var showEditPage by rememberSaveable { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val syncUtils = LocalSyncUtils.current
@@ -647,12 +650,12 @@ fun LocalPlaylistScreen(
                             )
                             if (editable) {
                                 IconButton(
-                                    onClick = { locked = !locked },
+                                    onClick = { showEditPage = true },
                                     modifier = Modifier.padding(horizontal = 6.dp),
                                 ) {
                                     Icon(
-                                        painter = painterResource(if (locked) R.drawable.lock else R.drawable.lock_open),
-                                        contentDescription = null,
+                                        painter = painterResource(R.drawable.edit),
+                                        contentDescription = stringResource(R.string.edit_playlist),
                                     )
                                 }
                             }
@@ -979,6 +982,53 @@ fun LocalPlaylistScreen(
                     .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.union(WindowInsets.ime))
                     .align(Alignment.BottomCenter),
         )
+
+        if (showEditPage && editable) {
+            PlaylistEditPage(
+                songs = songs,
+                pureBlack = screenPureBlackEnabled && screenDarkTheme,
+                onDismiss = { showEditPage = false },
+                onSave = { order, removed ->
+                    val playlistId = viewModel.playlistId
+                    val browseId = playlist?.playlist?.browseId
+                    val before = songs.sortedBy { it.map.position }.map { it.map.id }
+                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                        // Deepest positions first, so the positions of the songs still to remove stay valid.
+                        removed.sortedByDescending { it.map.position }.forEach { item ->
+                            database.withTransaction {
+                                move(item.map.playlistId, item.map.position, Int.MAX_VALUE)
+                                delete(item.map.copy(position = Int.MAX_VALUE))
+                            }
+                            if (browseId != null) {
+                                syncUtils.scheduleRemoveFromPlaylist(
+                                    browseId,
+                                    item.map.songId,
+                                    item.map.playlistId,
+                                ) { item.map.setVideoId }
+                            }
+                        }
+
+                        // Replay the new order as single moves, mirroring each one on YouTube Music.
+                        val removedIds = removed.map { it.map.id }.toSet()
+                        val current = before.filter { it !in removedIds }.toMutableList()
+                        order.map { it.map.id }.forEachIndexed { target, mapId ->
+                            val from = current.indexOf(mapId)
+                            if (from == -1 || from == target) return@forEachIndexed
+                            database.withTransaction { move(playlistId, from, target) }
+                            current.add(target, current.removeAt(from))
+
+                            if (browseId != null) {
+                                val maps = database.playlistSongMaps(playlistId, 0)
+                                val setVideoId = maps.getOrNull(target)?.setVideoId
+                                if (setVideoId != null) {
+                                    YouTube.moveSongPlaylist(browseId, setVideoId, maps.getOrNull(target + 1)?.setVideoId)
+                                }
+                            }
+                        }
+                    }
+                },
+            )
+        }
     }
 }
 

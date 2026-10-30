@@ -1180,6 +1180,12 @@
     <string name="reverb_balanced">Balanced</string>
     <string name="reverb_lush">Lush</string>
     <string name="reverb_off">Disabled</string>
+    <string name="playlist_edit_select">Select</string>
+    <string name="playlist_edit_remove_n">Remove (%d)</string>
+    <string name="playlist_edit_discard_title">Discard changes?</string>
+    <string name="playlist_edit_discard_message">Your changes to this playlist won\'t be saved.</string>
+    <string name="playlist_edit_discard">Discard</string>
+    <string name="playlist_edit_keep_editing">Keep editing</string>
     <string name="reverb_preset_none">None</string>
     <string name="reverb_preset_small_room">Small Room</string>
     <string name="reverb_preset_concert_hall">Concert Hall</string>

@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +47,8 @@ import coil3.compose.AsyncImage
 import com.wavlin.music.R
 import com.wavlin.music.audio.dolby.DolbyAtmosCapability
 import com.wavlin.music.audio.dolby.DolbyAtmosManager
+import com.wavlin.music.audio.dolby.DolbyAtmosV2Manager
+import com.wavlin.music.audio.dolby.DolbyV2Availability
 import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
 import com.wavlin.music.models.MediaMetadata
@@ -357,7 +360,10 @@ fun PlayerMenuSettingsCard() {
                 },
             checked = atmosEnabled && atmosSupported,
             enabled = atmosSupported,
-            onCheckedChange = { DolbyAtmosManager.setAtmosEnabled(it) },
+            onCheckedChange = {
+                if (it) DolbyAtmosV2Manager.setEnabled(false)
+                DolbyAtmosManager.setAtmosEnabled(it)
+            },
         )
     }
 }
@@ -459,6 +465,74 @@ fun PlayerMenuExpandedStereoCard() {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+fun PlayerMenuDolbyV2Card() {
+    val context = LocalContext.current
+    val enabled by DolbyAtmosV2Manager.isEnabled.collectAsStateWithLifecycle()
+    val active by DolbyAtmosV2Manager.isActive.collectAsStateWithLifecycle()
+    val availability by DolbyAtmosV2Manager.availability.collectAsStateWithLifecycle()
+    val launchIntent = remember { DolbyAtmosV2Manager.launchIntent(context) }
+    val available = availability == DolbyV2Availability.AVAILABLE
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { DolbyAtmosV2Manager.refreshAvailability() }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
+        SettingSwitchRow(
+            iconRes = R.drawable.ic_dolby,
+            title = stringResource(R.string.dolby_atmos_v2),
+            subtitle =
+                when {
+                    availability == DolbyV2Availability.MODULE_MISSING -> stringResource(R.string.dolby_atmos_v2_missing)
+                    enabled && active -> stringResource(R.string.dolby_atmos_v2_active)
+                    enabled -> stringResource(R.string.dolby_atmos_v2_failed)
+                    else -> stringResource(R.string.dolby_atmos_v2_off)
+                },
+            checked = enabled,
+            enabled = available || enabled,
+            onCheckedChange = { DolbyAtmosV2Manager.setEnabled(it) },
+        )
+        if (enabled && launchIntent != null) {
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            try {
+                                context.startActivity(launchIntent)
+                            } catch (_: Exception) {
+                            }
+                        }.padding(vertical = 4.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.tune),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    text = stringResource(R.string.dolby_atmos_v2_open),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
     }
 }
 

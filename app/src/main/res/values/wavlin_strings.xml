@@ -79,6 +79,12 @@
     <string name="dolby_earphones_only">(Earphones only)</string>
     <string name="dolby_immersive_mode">Immersive Dolby Atmos</string>
     <string name="dolby_immersive_mode_desc">Stronger surround space (test)</string>
+    <string name="dolby_atmos_v2">Dolby Atmos V2</string>
+    <string name="dolby_atmos_v2_active">Using the system Dolby DAP engine</string>
+    <string name="dolby_atmos_v2_off">Disabled</string>
+    <string name="dolby_atmos_v2_missing">Requires the Dolby Atmos Magisk module</string>
+    <string name="dolby_atmos_v2_failed">Could not attach to the Dolby engine</string>
+    <string name="dolby_atmos_v2_open">Open Dolby Atmos settings</string>
     <string name="track_info">Track Info</string>
     <string name="add_playlist">Add Playlist</string>
     <string name="audio_eq">Audio EQ</string>

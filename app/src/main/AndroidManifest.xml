@@ -26,6 +26,7 @@
             <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
         </intent>
         <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.dolby.daxservice" />
     </queries>
     <application
         android:name=".App"

@@ -746,7 +746,10 @@ fun PlayerMenu(
                                         )
                                     },
                                     onClick = {
-                                        if (!varispeedMode) showPitchTempoDialog = true
+                                        if (!varispeedMode) {
+                                            com.wavlin.music.ui.component.TempoPitchOverlayRequest.requested = true
+                                            onDismiss()
+                                        }
                                         else showSpeedDialog = true
                                     },
                                 ),

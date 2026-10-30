@@ -705,6 +705,14 @@ fun BottomSheetPlayer(
         }
     }
 
+    var showTempoPitch by remember { mutableStateOf(false) }
+    LaunchedEffect(com.wavlin.music.ui.component.TempoPitchOverlayRequest.requested) {
+        if (com.wavlin.music.ui.component.TempoPitchOverlayRequest.requested) {
+            com.wavlin.music.ui.component.TempoPitchOverlayRequest.requested = false
+            showTempoPitch = true
+        }
+    }
+
     val sleepTimerDefault by rememberPreference(SleepTimerDefaultKey, 30f)
     var sleepTimerValue by remember { mutableFloatStateOf(sleepTimerDefault) }
     val isAtDefault by remember {
@@ -2200,6 +2208,11 @@ fun BottomSheetPlayer(
                 playerConnection.service.sleepTimer?.addMinutes(added)
                 sleepTimerTimeLeft += added * 60_000L
             },
+        )
+        com.wavlin.music.ui.component.TempoPitchOverlay(
+            visible = showTempoPitch,
+            onDismiss = { showTempoPitch = false },
+            backdrop = com.wavlin.music.ui.component.LocalPlayerGlassBackdrop.current,
         )
 
     }

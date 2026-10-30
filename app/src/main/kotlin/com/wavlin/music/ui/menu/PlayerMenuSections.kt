@@ -49,6 +49,8 @@ import com.wavlin.music.audio.dolby.DolbyAtmosCapability
 import com.wavlin.music.audio.dolby.DolbyAtmosManager
 import com.wavlin.music.audio.dolby.DolbyAtmosV2Manager
 import com.wavlin.music.audio.dolby.DolbyV2Availability
+import com.wavlin.music.audio.SystemEffectAvailability
+import com.wavlin.music.audio.xiaomi.XiaomiSoundManager
 import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
 import com.wavlin.music.models.MediaMetadata
@@ -528,6 +530,74 @@ fun PlayerMenuDolbyV2Card() {
                 Spacer(Modifier.width(14.dp))
                 Text(
                     text = stringResource(R.string.dolby_atmos_v2_open),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PlayerMenuXiaomiSoundCard() {
+    val context = LocalContext.current
+    val enabled by XiaomiSoundManager.isEnabled.collectAsStateWithLifecycle()
+    val active by XiaomiSoundManager.isActive.collectAsStateWithLifecycle()
+    val availability by XiaomiSoundManager.availability.collectAsStateWithLifecycle()
+    val launchIntent = remember { XiaomiSoundManager.launchIntent(context) }
+    val available = availability == SystemEffectAvailability.AVAILABLE
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { XiaomiSoundManager.refreshAvailability() }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
+        SettingSwitchRow(
+            iconRes = R.drawable.graphic_eq,
+            title = stringResource(R.string.xiaomi_sound),
+            subtitle =
+                when {
+                    availability == SystemEffectAvailability.UNSUPPORTED -> stringResource(R.string.xiaomi_sound_unsupported)
+                    enabled && active -> stringResource(R.string.xiaomi_sound_active)
+                    enabled -> stringResource(R.string.xiaomi_sound_failed)
+                    else -> stringResource(R.string.xiaomi_sound_off)
+                },
+            checked = enabled,
+            enabled = available || enabled,
+            onCheckedChange = { XiaomiSoundManager.setEnabled(it) },
+        )
+        if (enabled && launchIntent != null) {
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            try {
+                                context.startActivity(launchIntent)
+                            } catch (_: Exception) {
+                            }
+                        }.padding(vertical = 4.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.tune),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    text = stringResource(R.string.xiaomi_sound_open),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )

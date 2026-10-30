@@ -85,6 +85,12 @@
     <string name="dolby_atmos_v2_missing">Requires the Dolby Atmos Magisk module</string>
     <string name="dolby_atmos_v2_failed">Could not attach to the Dolby engine</string>
     <string name="dolby_atmos_v2_open">Open Dolby Atmos settings</string>
+    <string name="xiaomi_sound">Xiaomi Sound</string>
+    <string name="xiaomi_sound_active">Using the system Mi Sound engine (earphones only)</string>
+    <string name="xiaomi_sound_off">Disabled</string>
+    <string name="xiaomi_sound_unsupported">Not available on this device</string>
+    <string name="xiaomi_sound_failed">Could not attach to Mi Sound</string>
+    <string name="xiaomi_sound_open">Open Mi Sound settings</string>
     <string name="track_info">Track Info</string>
     <string name="add_playlist">Add Playlist</string>
     <string name="audio_eq">Audio EQ</string>

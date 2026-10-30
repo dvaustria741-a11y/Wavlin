@@ -378,6 +378,7 @@ fun PlayerMenu(
                 PlayerMenuSettingsCard()
                 PlayerMenuExpandedStereoCard()
                 PlayerMenuDolbyV2Card()
+                PlayerMenuXiaomiSoundCard()
             }
         }
 

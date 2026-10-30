@@ -27,6 +27,7 @@
         </intent>
         <package android:name="com.google.android.projection.gearhead" />
         <package android:name="com.dolby.daxservice" />
+        <package android:name="com.miui.misound" />
     </queries>
     <application
         android:name=".App"

@@ -27,9 +27,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,6 +68,8 @@ import com.wavlin.music.audio.dolby.DolbyV2Availability
 import com.wavlin.music.audio.SystemEffectAvailability
 import com.wavlin.music.audio.SystemEffectController
 import com.wavlin.music.audio.dts.DtsSoundManager
+import com.wavlin.music.audio.reverb.ReverbManager
+import com.wavlin.music.ui.component.ReverbRoomVisualizer
 import com.wavlin.music.audio.xiaomi.XiaomiSoundManager
 import com.wavlin.music.constants.PlayerBackgroundStyle
 import com.wavlin.music.constants.PlayerBackgroundStyleKey
@@ -391,6 +399,146 @@ fun PlayerMenuDolbyAtmosCard() {
                 DolbyAtmosManager.setAtmosEnabled(it)
             },
         )
+    }
+}
+
+/** Reverb switch, first card of the Effects sub-page. Subtitle shows the active preset. */
+@Composable
+fun PlayerMenuReverbCard() {
+    val enabled by ReverbManager.isEnabled.collectAsStateWithLifecycle()
+    val presetIndex by ReverbManager.presetIndex.collectAsStateWithLifecycle()
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(cardShape())
+                .menuCard()
+                .padding(16.dp),
+    ) {
+        SettingSwitchRow(
+            iconRes = R.drawable.graphic_eq,
+            title = stringResource(R.string.reverb),
+            subtitle =
+                if (enabled) {
+                    stringResource(ReverbManager.presetLabels[presetIndex])
+                } else {
+                    stringResource(R.string.reverb_off)
+                },
+            checked = enabled,
+            enabled = true,
+            onCheckedChange = { ReverbManager.setEnabled(it) },
+        )
+    }
+}
+
+/** Reverb visualizer, preset picker and intensity slider. Only shown while reverb is on. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlayerMenuReverbSettingsCard() {
+    val enabled by ReverbManager.isEnabled.collectAsStateWithLifecycle()
+    val presetIndex by ReverbManager.presetIndex.collectAsStateWithLifecycle()
+    val intensity by ReverbManager.intensity.collectAsStateWithLifecycle()
+
+    AnimatedVisibility(
+        visible = enabled,
+        enter = expandVertically(tween(300, easing = FastOutSlowInEasing)) + fadeIn(tween(220)),
+        exit = shrinkVertically(tween(260, easing = FastOutSlowInEasing)) + fadeOut(tween(180)),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(cardShape())
+                    .menuCard()
+                    .padding(16.dp),
+        ) {
+            ReverbRoomVisualizer(
+                presetIndex = presetIndex,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            var expanded by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                OutlinedTextField(
+                    value = stringResource(ReverbManager.presetLabels[presetIndex]),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.reverb_preset)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    ReverbManager.presetLabels.forEachIndexed { i, labelRes ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(labelRes)) },
+                            onClick = {
+                                ReverbManager.setPreset(i)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.reverb_intensity),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${(intensity * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val onSurface = MaterialTheme.colorScheme.onSurface
+            Slider(
+                value = intensity,
+                onValueChange = { ReverbManager.setIntensity(it) },
+                valueRange = 0f..1f,
+                colors =
+                    SliderDefaults.colors(
+                        thumbColor = onSurface,
+                        activeTrackColor = onSurface.copy(alpha = 0.92f),
+                        inactiveTrackColor = onSurface.copy(alpha = 0.14f),
+                    ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    stringResource(R.string.reverb_subtle),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.reverb_balanced),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+                Text(
+                    stringResource(R.string.reverb_lush),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

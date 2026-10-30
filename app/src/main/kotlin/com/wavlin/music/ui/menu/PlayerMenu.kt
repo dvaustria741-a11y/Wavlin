@@ -45,8 +45,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -96,7 +94,6 @@ import com.wavlin.music.models.MediaMetadata
 import com.wavlin.music.playback.ExoDownloadService
 import com.wavlin.music.db.entities.Song
 import com.wavlin.music.db.entities.SpeedDialItem
-import com.wavlin.music.ui.component.AudioEffectsSheet
 import com.wavlin.music.ui.component.BottomSheetState
 import com.wavlin.music.ui.component.ListDialog
 import com.wavlin.music.ui.component.Material3MenuGroup
@@ -266,24 +263,15 @@ fun PlayerMenu(
         )
     }
 
-    var showEffectsSheet by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    if (showEffectsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showEffectsSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            AudioEffectsSheet()
-        }
-    }
-
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     var showDolby by rememberSaveable { mutableStateOf(false) }
+    var showEffects by rememberSaveable { mutableStateOf(false) }
+    // The main menu is hidden while either sub-page is open.
+    val subPage = showDolby || showEffects
     BackHandler(enabled = showDolby) { showDolby = false }
+    BackHandler(enabled = showEffects) { showEffects = false }
     // Stagger steps each group waits for the other to clear out of the way.
     val mainWait = 4
     val dolbyWait = 3
@@ -320,7 +308,7 @@ fun PlayerMenu(
                 }
 
                 val colors = MaterialTheme.colorScheme
-                MenuSlideItem(visible = !showDolby, index = 0, waitFor = dolbyWait) {
+                MenuSlideItem(visible = !subPage, index = 0, waitFor = dolbyWait) {
                 PlayerMenuQuickActions(
                     actions =
                         listOf(
@@ -337,7 +325,7 @@ fun PlayerMenu(
                                 iconRes = R.drawable.graphic_eq,
                                 label = stringResource(R.string.effects),
                                 circleColor = colors.onSurface.copy(alpha = 0.12f),
-                                onClick = { showEffectsSheet = true },
+                                onClick = { showEffects = true },
                             ),
                             PlayerQuickAction(
                                 iconRes = R.drawable.playlist_add,
@@ -366,7 +354,7 @@ fun PlayerMenu(
 
                 val isPodcastTrack = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
                 if (artists.isNotEmpty() && !isPodcastTrack) {
-                    MenuSlideItem(visible = !showDolby, index = 1, waitFor = dolbyWait) {
+                    MenuSlideItem(visible = !subPage, index = 1, waitFor = dolbyWait) {
                     PlayerMenuRowCard(
                         iconRes = R.drawable.artist,
                         title = stringResource(R.string.view_artist),
@@ -383,7 +371,7 @@ fun PlayerMenu(
                     }
                 }
 
-                MenuSlideItem(visible = !showDolby, index = 2, waitFor = dolbyWait) { PlayerMenuSettingsCard() }
+                MenuSlideItem(visible = !subPage, index = 2, waitFor = dolbyWait) { PlayerMenuSettingsCard() }
 
                 MenuSlideItem(visible = showDolby, index = 0, waitFor = mainWait) {
                     PlayerMenuRowCard(
@@ -397,11 +385,21 @@ fun PlayerMenu(
                 MenuSlideItem(visible = showDolby, index = 3, waitFor = mainWait) { PlayerMenuDolbyV2Card() }
                 MenuSlideItem(visible = showDolby, index = 4, waitFor = mainWait) { PlayerMenuXiaomiSoundCard() }
                 MenuSlideItem(visible = showDolby, index = 5, waitFor = mainWait) { PlayerMenuDtsSoundCard() }
+
+                MenuSlideItem(visible = showEffects, index = 0, waitFor = mainWait) {
+                    PlayerMenuRowCard(
+                        iconRes = R.drawable.arrow_back,
+                        title = stringResource(R.string.back),
+                        onClick = { showEffects = false },
+                    )
+                }
+                MenuSlideItem(visible = showEffects, index = 1, waitFor = mainWait) { PlayerMenuReverbCard() }
+                MenuSlideItem(visible = showEffects, index = 2, waitFor = mainWait) { PlayerMenuReverbSettingsCard() }
             }
         }
 
         item {
-            MenuSlideItem(visible = !showDolby, index = 3, waitFor = dolbyWait) {
+            MenuSlideItem(visible = !subPage, index = 3, waitFor = dolbyWait) {
             val startingRadioText = stringResource(R.string.starting_radio)
             PlayerMenuListCard(
                 items =
@@ -458,7 +456,7 @@ fun PlayerMenu(
 
 
         item {
-            MenuSlideItem(visible = !showDolby, index = 4, waitFor = dolbyWait) {
+            MenuSlideItem(visible = !subPage, index = 4, waitFor = dolbyWait) {
             // Check if this is a podcast episode (album ID doesn't start with MPREb_)
             val isPodcast = mediaMetadata.album?.let { !it.id.startsWith("MPREb_") } ?: false
 
@@ -564,7 +562,7 @@ fun PlayerMenu(
 
 
         item {
-            MenuSlideItem(visible = !showDolby, index = 5, waitFor = dolbyWait) {
+            MenuSlideItem(visible = !subPage, index = 5, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     listOf(
@@ -640,7 +638,7 @@ fun PlayerMenu(
 
 
         item {
-            MenuSlideItem(visible = !showDolby, index = 6, waitFor = dolbyWait) {
+            MenuSlideItem(visible = !subPage, index = 6, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     buildList {
@@ -702,7 +700,7 @@ fun PlayerMenu(
 
 
         item {
-            MenuSlideItem(visible = !showDolby, index = 7, waitFor = dolbyWait) {
+            MenuSlideItem(visible = !subPage, index = 7, waitFor = dolbyWait) {
             PlayerMenuListCard(
                 items =
                     buildList {

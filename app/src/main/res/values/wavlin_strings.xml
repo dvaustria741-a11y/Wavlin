@@ -1179,6 +1179,7 @@
     <string name="reverb_subtle">Subtle</string>
     <string name="reverb_balanced">Balanced</string>
     <string name="reverb_lush">Lush</string>
+    <string name="reverb_off">Disabled</string>
     <string name="reverb_preset_none">None</string>
     <string name="reverb_preset_small_room">Small Room</string>
     <string name="reverb_preset_concert_hall">Concert Hall</string>

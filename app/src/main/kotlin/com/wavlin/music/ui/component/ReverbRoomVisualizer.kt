@@ -43,7 +43,7 @@ private const val PiF = 3.1415927f
 private const val PulseSeconds = 2.6f
 
 /**
- * Animated visualizer for the Reverb section in [AudioEffectsSheet].
+ * Animated visualizer for the Reverb page of the player menu (see PlayerMenuReverbSettingsCard).
  *
  * presetIndex: 0 = None, 1 = Small Room, 2 = Concert Hall,
  *              3 = Stadium, 4 = Plate, 5 = Spring

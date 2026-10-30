@@ -194,6 +194,7 @@ import com.wavlin.music.db.entities.FormatEntity
 import com.wavlin.music.ui.component.PlayerSliderTrack
 import com.wavlin.music.ui.component.ResizableIconButton
 import com.wavlin.music.ui.component.SquigglySlider
+import com.wavlin.music.ui.component.TempoPitchOverlay
 import com.wavlin.music.ui.component.WavySlider
 import com.wavlin.music.ui.component.rememberBottomSheetState
 import com.wavlin.music.ui.menu.PlayerMenu
@@ -2209,7 +2210,7 @@ fun BottomSheetPlayer(
                 sleepTimerTimeLeft += added * 60_000L
             },
         )
-        com.wavlin.music.ui.component.TempoPitchOverlay(
+        TempoPitchOverlay(
             visible = showTempoPitch,
             onDismiss = { showTempoPitch = false },
             backdrop = com.wavlin.music.ui.component.LocalPlayerGlassBackdrop.current,

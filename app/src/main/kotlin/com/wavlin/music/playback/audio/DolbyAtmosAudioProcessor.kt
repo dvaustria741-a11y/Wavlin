@@ -62,6 +62,19 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         private const val BASE_DECOR = 0.1f
         private const val SIDE_HP_HZ = 250.0
 
+        // ── Upmix (stereo -> virtual 5.1 -> back to 2 channels, like the system Dolby upmixer) ──────────────────
+        // Centre = the vocal/mid signal (handled by the mid chain above). Surround = the ambience of the recording
+        // (side signal) delayed 11 ms / 17 ms with opposite polarity, rendered into both ears/speakers with a
+        // shaded crossfeed so it appears around and behind the listener. Bass is managed by the graphic EQ (earphones)
+        // and the speaker bass lift (phone speaker).
+        private const val SURR_DELAY_L_S = 0.011
+        private const val SURR_DELAY_R_S = 0.017
+        private const val SURR_LP_HZ = 3500.0
+        private const val SURR_CROSS_LP_HZ = 1800.0
+        private const val SURR_GAIN = 1.0f
+        private const val SURR_CROSS = 0.5f
+        private const val SURR_MAX_S = 0.03
+
         // ── Diffuse "lubog" background: the background is blurred into a wide, dark, LOUDER cloud (short reverb) ──
         // The blur is what spreads it. Fed mostly by the side signal plus a little of the vocal band.
         private val DIFF_COMB_L_MS = doubleArrayOf(17.1, 21.7, 25.3, 29.9)
@@ -256,6 +269,15 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
     private var hpPrevIn = 0f
     private var hpPrevOut = 0f
     private var sBand = 0f
+    private var surrBuf = FloatArray(1)
+    private var surrIdx = 0
+    private var surrDelL = 1
+    private var surrDelR = 1
+    private var surrLp = 0f
+    private var surrLpCoef = 0.3f
+    private var surrCrossL = 0f
+    private var surrCrossR = 0f
+    private var surrCrossCoef = 0.2f
     private var balEnvM = 0f
     private var balEnvS = 0f
     private var balCoef = 0.0001f
@@ -418,6 +440,12 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
 
         hpCoef = onePoleHp(SIDE_HP_HZ)
         sLpCoef = (1.0 - exp(-2.0 * PI * SIDE_WIDEN_LP_HZ / sr)).toFloat()
+        surrBuf = FloatArray((SURR_MAX_S * sr).toInt().coerceAtLeast(64))
+        surrIdx = 0
+        surrDelL = (SURR_DELAY_L_S * sr).toInt().coerceIn(1, surrBuf.size - 1)
+        surrDelR = (SURR_DELAY_R_S * sr).toInt().coerceIn(1, surrBuf.size - 1)
+        surrLpCoef = (1.0 - exp(-2.0 * PI * SURR_LP_HZ / sr)).toFloat()
+        surrCrossCoef = (1.0 - exp(-2.0 * PI * SURR_CROSS_LP_HZ / sr)).toFloat()
         balCoef = (1.0 - exp(-1.0 / (BAL_TAU_S * sr))).toFloat()
         voxBuf = FloatArray((VOX_MAX_S * sr).toInt().coerceAtLeast(64))
         voxIdx = 0
@@ -643,6 +671,21 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         // Graphic equalizer (10 bands).
         var tl = (m + s) * outGain
         var tr = (m - s) * outGain
+
+        // Upmix: ambience -> virtual surround channels (Ls, Rs), rendered back with a shaded crossfeed.
+        surrLp += (sHp - surrLp) * surrLpCoef
+        surrBuf[surrIdx] = surrLp
+        var pl = surrIdx - surrDelL
+        if (pl < 0) pl += surrBuf.size
+        var pr = surrIdx - surrDelR
+        if (pr < 0) pr += surrBuf.size
+        val ls = surrBuf[pl]
+        val rs = -surrBuf[pr]
+        if (++surrIdx >= surrBuf.size) surrIdx = 0
+        surrCrossL += (ls - surrCrossL) * surrCrossCoef
+        surrCrossR += (rs - surrCrossR) * surrCrossCoef
+        tl += (ls + SURR_CROSS * surrCrossR) * SURR_GAIN
+        tr += (rs + SURR_CROSS * surrCrossL) * SURR_GAIN
         if (appliedSpeaker) {
             tl = spkBassL.process(spkOptL.process(hpfL.process(tl)))
             tr = spkBassR.process(spkOptR.process(hpfR.process(tr)))
@@ -904,6 +947,7 @@ class DolbyAtmosAudioProcessor : AudioProcessor {
         decPrevIn = 0f; decPrevOut = 0f
         immBuf.fill(0f); immIdx = 0; immLp = 0f
         sideShelf.reset(); midShelf.reset()
+        surrBuf.fill(0f); surrIdx = 0; surrLp = 0f; surrCrossL = 0f; surrCrossR = 0f
         combsL.forEach { it.reset() }; combsR.forEach { it.reset() }
         apL1.reset(); apL2.reset(); apR1.reset(); apR2.reset()
         hpfL.reset(); hpfR.reset(); spkOptL.reset(); spkOptR.reset()

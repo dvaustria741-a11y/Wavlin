@@ -1258,4 +1258,10 @@
     <string name="spotify_save_as_new">Save as new playlist</string>
     <string name="spotify_add_to_existing">Or add to an existing playlist</string>
     <string name="spotify_no_editable_playlists">You don\'t have any playlists yet</string>
+    <string name="shared_playlist">Shared playlist</string>
+    <string name="shared_playlist_load_failed">Couldn\'t load this shared playlist</string>
+    <string name="shared_playlist_saved">Saved \"%1$s\" to your playlists</string>
+    <string name="shared_playlist_added">Added %1$d songs to \"%2$s\"</string>
+    <string name="shared_playlist_already_added">These songs are already in \"%1$s\"</string>
+    <string name="playlist_name_already_exists">This name already exists</string>
 </resources>

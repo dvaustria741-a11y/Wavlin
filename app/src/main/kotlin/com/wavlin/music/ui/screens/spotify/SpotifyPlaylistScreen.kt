@@ -368,13 +368,14 @@ fun SpotifyPlaylistScreen(
     val loadedForSave = state as? SpotifyPlaylistState.Loaded
     if (showSaveDialog && loadedForSave != null) {
         SpotifySaveDialog(
+            initialName = title,
             onDismiss = { showSaveDialog = false },
-            onSaveNew = {
+            onSaveNew = { newName ->
                 showSaveDialog = false
                 SpotifyImporter.start(
                     context = context,
                     database = database,
-                    name = title,
+                    name = newName,
                     tracks = loadedForSave.tracks.map { it.toImportTrack() },
                     coverUrl = playlist?.thumbnailUrl(),
                 )

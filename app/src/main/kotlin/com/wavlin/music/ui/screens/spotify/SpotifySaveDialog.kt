@@ -18,6 +18,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
@@ -29,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wavlin.music.R
 import com.wavlin.music.db.entities.Playlist
 import com.wavlin.music.ui.component.ListDialog
+import com.wavlin.music.ui.component.PlaylistNameDialog
 import com.wavlin.music.ui.component.PlaylistListItem
 import com.wavlin.music.viewmodels.PlaylistsViewModel
 
@@ -38,18 +42,30 @@ import com.wavlin.music.viewmodels.PlaylistsViewModel
  */
 @Composable
 fun SpotifySaveDialog(
+    initialName: String,
     onDismiss: () -> Unit,
-    onSaveNew: () -> Unit,
+    onSaveNew: (String) -> Unit,
     onAddToExisting: (Playlist) -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel(),
 ) {
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
     val editable = playlists.filter { it.playlist.isEditable }
+    var askName by remember { mutableStateOf(false) }
+
+    if (askName) {
+        PlaylistNameDialog(
+            initialName = initialName,
+            existingNames = playlists.map { it.playlist.name },
+            onDismiss = { askName = false },
+            onConfirm = onSaveNew,
+        )
+        return
+    }
 
     ListDialog(onDismiss = onDismiss) {
         item {
             FilledTonalButton(
-                onClick = onSaveNew,
+                onClick = { askName = true },
                 shape = RoundedCornerShape(50),
                 colors =
                     ButtonDefaults.filledTonalButtonColors(

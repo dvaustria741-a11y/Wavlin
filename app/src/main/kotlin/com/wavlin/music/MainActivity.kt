@@ -172,7 +172,6 @@ import com.wavlin.music.constants.SlimNavBarKey
 import com.wavlin.music.constants.StopMusicOnTaskClearKey
 import com.wavlin.music.constants.UpdateNotificationsEnabledKey
 import com.wavlin.music.db.MusicDatabase
-import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.db.entities.SearchHistory
 import com.wavlin.music.extensions.toEnum
 import com.wavlin.music.lyrics.LyricsProviderRegistry
@@ -232,9 +231,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import timber.log.Timber
 import java.util.Locale
 import javax.inject.Inject
@@ -1676,13 +1672,17 @@ class MainActivity : ComponentActivity() {
             }
 
             "shared" ->
-                importSharedPlaylist(
-                    name = uri.getQueryParameter("name").orEmpty(),
-                    ids = uri.getQueryParameter("ids")?.split(",").orEmpty(),
-                    navController = navController,
+                navController.navigate(
+                    "shared_playlist?name=${Uri.encode(uri.getQueryParameter("name").orEmpty())}" +
+                        "&ids=${Uri.encode(uri.getQueryParameter("ids").orEmpty())}",
                 )
 
-            "shared-code" -> importSharedPlaylistByCode(uri.pathSegments.getOrNull(1), navController)
+            "shared-code" ->
+                uri.pathSegments
+                    .getOrNull(1)
+                    ?.removeSuffix(".json")
+                    ?.takeIf { it.matches(Regex("[A-Za-z0-9]{4,32}")) }
+                    ?.let { navController.navigate("shared_playlist?code=$it") }
 
             "browse" -> {
                 uri.lastPathSegment?.let { browseId ->
@@ -1752,65 +1752,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Looks up a playlist stored on the share server by its short code, then imports it. */
-    private fun importSharedPlaylistByCode(
-        code: String?,
-        navController: NavHostController,
-    ) {
-        val cleanCode = code?.removeSuffix(".json")?.takeIf { it.matches(Regex("[A-Za-z0-9]{4,32}")) } ?: return
-        lifecycleScope.launch(Dispatchers.IO) {
-            runCatching {
-                val connection = URL("https://$SHARE_PAGE_HOST/p/$cleanCode.json").openConnection() as HttpURLConnection
-                try {
-                    connection.connectTimeout = 8000
-                    connection.readTimeout = 8000
-                    val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                    val idArray = json.getJSONArray("ids")
-                    json.optString("name") to List(idArray.length()) { idArray.getString(it) }
-                } finally {
-                    connection.disconnect()
-                }
-            }.onSuccess { (name, ids) ->
-                withContext(Dispatchers.Main) { importSharedPlaylist(name, ids, navController) }
-            }.onFailure { reportException(it) }
-        }
-    }
-
-    private fun importSharedPlaylist(
-        name: String,
-        ids: List<String>,
-        navController: NavHostController,
-    ) {
-        val videoIds = ids.filter { it.isNotBlank() }.distinct()
-        if (videoIds.isEmpty()) return
-        val playlistName = name.takeIf { it.isNotBlank() } ?: "Shared playlist"
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            // The queue endpoint only takes a limited number of ids per request, so fetch in batches, in order.
-            val batches = videoIds.chunked(SHARED_PLAYLIST_BATCH_SIZE).map { YouTube.queue(it) }
-            val failure = batches.firstOrNull { it.isFailure }?.exceptionOrNull()
-            if (failure != null) {
-                reportException(failure)
-                return@launch
-            }
-            Result
-                .success(batches.flatMap { it.getOrThrow() })
-                .onSuccess { songs ->
-                    val playlistEntity = PlaylistEntity(name = playlistName)
-                    database.query {
-                        insert(playlistEntity)
-                        songs.forEach { insert(it.toMediaMetadata()) }
-                    }
-                    database.playlist(playlistEntity.id).first()?.let { playlist ->
-                        database.query { addSongsToPlaylist(playlist, songs.map { it.id to null }) }
-                    }
-                    withContext(Dispatchers.Main) {
-                        navController.navigate("local_playlist/${playlistEntity.id}")
-                    }
-                }.onFailure { reportException(it) }
-        }
-    }
-
     @SuppressLint("ObsoleteSdkInt")
     private fun setSystemBarAppearance(isDark: Boolean) {
         WindowCompat.getInsetsController(window, window.decorView.rootView).apply {
@@ -1826,7 +1767,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private const val SHARED_PLAYLIST_BATCH_SIZE = 50
 private const val SHARE_PAGE_HOST = "wavlin-share.dvaustria741.workers.dev"
 
 val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database provided") }

@@ -35,6 +35,7 @@ import com.wavlin.music.ui.screens.library.LibraryScreen
 import com.wavlin.music.ui.screens.playlist.AutoPlaylistScreen
 import com.wavlin.music.ui.screens.playlist.CachePlaylistScreen
 import com.wavlin.music.ui.screens.playlist.LocalPlaylistScreen
+import com.wavlin.music.ui.screens.playlist.SharedPlaylistScreen
 import com.wavlin.music.ui.screens.playlist.OnlinePlaylistScreen
 import com.wavlin.music.ui.screens.playlist.TopPlaylistScreen
 import com.wavlin.music.ui.screens.hub.CategoryHubScreen
@@ -289,6 +290,27 @@ fun NavGraphBuilder.navigationBuilder(
             ),
     ) {
         OnlinePodcastScreen(navController, scrollBehavior)
+    }
+
+    composable(
+        route = "shared_playlist?code={code}&name={name}&ids={ids}",
+        arguments =
+            listOf(
+                navArgument("code") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("name") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("ids") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+    ) {
+        SharedPlaylistScreen(navController)
     }
 
     composable(

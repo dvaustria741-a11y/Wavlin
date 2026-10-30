@@ -7,6 +7,7 @@ package com.wavlin.music.ui.screens.spotify
 
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.pinkGlassPanel
+import com.wavlin.music.ui.screens.playlist.heroCoverFade
 import com.wavlin.music.ui.screens.playlist.heroFadeColor
 import com.wavlin.music.ui.screens.playlist.heroTitleColor
 import com.wavlin.music.ui.screens.playlist.heroTopButtonModifier
@@ -203,16 +204,17 @@ fun SpotifyPlaylistScreen(
                                     model = cover,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier.fillMaxSize().heroCoverFade(),
                                 )
                             } else {
                                 Box(
-                                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                                    Modifier.fillMaxSize().heroCoverFade().background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(painterResource(R.drawable.queue_music), contentDescription = null, modifier = Modifier.size(96.dp))
                                 }
                             }
+                            if (!LocalPinkLilyTheme.current) {
                             // Fade the cover into the page so the title stays readable
                             Box(
                                 Modifier
@@ -227,6 +229,7 @@ fun SpotifyPlaylistScreen(
                                         ),
                                     ),
                             )
+                            }
                             // Keeps the status bar and the floating top buttons legible over bright covers
                             Box(
                                 Modifier

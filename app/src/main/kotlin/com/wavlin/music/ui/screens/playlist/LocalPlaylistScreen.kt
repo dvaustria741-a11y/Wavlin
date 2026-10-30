@@ -1328,7 +1328,7 @@ fun LocalPlaylistHeader(
         ) {
             when (coverThumbnails.size) {
                 0 -> if (LocalPinkLilyTheme.current) {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.fillMaxSize().heroCoverFade()) {
                         androidx.compose.foundation.Image(
                             painter = painterResource(R.drawable.lily_cover_empty),
                             contentDescription = null,
@@ -1367,7 +1367,8 @@ fun LocalPlaylistHeader(
                     Surface(
                         modifier =
                             Modifier
-                                .fillMaxSize(),
+                                .fillMaxSize()
+                                .heroCoverFade(),
                         shape = androidx.compose.ui.graphics.RectangleShape,
                     ) {
                         AsyncImage(
@@ -1432,7 +1433,8 @@ fun LocalPlaylistHeader(
                     Surface(
                         modifier =
                             Modifier
-                                .fillMaxSize(),
+                                .fillMaxSize()
+                                .heroCoverFade(),
                         shape = androidx.compose.ui.graphics.RectangleShape,
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -1507,6 +1509,7 @@ fun LocalPlaylistHeader(
                 }
             }
 
+            if (!LocalPinkLilyTheme.current) {
             // Fade the cover into the page so the title stays readable
             Box(
                 modifier =
@@ -1522,6 +1525,7 @@ fun LocalPlaylistHeader(
                             ),
                         ),
             )
+            }
             // Keeps the status bar and the floating top buttons legible over bright covers
             Box(
                 modifier =

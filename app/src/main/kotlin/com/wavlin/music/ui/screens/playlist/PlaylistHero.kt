@@ -51,6 +51,7 @@ import com.wavlin.music.constants.AppBarHeight
 import com.wavlin.music.ui.component.LocalPinkLilyTheme
 import com.wavlin.music.ui.component.pinkGlass
 import com.wavlin.music.ui.theme.PinkInk
+import com.wavlin.music.ui.utils.fadingEdge
 
 /** List padding for a screen whose first item is a full-bleed hero: no top padding while the hero shows. */
 @Composable
@@ -81,6 +82,13 @@ internal fun heroTopIconTint(overlay: Boolean): Color =
         LocalPinkLilyTheme.current -> PinkInk
         else -> Color.White
     }
+
+/**
+ * Secret Pink: the cover fades to real transparency at its bottom edge (like the artist screen), so the gingham
+ * wallpaper shows through with no seam. Other themes fade into a solid colour with a gradient instead.
+ */
+@Composable
+internal fun Modifier.heroCoverFade(): Modifier = if (LocalPinkLilyTheme.current) fadingEdge(bottom = 220.dp) else this
 
 /** Colour the cover fades into at its bottom edge, so it meets the page without a seam. */
 @Composable
@@ -118,6 +126,7 @@ internal fun PlaylistHeroHeader(
 
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+            Box(Modifier.matchParentSize().heroCoverFade()) {
             when (covers.size) {
                 0 ->
                     Box(
@@ -151,6 +160,8 @@ internal fun PlaylistHeroHeader(
                         }
                     }
             }
+            }
+            if (!LocalPinkLilyTheme.current) {
             // Fade the cover into the page so the title stays readable
             Box(
                 Modifier
@@ -165,6 +176,7 @@ internal fun PlaylistHeroHeader(
                         ),
                     ),
             )
+            }
             // Keeps the status bar and the floating top buttons legible over bright covers
             Box(
                 Modifier

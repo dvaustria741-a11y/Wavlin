@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.wavlin.innertube.YouTube
 import com.wavlin.music.LocalDatabase
 import com.wavlin.music.R
+import com.wavlin.music.mix.MixStore
 import com.wavlin.music.constants.InnerTubeCookieKey
 import com.wavlin.music.db.entities.PlaylistEntity
 import com.wavlin.music.extensions.isSyncEnabled
@@ -74,6 +75,7 @@ fun CreatePlaylistDialog(
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
     var syncedPlaylist by remember { mutableStateOf(false) }
+    var mixedPlaylist by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf(TextFieldValue(initialTextFieldValue ?: "")) }
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
@@ -115,6 +117,8 @@ fun CreatePlaylistDialog(
                 database.query {
                     insert(playlistEntity)
                 }
+
+                if (mixedPlaylist) MixStore.setMixed(playlistEntity.id, true)
 
                 withContext(Dispatchers.Main) {
                     onPlaylistCreated?.invoke(playlistEntity.id)
@@ -168,6 +172,32 @@ fun CreatePlaylistDialog(
             keyboardActions = KeyboardActions(onDone = { submit() }),
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
         )
+
+        Spacer(Modifier.height(12.dp))
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.mixed_playlist),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.mixed_playlist_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(checked = mixedPlaylist, onCheckedChange = { mixedPlaylist = it })
+            }
+        }
 
         if (allowSyncing) {
             Spacer(Modifier.height(12.dp))

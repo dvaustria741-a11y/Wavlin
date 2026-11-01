@@ -206,6 +206,11 @@ import com.wavlin.music.models.toMediaMetadata
 import com.wavlin.music.playback.alarm.MusicAlarmScheduler
 import com.wavlin.music.playback.alarm.MusicAlarmStore
 import com.wavlin.music.playback.audio.SilenceDetectorAudioProcessor
+import com.wavlin.music.mix.MixAudioProcessor
+import com.wavlin.music.mix.MixCurves
+import com.wavlin.music.mix.MixEffect
+import com.wavlin.music.mix.MixStore
+import com.wavlin.music.mix.MixTransition
 import com.wavlin.music.playback.queues.EmptyQueue
 import com.wavlin.music.playback.queues.ListQueue
 import com.wavlin.music.playback.queues.Queue
@@ -315,6 +320,13 @@ class MusicService :
     private var crossfadeDuration = 5000f
     private var crossfadeGapless = true
     private var crossfadeTriggerJob: Job? = null
+
+    /** Playlist whose transitions apply to the current queue; set when a mixed playlist is played. */
+    private var activeMixPlaylistId: String? = null
+    private var mixTriggerJob: Job? = null
+    private var mixPrewarmKey: String? = null
+    private var pendingMix: MixTransition? = null
+    private val playerMixProcessors = mutableMapOf<ExoPlayer, MixAudioProcessor>()
 
     private val secondaryPlayerListener =
         object : Player.Listener {
@@ -647,6 +659,8 @@ class MusicService :
         com.wavlin.music.audio.xiaomi.XiaomiSoundManager.init(this)
         com.wavlin.music.audio.dts.DtsSoundManager.init(this)
         com.wavlin.music.audio.reverb.ReverbManager.init(this)
+        com.wavlin.music.mix.MixStore.init(this)
+        com.wavlin.music.mix.MixAudioSource.factory = DataSource.Factory { createDataSourceFactory().createDataSource() }
         shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>()
 
         setListener(
@@ -1010,7 +1024,7 @@ class MusicService :
             dataStore.data.map { it[CrossfadeEnabledKey] ?: false },
             com.wavlin.music.audio.reverb.ReverbManager.isEnabled,
             com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser,
-            combine(com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled, com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled, com.wavlin.music.audio.dts.DtsSoundManager.isEnabled) { dolbyV2, xiaomi, dts -> dolbyV2 || xiaomi || dts },
+            combine(com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled, com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled, com.wavlin.music.audio.dts.DtsSoundManager.isEnabled, com.wavlin.music.mix.MixStore.mixedPlaylists) { dolbyV2, xiaomi, dts, mixed -> dolbyV2 || xiaomi || dts || mixed.isNotEmpty() },
         ) { offloadPref, crossfadeEnabled, reverbEnabled, dolbyEnabled, systemEffectEnabled ->
             // Offload is disabled with crossfade (volume ramp issues), reverb and Dolby Atmos (offloaded tracks bypass audio processors)
             if (crossfadeEnabled || reverbEnabled || dolbyEnabled || systemEffectEnabled) false else offloadPref
@@ -1047,6 +1061,7 @@ class MusicService :
                 sleepTimer?.let { player.removeListener(it) }
                 playerNormalizationProcessors.remove(player)
                 playerSilenceProcessors.remove(player)
+                playerMixProcessors.remove(player)
                 player.release()
 
                 val newPlayer = createExoPlayer()
@@ -1389,6 +1404,7 @@ class MusicService :
         com.wavlin.music.audio.reverb.ReverbManager.setProcessor(reverbProcessor)
         val dolbyProcessor = com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor()
         com.wavlin.music.audio.dolby.DolbyAtmosManager.registerProcessor(dolbyProcessor)
+        val mixProcessor = MixAudioProcessor()
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1409,7 +1425,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, dolbyProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, reverbProcessor, dolbyProcessor, mixProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -1435,18 +1451,19 @@ class MusicService :
 
         playerNormalizationProcessors[player] = normalizationProcessor
         playerSilenceProcessors[player] = silenceProcessor
+        playerMixProcessors[player] = mixProcessor
 
         if (prefs != null) {
             val offload = prefs[AudioOffload] ?: false
             val crossfade = prefs[CrossfadeEnabledKey] ?: false
-            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value || com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled.value || com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled.value || com.wavlin.music.audio.dts.DtsSoundManager.isEnabled.value) false else offload)
+            player.setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value || com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled.value || com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled.value || com.wavlin.music.audio.dts.DtsSoundManager.isEnabled.value || com.wavlin.music.mix.MixStore.hasMixedPlaylists) false else offload)
             player.skipSilenceEnabled = prefs[SkipSilenceKey] ?: false
         } else {
             player.apply {
                 runBlocking {
                     val offload = dataStore.get(AudioOffload, false)
                     val crossfade = dataStore.get(CrossfadeEnabledKey, false)
-                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value || com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled.value || com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled.value || com.wavlin.music.audio.dts.DtsSoundManager.isEnabled.value) false else offload)
+                    setOffloadEnabled(if (crossfade || com.wavlin.music.audio.reverb.ReverbManager.isEnabled.value || com.wavlin.music.audio.dolby.DolbyAtmosManager.isAtmosEnabledByUser.value || com.wavlin.music.audio.dolby.DolbyAtmosV2Manager.isEnabled.value || com.wavlin.music.audio.xiaomi.XiaomiSoundManager.isEnabled.value || com.wavlin.music.audio.dts.DtsSoundManager.isEnabled.value || com.wavlin.music.mix.MixStore.hasMixedPlaylists) false else offload)
                     skipSilenceEnabled = dataStore.get(SkipSilenceKey, false)
                 }
             }
@@ -1872,6 +1889,7 @@ class MusicService :
         }
 
         currentQueue = queue
+        activeMixPlaylistId = (queue as? ListQueue)?.mixPlaylistId
         queueTitle = null
         queueGeneration.value++
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
@@ -3939,6 +3957,7 @@ class MusicService :
         eqProcessor: CustomEqualizerAudioProcessor,
         reverbProcessor: com.wavlin.music.playback.audio.ReverbAudioProcessor,
         dolbyProcessor: com.wavlin.music.playback.audio.DolbyAtmosAudioProcessor,
+        mixProcessor: MixAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
@@ -4001,6 +4020,7 @@ class MusicService :
                         eqProcessor,
                         reverbProcessor,
                         dolbyProcessor,
+                        mixProcessor,
                         silenceProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
@@ -4288,6 +4308,7 @@ class MusicService :
         sleepTimer?.let { player.removeListener(it) }
         playerNormalizationProcessors.remove(player)
         playerSilenceProcessors.remove(player)
+        playerMixProcessors.remove(player)
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
         player.release()
@@ -4767,6 +4788,7 @@ class MusicService :
     private fun scheduleCrossfade() {
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
+        if (scheduleMix()) return
         if (!crossfadeEnabled || crossfadeDuration <= 0f || player.duration == C.TIME_UNSET || player.duration <= crossfadeDuration) return
         if (crossfadeGapless && isNextItemGapless()) return
         if (!player.hasNextMediaItem() && player.repeatMode != REPEAT_MODE_ONE) return
@@ -4795,7 +4817,7 @@ class MusicService :
         return current.albumTitle != null && current.albumTitle == next.albumTitle
     }
 
-    private fun startCrossfade() {
+    private fun startCrossfade(mix: MixTransition? = null) {
         if (isCrossfading) return
 
         playerNormalizationProcessors.values.forEach { it.enabled = false }
@@ -4814,34 +4836,43 @@ class MusicService :
             }
         if (targetIndex == C.INDEX_UNSET) return
 
-        secondaryPlayer = createExoPlayer()
-        val secPlayer = secondaryPlayer!!
-        secPlayer.addListener(secondaryPlayerListener)
-
-        val itemCount = player.mediaItemCount
-        val items = mutableListOf<MediaItem>()
-        for (i in 0 until itemCount) {
-            items.add(player.getMediaItemAt(i))
+        val prewarmed = secondaryPlayer?.takeIf { mix != null && mixPrewarmKey != null && it.mediaItemCount == player.mediaItemCount }
+        if (prewarmed == null) releaseMixPrewarm()
+        if (prewarmed == null) {
+            secondaryPlayer = createExoPlayer()
+            secondaryPlayer!!.addListener(secondaryPlayerListener)
         }
+        val secPlayer = secondaryPlayer!!
 
-        secPlayer.setMediaItems(items)
-        secPlayer.seekTo(targetIndex, 0)
-        secPlayer.volume = 0f
+        if (prewarmed == null) {
+            val itemCount = player.mediaItemCount
+            val items = mutableListOf<MediaItem>()
+            for (i in 0 until itemCount) {
+                items.add(player.getMediaItemAt(i))
+            }
 
-        secPlayer.repeatMode = savedRepeatMode
-        secPlayer.shuffleModeEnabled = savedShuffleEnabled
+            secPlayer.setMediaItems(items)
+            secPlayer.seekTo(targetIndex, mix?.inStartMs ?: 0)
+            secPlayer.volume = 0f
+
+            secPlayer.repeatMode = savedRepeatMode
+            secPlayer.shuffleModeEnabled = savedShuffleEnabled
+        }
+        mixPrewarmKey = null
 
         try {
-            secPlayer.prepare()
+            if (prewarmed == null) secPlayer.prepare()
             secPlayer.playWhenReady = true
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to prepare secondary player for crossfade")
             playerNormalizationProcessors.remove(secPlayer)
+            playerMixProcessors.remove(secPlayer)
             secPlayer.release()
             secondaryPlayer = null
             return
         }
 
+        pendingMix = mix
         performCrossfadeSwap()
 
         if (savedShuffleEnabled) {
@@ -4901,8 +4932,22 @@ class MusicService :
 
         openAudioEffectSession()
 
+        val mix = pendingMix
+        pendingMix = null
+
         crossfadeJob =
             scope.launch {
+                if (mix != null) {
+                    try {
+                        runMixRamp(mix)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "Mix transition failed")
+                    }
+                    cleanupCrossfade(fadingPlayerSessionId = previousAudioSessionId)
+                    return@launch
+                }
                 val duration = crossfadeDuration.toLong()
                 val steps = 20
                 val stepTime = duration / steps
@@ -4943,8 +4988,157 @@ class MusicService :
             }
     }
 
+    /**
+     * Arms the transition of a mixed playlist for the current track.
+     * @return true when the current track has a saved transition, so the regular crossfade stays out of the way.
+     */
+    private fun scheduleMix(): Boolean {
+        mixTriggerJob?.cancel()
+        mixTriggerJob = null
+        val playlistId = activeMixPlaylistId
+        val current = player.currentMediaItem?.mediaId
+        val nextIndex = player.nextMediaItemIndex
+        val next = if (nextIndex != C.INDEX_UNSET && nextIndex < player.mediaItemCount) player.getMediaItemAt(nextIndex).mediaId else null
+        val mix = if (playlistId != null && current != null && next != null && current != next) MixStore.transition(playlistId, current, next) else null
+        if (mix == null) {
+            if (mixPrewarmKey != null) releaseMixPrewarm()
+            return false
+        }
+        val key = "$playlistId|$current|$next|${mix.inStartMs}"
+        if (mixPrewarmKey != null && mixPrewarmKey != key) releaseMixPrewarm()
+        if (isCrossfading) return true
+        if (player.currentPosition >= mix.outStartMs + 400L) return true
+
+        val timer = sleepTimer
+        mixTriggerJob =
+            scope.launch {
+                while (isActive && player.currentMediaItem?.mediaId == current) {
+                    if (!player.isPlaying) {
+                        delay(250L)
+                        continue
+                    }
+                    val remaining = mix.outStartMs - player.currentPosition
+                    if (remaining <= MIX_PREWARM_MS && secondaryPlayer == null) prewarmMix(mix, nextIndex, key)
+                    if (remaining <= 0L) {
+                        if (timer == null || !timer.pauseWhenSongEnd) startCrossfade(mix)
+                        return@launch
+                    }
+                    delay(if (remaining > 1_500L) 250L else 20L)
+                }
+            }
+        return true
+    }
+
+    /** Starts the incoming track silently and paused at its transition point so it can begin on the beat. */
+    private fun prewarmMix(
+        mix: MixTransition,
+        targetIndex: Int,
+        key: String,
+    ) {
+        if (isCrossfading || secondaryPlayer != null) return
+        val repeat = player.repeatMode
+        val secPlayer = createExoPlayer()
+        secPlayer.addListener(secondaryPlayerListener)
+        val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
+        secPlayer.setMediaItems(items)
+        secPlayer.seekTo(targetIndex, mix.inStartMs)
+        secPlayer.volume = 0f
+        secPlayer.repeatMode = repeat
+        secPlayer.shuffleModeEnabled = player.shuffleModeEnabled
+        secPlayer.playWhenReady = false
+        secPlayer.prepare()
+        secondaryPlayer = secPlayer
+        mixPrewarmKey = key
+    }
+
+    private fun releaseMixPrewarm() {
+        mixPrewarmKey = null
+        if (isCrossfading) return
+        secondaryPlayer?.let {
+            playerNormalizationProcessors.remove(it)
+            playerMixProcessors.remove(it)
+            it.removeListener(secondaryPlayerListener)
+            it.stop()
+            it.clearMediaItems()
+            it.release()
+        }
+        secondaryPlayer = null
+    }
+
+    private suspend fun runMixRamp(mix: MixTransition) {
+        val outgoing = fadingPlayer ?: return
+        val incoming = player
+        val outAnalysis = MixStore.analysisOf(mix.fromId)
+        val inAnalysis = MixStore.analysisOf(mix.toId)
+        val outBpm = outAnalysis?.bpm ?: 0f
+        val inBpm = inAnalysis?.bpm ?: 0f
+        val outProcessor = playerMixProcessors[outgoing]
+        val inProcessor = playerMixProcessors[incoming]
+        val userParams = outgoing.playbackParameters
+        val startVolume = runCatching { outgoing.volume }.getOrDefault(1f).takeIf { it > 0f } ?: 1f
+
+        var duration = mix.durationMs(outBpm)
+        val outDuration = outgoing.duration
+        if (outDuration != C.TIME_UNSET) {
+            duration = minOf(duration, maxOf(600L, outDuration - outgoing.currentPosition - 150L))
+        }
+
+        val loopMs = if (mix.loop.bars > 0f && outAnalysis != null && outAnalysis.bpm > 0f) (mix.loop.bars * outAnalysis.barMs).toLong() else 0L
+        val loopFrom = outgoing.currentPosition
+        val canLoop = loopMs > 200L && (outDuration == C.TIME_UNSET || loopFrom + loopMs < outDuration - 500L)
+        var lastLoopSeek = 0L
+
+        var elapsed = 0L
+        var last = android.os.SystemClock.elapsedRealtime()
+        var lastSpeedOut = 1f
+        var lastSpeedIn = 1f
+        var lastSpeedApply = 0L
+        while (elapsed < duration) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (incoming.isPlaying) elapsed += now - last
+            last = now
+            val progress = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
+            val frame = MixCurves.frame(mix, progress)
+
+            incoming.volume = startVolume * frame.inc.volume
+            outgoing.volume = startVolume * frame.out.volume
+            outProcessor?.apply(frame.out, mix.effect, outAnalysis?.beatMs ?: 0f)
+            inProcessor?.apply(frame.inc, MixEffect.NONE, 0f)
+
+            if (mix.beatmatch && now - lastSpeedApply >= 200L) {
+                val (so, si) = MixCurves.beatmatchSpeeds(mix, progress, outBpm, inBpm)
+                if (kotlin.math.abs(so - lastSpeedOut) >= 0.002f) {
+                    outgoing.playbackParameters = PlaybackParameters(so * userParams.speed, userParams.pitch)
+                    lastSpeedOut = so
+                }
+                if (kotlin.math.abs(si - lastSpeedIn) >= 0.002f) {
+                    incoming.playbackParameters = PlaybackParameters(si * userParams.speed, userParams.pitch)
+                    lastSpeedIn = si
+                }
+                lastSpeedApply = now
+            }
+
+            if (canLoop && outgoing.currentPosition >= loopFrom + loopMs && now - lastLoopSeek > 150L) {
+                outgoing.seekTo(loopFrom)
+                lastLoopSeek = now
+            }
+            delay(16L)
+        }
+
+        runCatching {
+            outgoing.volume = 0f
+            incoming.volume = startVolume
+            incoming.playbackParameters = userParams
+        }
+        outProcessor?.setNeutral()
+        inProcessor?.setNeutral()
+    }
+
     private fun cleanupCrossfade(fadingPlayerSessionId: Int = C.AUDIO_SESSION_ID_UNSET) {
-        fadingPlayer?.let { playerNormalizationProcessors.remove(it) }
+        fadingPlayer?.let {
+            playerNormalizationProcessors.remove(it)
+            playerMixProcessors.remove(it)
+        }
         fadingPlayer?.stop()
         fadingPlayer?.clearMediaItems()
         fadingPlayer?.release()
@@ -4961,6 +5155,7 @@ class MusicService :
     }
 
     companion object {
+        private const val MIX_PREWARM_MS = 6_000L
         const val ACTION_ALARM_TRIGGER = "com.wavlin.music.action.ALARM_TRIGGER"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"

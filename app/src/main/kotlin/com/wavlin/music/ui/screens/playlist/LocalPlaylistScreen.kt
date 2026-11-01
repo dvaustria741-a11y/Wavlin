@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -127,6 +128,7 @@ import com.wavlin.innertube.models.PlaylistItem
 import com.wavlin.innertube.models.SongItem
 import com.wavlin.innertube.utils.completed
 import com.wavlin.music.LocalDatabase
+import com.wavlin.music.mix.MixStore
 import com.wavlin.music.LocalDownloadUtil
 import com.wavlin.music.LocalNavController
 import com.wavlin.music.LocalPlayerAwareWindowInsets
@@ -622,6 +624,43 @@ fun LocalPlaylistScreen(
                         }
                     }
 
+                    item(key = "mix_chip_row") {
+                        val mixedIds by MixStore.mixedPlaylists.collectAsStateWithLifecycle()
+                        val isMixed = viewModel.playlistId in mixedIds
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(screenBaseColor)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    .animateItem(),
+                        ) {
+                            Surface(
+                                onClick = {
+                                    MixStore.setMixed(viewModel.playlistId, true)
+                                    navController.navigate("mix_editor/${viewModel.playlistId}")
+                                },
+                                shape = RoundedCornerShape(50),
+                                color = if (isMixed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                ) {
+                                    Icon(painterResource(R.drawable.graphic_eq), contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.mix), style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                            if (isMixed) {
+                                Spacer(Modifier.width(8.dp))
+                                TextButton(onClick = { MixStore.setMixed(viewModel.playlistId, false) }) {
+                                    Text(stringResource(R.string.mix_unmix))
+                                }
+                            }
+                        }
+                    }
+
                     item(key = "controls_row") {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -788,6 +827,7 @@ fun LocalPlaylistScreen(
                                                         title = playlist!!.playlist.name,
                                                         items = songs.map { it.song.toMediaItem() },
                                                         startIndex = songs.indexOfFirst { it.map.id == song.map.id },
+                                                        mixPlaylistId = playlist!!.playlist.id.takeIf { MixStore.isMixed(it) },
                                                     ),
                                                 )
                                             }
@@ -1804,6 +1844,7 @@ fun LocalPlaylistHeader(
                             ListQueue(
                                 title = playlist.playlist.name,
                                 items = songs.map { it.song.toMediaItem() },
+                                mixPlaylistId = playlist.playlist.id.takeIf { MixStore.isMixed(it) },
                             ),
                         )
                     },

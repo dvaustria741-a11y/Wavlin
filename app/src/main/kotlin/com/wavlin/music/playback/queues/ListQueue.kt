@@ -13,6 +13,8 @@ class ListQueue(
     val items: List<MediaItem>,
     val startIndex: Int = 0,
     val position: Long = 0L,
+    /** Set when the queue is a mixed playlist, so the player applies its saved transitions. */
+    val mixPlaylistId: String? = null,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 

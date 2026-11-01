@@ -157,19 +157,21 @@ fun MixEditorScreen(
                 modifier = Modifier.weight(1f),
             )
             TextButton(
-                enabled = picked.size >= 2 && progress == null,
+                enabled = picked.size >= 2,
                 onClick = {
-                    var made = 0
-                    for (i in 0 until songs.size - 1) {
-                        if (songs[i].map.id !in picked || songs[i + 1].map.id !in picked) continue
-                        val a = analysis[songs[i].song.id]
-                        val b = analysis[songs[i + 1].song.id]
-                        if (a != null && b != null) {
-                            MixStore.saveTransition(playlistId, MixCurves.auto(a, b, a.songId, b.songId))
-                            made++
+                    scope.launch {
+                        var made = 0
+                        for (i in 0 until songs.size - 1) {
+                            if (songs[i].map.id !in picked || songs[i + 1].map.id !in picked) continue
+                            val a = MixAnalyzer.analyze(context, songs[i].song.id)
+                            val b = MixAnalyzer.analyze(context, songs[i + 1].song.id)
+                            if (a != null && b != null) {
+                                MixStore.saveTransition(playlistId, MixCurves.auto(a, b, a.songId, b.songId))
+                                made++
+                            }
                         }
+                        if (made == 0) android.widget.Toast.makeText(context, adjacentMsg, android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    if (made == 0) android.widget.Toast.makeText(context, adjacentMsg, android.widget.Toast.LENGTH_SHORT).show()
                 },
             ) { Text(stringResource(R.string.mix_auto_selected, picked.size)) }
         }
@@ -179,6 +181,15 @@ fun MixEditorScreen(
             }
         }
 
+        val hasAdjacentPair = songs.indices.any { i -> i + 1 < songs.size && songs[i].map.id in picked && songs[i + 1].map.id in picked }
+        if (picked.size >= 2 && !hasAdjacentPair) {
+            Text(
+                adjacentMsg,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+        }
         progress?.let { (i, n) ->
             Text(
                 stringResource(R.string.mix_analyzing, i, n),

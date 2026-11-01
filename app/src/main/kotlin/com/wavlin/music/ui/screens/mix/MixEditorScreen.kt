@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -28,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +107,8 @@ fun MixEditorScreen(
     val transitions by MixStore.transitions.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<Int?>(null) }
     var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var picked by remember { mutableStateOf(setOf<String>()) }
+    val adjacentMsg = stringResource(R.string.mix_select_adjacent)
 
     LaunchedEffect(songs) {
         val missing = songs.map { it.song.id }.distinct().filter { MixStore.analysisOf(it) == null }
@@ -138,7 +142,7 @@ fun MixEditorScreen(
         return
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).statusBarsPadding()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
@@ -153,15 +157,26 @@ fun MixEditorScreen(
                 modifier = Modifier.weight(1f),
             )
             TextButton(
-                enabled = songs.size >= 2 && progress == null,
+                enabled = picked.size >= 2 && progress == null,
                 onClick = {
+                    var made = 0
                     for (i in 0 until songs.size - 1) {
+                        if (songs[i].map.id !in picked || songs[i + 1].map.id !in picked) continue
                         val a = analysis[songs[i].song.id]
                         val b = analysis[songs[i + 1].song.id]
-                        if (a != null && b != null) MixStore.saveTransition(playlistId, MixCurves.auto(a, b, a.songId, b.songId))
+                        if (a != null && b != null) {
+                            MixStore.saveTransition(playlistId, MixCurves.auto(a, b, a.songId, b.songId))
+                            made++
+                        }
                     }
+                    if (made == 0) android.widget.Toast.makeText(context, adjacentMsg, android.widget.Toast.LENGTH_SHORT).show()
                 },
-            ) { Text(stringResource(R.string.mix_auto_all)) }
+            ) { Text(stringResource(R.string.mix_auto_selected, picked.size)) }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { picked = if (picked.size == songs.size) emptySet() else songs.map { it.map.id }.toSet() }) {
+                Text(stringResource(if (picked.size == songs.size && songs.isNotEmpty()) R.string.mix_clear_selection else R.string.mix_select_all))
+            }
         }
 
         progress?.let { (i, n) ->
@@ -182,7 +197,12 @@ fun MixEditorScreen(
 
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(songs, key = { _, s -> s.map.id }) { index, song ->
-                MixSongRow(song, analysis[song.song.id])
+                MixSongRow(
+                    song = song,
+                    analysis = analysis[song.song.id],
+                    checked = song.map.id in picked,
+                    onToggle = { picked = if (song.map.id in picked) picked - song.map.id else picked + song.map.id },
+                )
                 if (index < songs.size - 1) {
                     val next = songs[index + 1]
                     val t = transitions["$playlistId|${song.song.id}|${next.song.id}"]
@@ -199,6 +219,7 @@ fun MixEditorScreen(
                         onClick = {
                             selected = index
                         },
+                        onRemove = if (t != null) ({ MixStore.removeTransition(playlistId, song.song.id, next.song.id) }) else null,
                     )
                 }
             }
@@ -210,11 +231,14 @@ fun MixEditorScreen(
 private fun MixSongRow(
     song: PlaylistSong,
     analysis: MixTrackAnalysis?,
+    checked: Boolean,
+    onToggle: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(start = 8.dp, end = 20.dp, top = 6.dp, bottom = 6.dp),
     ) {
+        Checkbox(checked = checked, onCheckedChange = { onToggle() })
         AsyncImage(
             model = song.song.song.thumbnailUrl,
             contentDescription = null,
@@ -258,8 +282,9 @@ private fun TransitionChip(
     enabled: Boolean,
     highlighted: Boolean,
     onClick: () -> Unit,
+    onRemove: (() -> Unit)? = null,
 ) {
-    Row(Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp, bottom = 2.dp)) {
+    Row(Modifier.fillMaxWidth().padding(start = 64.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Surface(
             onClick = onClick,
             enabled = enabled,
@@ -270,6 +295,11 @@ private fun TransitionChip(
                 Icon(painterResource(R.drawable.graphic_eq), contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(text, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        if (onRemove != null) {
+            IconButton(onClick = onRemove) {
+                Icon(painterResource(R.drawable.close), contentDescription = stringResource(R.string.mix_remove_transition), modifier = Modifier.size(18.dp))
             }
         }
     }

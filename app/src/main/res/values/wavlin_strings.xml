@@ -1321,4 +1321,8 @@
     <string name="mix_unmix">Turn off mixing</string>
     <string name="mix_drag_hint">Drag a waveform to line the songs up</string>
     <string name="mix_bpm">%1$s bpm</string>
+    <string name="mix_auto_selected">Auto mix selected (%1$d)</string>
+    <string name="mix_select_all">Select all</string>
+    <string name="mix_clear_selection">Clear selection</string>
+    <string name="mix_select_adjacent">Pick songs that sit next to each other in the playlist</string>
 </resources>

@@ -107,7 +107,7 @@ fun MixEditorScreen(
     val transitions by MixStore.transitions.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<Int?>(null) }
     var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var picked by remember { mutableStateOf(setOf<String>()) }
+    var picked by remember { mutableStateOf(setOf<Int>()) }
     val adjacentMsg = stringResource(R.string.mix_select_adjacent)
 
     LaunchedEffect(songs) {

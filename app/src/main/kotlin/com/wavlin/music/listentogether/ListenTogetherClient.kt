@@ -1694,6 +1694,24 @@ class ListenTogetherClient
             evaluateBackgroundDisconnectPolicy("leave_room")
         }
 
+        /** Submit an up/down queue vote. Server is responsible for validation and tally. */
+        fun voteQueueTrack(trackId: String, vote: QueueVoteChoice) {
+            if (!isInRoom) return
+            sendMessage(MessageTypes.VOTE_QUEUE_TRACK, QueueVoteRequestPayload(trackId, if (vote == QueueVoteChoice.UP) "up" else "down"))
+        }
+
+        /** Host controls room-wide queue voting. */
+        fun setQueueVotingEnabled(enabled: Boolean) {
+            if (!isHost) return
+            sendMessage(MessageTypes.SET_VOTING, SetVotingPayload(enabled))
+        }
+
+        /** Host closes the current vote and asks the server to select its winner. */
+        fun closeQueueVote() {
+            if (!isHost) return
+            sendMessageNoPayload(MessageTypes.CLOSE_QUEUE_VOTE)
+        }
+
         /**
          * Approve a join request (host only)
          */

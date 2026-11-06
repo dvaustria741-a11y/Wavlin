@@ -29,6 +29,9 @@ object MessageTypes {
     const val SUGGEST_TRACK = "suggest_track"
     const val APPROVE_SUGGESTION = "approve_suggestion"
     const val REJECT_SUGGESTION = "reject_suggestion"
+    const val VOTE_QUEUE_TRACK = "vote_queue_track"
+    const val SET_VOTING = "set_voting"
+    const val CLOSE_QUEUE_VOTE = "close_queue_vote"
 
     // Server -> Client
     const val ROOM_CREATED = "room_created"
@@ -177,6 +180,15 @@ data class TransferHostPayload(
 data class ChatPayload(
     val message: String
 )
+
+@Serializable
+data class QueueVoteRequestPayload(
+    @SerialName("track_id") val trackId: String,
+    val vote: String,
+)
+
+@Serializable
+data class SetVotingPayload(val enabled: Boolean)
 
 // Suggestions payloads
 

@@ -70,6 +70,8 @@ import com.wavlin.music.LocalPlayerConnection
 import com.wavlin.music.R
 import com.wavlin.music.db.entities.PlaylistSong
 import com.wavlin.music.extensions.toMediaItem
+import com.wavlin.music.mix.MixAiAdvisor
+import com.wavlin.music.mix.MixAiPair
 import com.wavlin.music.mix.MixAnalyzer
 import com.wavlin.music.mix.MixCurves
 import com.wavlin.music.mix.MixEffect
@@ -109,6 +111,7 @@ fun MixEditorScreen(
     var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var picked by remember { mutableStateOf(setOf<Int>()) }
     val analyzeFailedMsg = stringResource(R.string.mix_analysis_failed)
+    var aiBusy by remember { mutableStateOf(false) }
 
     LaunchedEffect(songs) {
         val missing = songs.map { it.song.id }.distinct().filter { MixStore.analysisOf(it) == null }
@@ -180,6 +183,42 @@ fun MixEditorScreen(
             TextButton(onClick = { picked = if (picked.size == songs.size) emptySet() else songs.map { it.map.id }.toSet() }) {
                 Text(stringResource(if (picked.size == songs.size && songs.isNotEmpty()) R.string.mix_clear_selection else R.string.mix_select_all))
             }
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                enabled = picked.size >= 2 && !aiBusy,
+                onClick = {
+                    scope.launch {
+                        aiBusy = true
+                        val chain = songs.filter { it.map.id in picked }
+                        val pairs = ArrayList<MixAiPair>()
+                        for (i in 0 until chain.size - 1) {
+                            val a = MixAnalyzer.analyze(context, chain[i].song.id)
+                            val b = MixAnalyzer.analyze(context, chain[i + 1].song.id)
+                            if (a != null && b != null) {
+                                pairs.add(
+                                    MixAiPair(
+                                        chain[i].song.song.title,
+                                        chain[i].song.artists.joinToString { it.name },
+                                        chain[i + 1].song.song.title,
+                                        chain[i + 1].song.artists.joinToString { it.name },
+                                        a,
+                                        b,
+                                    ),
+                                )
+                            }
+                        }
+                        val result = MixAiAdvisor.advise(context, pairs)
+                        result
+                            .onSuccess { list ->
+                                list.forEach { MixStore.saveTransition(playlistId, it) }
+                                android.widget.Toast.makeText(context, context.getString(R.string.mix_ai_done, list.size), android.widget.Toast.LENGTH_SHORT).show()
+                            }.onFailure {
+                                android.widget.Toast.makeText(context, context.getString(R.string.mix_ai_error, it.message.orEmpty()), android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        aiBusy = false
+                    }
+                },
+            ) { Text(stringResource(if (aiBusy) R.string.mix_ai_working else R.string.mix_ai_selected)) }
         }
 
         progress?.let { (i, n) ->

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="queue_vote_up">Vote up</string>
-    <string name="queue_vote_down">Vote down</string>
-    <string name="queue_vote_count">%1$d up · %2$d down</string>
-    <string name="queue_vote_title">Vote for next track</string>
-    <string name="queue_vote_closed">Voting closed</string>
-    <string name="queue_vote_empty">No votes yet</string>
-</resources>

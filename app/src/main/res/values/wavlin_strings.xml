@@ -1325,4 +1325,11 @@
     <string name="mix_select_all">Select all</string>
     <string name="mix_clear_selection">Clear selection</string>
     <string name="mix_select_adjacent">Pick songs that sit next to each other in the playlist</string>
+    <!-- Listen Together queue voting -->
+    <string name="queue_vote_up">Vote up</string>
+    <string name="queue_vote_down">Vote down</string>
+    <string name="queue_vote_count">%1$d up · %2$d down</string>
+    <string name="queue_vote_title">Vote for next track</string>
+    <string name="queue_vote_closed">Voting closed</string>
+    <string name="queue_vote_empty">No votes yet</string>
 </resources>

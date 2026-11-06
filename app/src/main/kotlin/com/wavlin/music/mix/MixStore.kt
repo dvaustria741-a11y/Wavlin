@@ -88,12 +88,25 @@ object MixStore {
         return _transitions.value[key(playlistId, fromId, toId)]
     }
 
+    /** The transition that leaves [fromId] in this playlist, even when its target is not the next song in the list. */
+    fun transitionFrom(
+        playlistId: String,
+        fromId: String,
+    ): MixTransition? {
+        if (playlistId == PREVIEW_PLAYLIST_ID) return preview?.takeIf { it.fromId == fromId }
+        val prefix = "$playlistId|$fromId|"
+        return _transitions.value.entries.firstOrNull { it.key.startsWith(prefix) }?.value
+    }
+
+    /** A song has a single outgoing transition per playlist, so saving replaces any earlier target. */
     fun saveTransition(
         playlistId: String,
         transition: MixTransition,
     ) {
         synchronized(lock) {
-            _transitions.value = _transitions.value + (key(playlistId, transition.fromId, transition.toId) to transition)
+            val prefix = "$playlistId|${transition.fromId}|"
+            val kept = _transitions.value.filterKeys { !it.startsWith(prefix) }
+            _transitions.value = kept + (key(playlistId, transition.fromId, transition.toId) to transition)
             saveState()
         }
     }

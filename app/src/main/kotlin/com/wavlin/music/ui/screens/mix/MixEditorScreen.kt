@@ -105,10 +105,10 @@ fun MixEditorScreen(
     val songs by database.playlistSongs(playlistId).collectAsStateWithLifecycle(initialValue = emptyList())
     val analysis by MixStore.analysis.collectAsStateWithLifecycle()
     val transitions by MixStore.transitions.collectAsStateWithLifecycle()
-    var selected by remember { mutableStateOf<Int?>(null) }
+    var selected by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var picked by remember { mutableStateOf(setOf<Int>()) }
-    val adjacentMsg = stringResource(R.string.mix_select_adjacent)
+    val analyzeFailedMsg = stringResource(R.string.mix_analysis_failed)
 
     LaunchedEffect(songs) {
         val missing = songs.map { it.song.id }.distinct().filter { MixStore.analysisOf(it) == null }
@@ -120,9 +120,9 @@ fun MixEditorScreen(
     }
 
     val pair = selected
-    if (pair != null && pair + 1 < songs.size) {
-        val from = songs[pair]
-        val to = songs[pair + 1]
+    if (pair != null && pair.first < songs.size && pair.second < songs.size) {
+        val from = songs[pair.first]
+        val to = songs[pair.second]
         TransitionEditor(
             from = from,
             to = to,
@@ -160,17 +160,18 @@ fun MixEditorScreen(
                 enabled = picked.size >= 2,
                 onClick = {
                     scope.launch {
-                        var made = 0
-                        for (i in 0 until songs.size - 1) {
-                            if (songs[i].map.id !in picked || songs[i + 1].map.id !in picked) continue
-                            val a = MixAnalyzer.analyze(context, songs[i].song.id)
-                            val b = MixAnalyzer.analyze(context, songs[i + 1].song.id)
+                        val chain = songs.filter { it.map.id in picked }
+                        var failed = false
+                        for (i in 0 until chain.size - 1) {
+                            val a = MixAnalyzer.analyze(context, chain[i].song.id)
+                            val b = MixAnalyzer.analyze(context, chain[i + 1].song.id)
                             if (a != null && b != null) {
                                 MixStore.saveTransition(playlistId, MixCurves.auto(a, b, a.songId, b.songId))
-                                made++
+                            } else {
+                                failed = true
                             }
                         }
-                        if (made == 0) android.widget.Toast.makeText(context, adjacentMsg, android.widget.Toast.LENGTH_SHORT).show()
+                        if (failed) android.widget.Toast.makeText(context, analyzeFailedMsg, android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
             ) { Text(stringResource(R.string.mix_auto_selected, picked.size)) }
@@ -181,15 +182,6 @@ fun MixEditorScreen(
             }
         }
 
-        val hasAdjacentPair = songs.indices.any { i -> i + 1 < songs.size && songs[i].map.id in picked && songs[i + 1].map.id in picked }
-        if (picked.size >= 2 && !hasAdjacentPair) {
-            Text(
-                adjacentMsg,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-        }
         progress?.let { (i, n) ->
             Text(
                 stringResource(R.string.mix_analyzing, i, n),
@@ -214,21 +206,25 @@ fun MixEditorScreen(
                     checked = song.map.id in picked,
                     onToggle = { picked = if (song.map.id in picked) picked - song.map.id else picked + song.map.id },
                 )
-                if (index < songs.size - 1) {
-                    val next = songs[index + 1]
-                    val t = transitions["$playlistId|${song.song.id}|${next.song.id}"]
+                val t = transitions.entries.firstOrNull { it.key.startsWith("$playlistId|${song.song.id}|") }?.value
+                val targetIndex =
+                    if (t != null) songs.indexOfFirst { it.song.id == t.toId }.takeIf { it > index } ?: (index + 1) else index + 1
+                if (targetIndex < songs.size && (index < songs.size - 1)) {
+                    val next = songs[targetIndex]
                     val ready = analysis[song.song.id] != null && analysis[next.song.id] != null
                     TransitionChip(
                         text =
                             if (t == null) {
                                 stringResource(R.string.mix_transition_none)
-                            } else {
+                            } else if (targetIndex == index + 1) {
                                 stringResource(R.string.mix_transition_set, presetLabel(t.preset), t.bars)
+                            } else {
+                                stringResource(R.string.mix_transition_target, presetLabel(t.preset), t.bars, next.song.song.title)
                             },
                         enabled = ready,
                         highlighted = t != null,
                         onClick = {
-                            selected = index
+                            selected = index to targetIndex
                         },
                         onRemove = if (t != null) ({ MixStore.removeTransition(playlistId, song.song.id, next.song.id) }) else null,
                     )

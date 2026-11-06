@@ -4817,7 +4817,10 @@ class MusicService :
         return current.albumTitle != null && current.albumTitle == next.albumTitle
     }
 
-    private fun startCrossfade(mix: MixTransition? = null) {
+    private fun startCrossfade(
+        mix: MixTransition? = null,
+        mixTargetIndex: Int = C.INDEX_UNSET,
+    ) {
         if (isCrossfading) return
 
         playerNormalizationProcessors.values.forEach { it.enabled = false }
@@ -4829,7 +4832,9 @@ class MusicService :
 
         // For repeat-one, crossfade back into the same track
         val targetIndex =
-            if (savedRepeatMode == REPEAT_MODE_ONE) {
+            if (mix != null && mixTargetIndex != C.INDEX_UNSET) {
+                mixTargetIndex
+            } else if (savedRepeatMode == REPEAT_MODE_ONE) {
                 player.currentMediaItemIndex
             } else {
                 player.nextMediaItemIndex
@@ -4997,17 +5002,41 @@ class MusicService :
         mixTriggerJob = null
         val playlistId = activeMixPlaylistId
         val current = player.currentMediaItem?.mediaId
-        val nextIndex = player.nextMediaItemIndex
-        val next = if (nextIndex != C.INDEX_UNSET && nextIndex < player.mediaItemCount) player.getMediaItemAt(nextIndex).mediaId else null
-        val mix = if (playlistId != null && current != null && next != null && current != next) MixStore.transition(playlistId, current, next) else null
-        if (mix == null) {
-            if (mixPrewarmKey != null) releaseMixPrewarm()
-            return false
+        var targetIndex = C.INDEX_UNSET
+        var mix: MixTransition? = null
+        if (playlistId != null && current != null) {
+            if (player.shuffleModeEnabled) {
+                val nextIndex = player.nextMediaItemIndex
+                if (nextIndex != C.INDEX_UNSET && nextIndex < player.mediaItemCount) {
+                    val nextId = player.getMediaItemAt(nextIndex).mediaId
+                    if (nextId != current) {
+                        mix = MixStore.transition(playlistId, current, nextId)
+                        targetIndex = nextIndex
+                    }
+                }
+            } else {
+                // The target may sit further down the list; the songs in between are skipped when the mix fires.
+                val candidate = MixStore.transitionFrom(playlistId, current)
+                if (candidate != null && candidate.toId != current) {
+                    for (i in player.currentMediaItemIndex + 1 until player.mediaItemCount) {
+                        if (player.getMediaItemAt(i).mediaId == candidate.toId) {
+                            mix = candidate
+                            targetIndex = i
+                            break
+                        }
+                    }
+                }
+            }
         }
-        val key = "$playlistId|$current|$next|${mix.inStartMs}"
+        val mixT: MixTransition =
+            mix ?: run {
+                if (mixPrewarmKey != null) releaseMixPrewarm()
+                return false
+            }
+        val key = "$playlistId|$current|$targetIndex|${mixT.inStartMs}"
         if (mixPrewarmKey != null && mixPrewarmKey != key) releaseMixPrewarm()
         if (isCrossfading) return true
-        if (player.currentPosition >= mix.outStartMs + 400L) return true
+        if (player.currentPosition >= mixT.outStartMs + 400L) return true
 
         val timer = sleepTimer
         mixTriggerJob =
@@ -5017,10 +5046,10 @@ class MusicService :
                         delay(250L)
                         continue
                     }
-                    val remaining = mix.outStartMs - player.currentPosition
-                    if (remaining <= MIX_PREWARM_MS && secondaryPlayer == null) prewarmMix(mix, nextIndex, key)
+                    val remaining = mixT.outStartMs - player.currentPosition
+                    if (remaining <= MIX_PREWARM_MS && secondaryPlayer == null) prewarmMix(mixT, targetIndex, key)
                     if (remaining <= 0L) {
-                        if (timer == null || !timer.pauseWhenSongEnd) startCrossfade(mix)
+                        if (timer == null || !timer.pauseWhenSongEnd) startCrossfade(mixT, targetIndex)
                         return@launch
                     }
                     delay(if (remaining > 1_500L) 250L else 20L)

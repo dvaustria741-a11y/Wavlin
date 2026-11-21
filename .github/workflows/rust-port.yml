@@ -1,0 +1,21 @@
+name: Rust port
+
+on:
+  push:
+    branches: [rust-port]
+    paths:
+      - "rust/**"
+      - ".github/workflows/rust-port.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --workspace --all-targets
+      - run: cargo test --workspace

@@ -1,0 +1,14 @@
+Rust port of Wavlin, tracked module by module. The Kotlin sources stay untouched on this branch.
+
+Ported (rust/crates, 35 unit and local-socket tests):
+  lrclib   -> wavlin-lrclib
+  kugou    -> wavlin-kugou
+  lastfm   -> wavlin-lastfm
+  deezer   -> wavlin-deezer
+
+Not ported yet:
+  innertube (11.8k lines), betterlyrics, paxsenix, shazamkit, metroproto, worker
+  app (143k lines: Compose UI, Media3 playback, Room database, services, settings)
+
+Known deviations are documented at the top of each crate's lib.rs.
+Network paths were exercised only against local mock sockets, never against the live services.

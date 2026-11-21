@@ -35,6 +35,8 @@ val LocalInterfaceAppleMusic = staticCompositionLocalOf { false }
 val LocalGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
 /** Source layer for glass drawn on top of the expanded player (its blurred artwork background). Null unless Apple style is on. */
+private const val EXPERIMENT_GLASS_OFF = true
+
 val LocalPlayerGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
 /** Lens refraction runs on a RuntimeShader (AGSL), which needs Android 13+. Older devices fall back to Haze. */
@@ -59,6 +61,8 @@ fun Modifier.appleGlass(
     val pink = LocalPinkLilyTheme.current
     val tint = tintAlpha ?: if (pink) 0.38f else if (isDark) 0.22f else 0.28f
     val tintColor = if (pink) PinkGlassTint else if (isDark) Color.Black else Color.White
+    // EXPERIMENT (not for merge): no backdrop sampling at all, only the tint, to see if glass is the frame cost.
+    if (EXPERIMENT_GLASS_OFF) return this.background(tintColor.copy(alpha = tint), shape)
     if (backdrop == null || !appleGlassSupported()) {
         // No sampleable backdrop (inside screen content, or pre-Android 13): Haze blur with the same tint.
         return this

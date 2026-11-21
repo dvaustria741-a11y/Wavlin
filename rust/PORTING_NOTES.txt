@@ -1,10 +1,11 @@
 Rust port of Wavlin, tracked module by module. The Kotlin sources stay untouched on this branch.
 
-Ported (rust/crates, 35 unit and local-socket tests):
+Ported (rust/crates, 47 unit and local-socket tests):
   lrclib   -> wavlin-lrclib
   kugou    -> wavlin-kugou
   lastfm   -> wavlin-lastfm
   deezer   -> wavlin-deezer
+  ui-style -> wavlin-ui-style (pure parts of AppleGlass.kt, GlassEffect.kt, PlayerColorExtractor.kt; not wired into the app)
 
 Not ported yet:
   innertube (11.8k lines), betterlyrics, paxsenix, shazamkit, metroproto, worker

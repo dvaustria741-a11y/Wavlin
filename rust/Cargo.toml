@@ -5,6 +5,7 @@ members = [
     "crates/kugou",
     "crates/lastfm",
     "crates/deezer",
+    "crates/ui-style",
 ]
 
 [workspace.package]

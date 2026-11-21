@@ -6,6 +6,7 @@ members = [
     "crates/lastfm",
     "crates/deezer",
     "crates/ui-style",
+    "crates/glass-render",
 ]
 
 [workspace.package]

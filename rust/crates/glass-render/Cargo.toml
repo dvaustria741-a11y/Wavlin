@@ -1,0 +1,16 @@
+[package]
+name = "wavlin-glass-render"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "wgpu port of the Kyant backdrop glass pipeline (vibrancy, colour controls, blur, lens, highlight, shadow) as used by Wavlin's appleGlass"
+
+[dependencies]
+wgpu = "22"
+bytemuck = { version = "1.14", features = ["derive"] }
+thiserror = { workspace = true }
+wavlin-ui-style = { path = "../ui-style" }
+
+[dev-dependencies]
+naga = { version = "22", features = ["wgsl-in"] }
+pollster = "0.3"

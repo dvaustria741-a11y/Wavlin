@@ -7,6 +7,11 @@ Ported (rust/crates, 47 unit and local-socket tests):
   deezer   -> wavlin-deezer
   ui-style -> wavlin-ui-style (pure parts of AppleGlass.kt, GlassEffect.kt, PlayerColorExtractor.kt; not wired into the app)
 
+  glass-render -> wavlin-glass-render (wgpu port of the Kyant backdrop 2.0.1 pipeline used by appleGlass:
+                  colour filters, Gaussian blur, lens refraction, default highlight and shadow; WGSL validated
+                  with naga, GPU output compared with a CPU reference on a software Vulkan device; not wired
+                  into the Android app, no surface or Compose integration)
+
 Not ported yet:
   innertube (11.8k lines), betterlyrics, paxsenix, shazamkit, metroproto, worker
   app (143k lines: Compose UI, Media3 playback, Room database, services, settings)

@@ -1,0 +1,9 @@
+wavlin-glass-render contains a port to WGSL and Rust of parts of Kyant backdrop 2.0.1
+(https://github.com/Kyant0/AndroidLiquidGlass, tag 2.0.1), Copyright 2025 Kyant, licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Ported: the rounded-rectangle SDF, refraction ("lens") shaders with and without dispersion, the
+default highlight shader, ColorFilter.kt colour-controls matrix, and the default Highlight and
+Shadow values. Changes: rewritten in WGSL/Rust for wgpu; blur runs on a downsampled copy; shadow and
+highlight blur use an analytic Gaussian edge; radiusAt takes the centred coordinate (an upstream fix
+made after 2.0.1).

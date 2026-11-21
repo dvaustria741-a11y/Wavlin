@@ -1801,6 +1801,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "wavlin-player-render"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "naga",
+ "pollster",
+ "thiserror",
+ "wavlin-glass-render",
+ "wavlin-ui-style",
+ "wgpu",
+]
+
+[[package]]
 name = "wavlin-ui-style"
 version = "0.1.0"
 

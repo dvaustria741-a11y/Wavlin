@@ -12,7 +12,7 @@ pub mod math;
 pub mod shaders;
 pub mod spec;
 
-pub use gpu::{GlassError, GlassRenderer, MAX_PANELS};
+pub use gpu::{clamp_linear_sampler, BackdropFilter, GlassError, GlassRenderer, MAX_PANELS};
 pub use spec::{
     BackdropSpec, FrameSpec, HighlightSpec, HighlightStyleSpec, LensSpec, PanelSpec, ShadowSpec,
 };

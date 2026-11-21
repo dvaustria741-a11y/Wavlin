@@ -11,6 +11,10 @@ Ported (rust/crates, 47 unit and local-socket tests):
                   colour filters, Gaussian blur, lens refraction, default highlight and shadow; WGSL validated
                   with naga, GPU output compared with a CPU reference on a software Vulkan device; not wired
                   into the Android app, no surface or Compose integration)
+  player-render -> wavlin-player-render (Player.kt background: Blur style via DownscaledBlurBox 150dp dark / 100dp light,
+                  factor 8, 0.3 black overlay; Gradient style with the Kotlin stop rules, 0.2 black overlay; group
+                  alpha; 800 ms cross-fade easing; feeds the glass renderer. Not ported: text, controls, artwork
+                  card, video canvas, Android surface / JNI wiring)
 
 Not ported yet:
   innertube (11.8k lines), betterlyrics, paxsenix, shazamkit, metroproto, worker

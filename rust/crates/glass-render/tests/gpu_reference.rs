@@ -59,7 +59,7 @@ fn render(device: &wgpu::Device, queue: &wgpu::Queue, backdrop_px: &[u8], frame:
 
     let mut renderer = GlassRenderer::new(device, wgpu::TextureFormat::Rgba8Unorm);
     let mut encoder = device.create_command_encoder(&Default::default());
-    renderer.render(device, queue, &mut encoder, &bview, (W, H), &tview, (W, H), frame).expect("render");
+    renderer.render(device, &mut encoder, &bview, (W, H), &tview, (W, H), frame).expect("render");
 
     let buf = device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
